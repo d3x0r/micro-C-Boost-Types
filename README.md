@@ -51,3 +51,25 @@ http://sack.sf.net
   - [Fraction](http://sack.sourceforge.net/sack__math__fraction.html)
   - [Vector](http://sack.sourceforge.net/sack__math__vector.html)
   
+
+## Behavior
+
+The default allocator is malloc/free.  There is, additionally, an option added to disable mmap.  There
+is a custom allocator which offers additonal protection on blocks, including scanning all blocks for over/underflow.  A list
+of all blocks may be dumped (see memory document above), options can be enabled either way to allow memory allocation logging.
+This tracks back to the original sources' (if _DEBUG or _DEBUG_INFO are defined) file and line number.
+
+This uses a single locking primitive that's a `lock: xchg`; if compiled with GCC prefers the comipler intrinsics for these 
+operations.  Uses windows `InterlockedExchanged()` function.
+
+PLIST, PLINKQUEUE are strongly threadsafe by default.  All other containers are also thread safe, but are not worthy of comment.
+The actual point is that PLIST and PLINKQUEUE types are optimally thread safe even when interacting on the same list or queue.
+
+
+
+## Compile Time Options 
+
+To Be Documented.
+
+The default options for the above are conservative, but there may be more suitable options available at the low levels.
+
