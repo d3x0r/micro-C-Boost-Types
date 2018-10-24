@@ -12,6 +12,14 @@ This is a C file, but if the .h is included as C++ then namespaces will
 be used, and the .c file should be renamed as .cc/.cpp/... or compiler option
 otherwise forced to C++.
 
+## Other amalgamations
+ - [Minimal; just types](https://github.com/d3x0r/micro-C-Boost-Types)
+ - [System(Tasks) and File System](https://github.com/d3x0r/micro-C-Boost-FileSystem)
+ - [Netowrking](https://github.com/d3x0r/micro-C-Boost-Network)
+ - [Full Core](https://github.com/d3x0r/micro-C-Boost-Core)
+
+## Source List
+
 ```
 @set SRCS= %SRCS%   ../../src/typelib/typecode.c 
 @set SRCS= %SRCS%   ../../src/typelib/text.c 
@@ -26,6 +34,15 @@ otherwise forced to C++.
 
 // this requires file system fixes 
 @set SRCS= %SRCS%   ../../src/vectlib/vectlib.c
+
+: These only required core containers and memory. 
+: JSON Parser (no extensions)
+@set SRCS= %SRCS%   ../../src/netlib/html5.websocket/json/json.c
+: JSON6 Parser (JSON compatible parser plus additional keywords, quoting options, comments,... )
+@set SRCS= %SRCS%   ../../src/netlib/html5.websocket/json/json6.c
+: JSOX Parser (JSON/JSON6 compatible parser plus better typed data transport and revive with a class constructor)
+@set SRCS= %SRCS%   ../../src/netlib/html5.websocket/json/jsox.c
+
 
 ```
 
