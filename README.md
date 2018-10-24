@@ -47,6 +47,10 @@ http://sack.sf.net
   - [sets](http://sack.sourceforge.net/sack__containers__sets.html) - A fixed length slab of data structure which are tracked by a bit field of allocated/free members in the set.
   - [Binary tree](http://sack.sourceforge.net/sack__containers__BinaryTree.html) - binary tree using 'set's of nodes that contain pointers to userdata and userkey information.
   - [Text](http://sack.sourceforge.net/sack__containers__text.html) - a type abstraction for tracking strings as linked list of segments... include language text parser for getting phrases and words from other text.
+     - JSON/JSON6 Parsers
+     - [JSOX](https://github.com/d3x0r/jsox) 
+     - [Sample Code](https://github.com/d3x0r/SACK/blob/master/amalgamate/jsox/jsox_parser.c)
+     - json_ and json6_ libraries work similarly to jsox_, only the prefixes are changed; and the enum used for the value_container type.
   - Url parsing and building (something like github.com/d3x0r/sack/include/url.h)
 - [text](http://sack.sourceforge.net/sack__containers__text.html)
 - [Math](http://sack.sourceforge.net/sack__math.html)
