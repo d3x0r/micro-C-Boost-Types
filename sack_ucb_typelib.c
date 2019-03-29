@@ -1,3 +1,7 @@
+#ifdef _MSC_VER
+// because snprintf IS secure; and _snprintf doesn't help.
+#  define _CRT_SECURE_NO_WARNINGS
+#endif
 #define NO_OPEN_MACRO
 //#define __NO_MMAP__
 #define __STATIC__
@@ -36,6 +40,11 @@
 #endif
 #ifndef WINVER
 #  define WINVER 0x0601
+#endif
+#ifndef _WIN32
+#  ifndef __LINUX__
+#    define __LINUX__
+#  endif
 #endif
 #if !defined(__LINUX__)
 #  ifndef STRICT
@@ -1833,6 +1842,7 @@ TYPELIB_PROC  void TYPELIB_CALLTYPE         EmptyList      ( PLIST *pList );
    gave up doing this sort of thing afterwards after realizing
    the methods of a library and these static methods for a class
    aren't much different.                                        */
+#  if defined( INCLUDE_SAMPLE_CPLUSPLUS_WRAPPERS )
 typedef class iList
 {
 public:
@@ -1847,6 +1857,7 @@ public:
 	inline POINTER next( void ) { POINTER p; for( idx++;list && (( p = GetLink( &list, idx ) )==0) && idx < list->Cnt; )idx++; return p; }
 	inline POINTER get(INDEX index) { return GetLink( &list, index ); }
 } *piList;
+#  endif
 #endif
 // address of the thing...
 typedef uintptr_t (CPROC *ForProc)( uintptr_t user, INDEX idx, POINTER *item );
@@ -3567,8 +3578,23 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  FlattenLine ( PTEXT pLine );
 /* Create a highest precision signed integer from a PTEXT. */
 TYPELIB_PROC  int64_t TYPELIB_CALLTYPE  IntCreateFromSeg( PTEXT pText );
 /* Converts a text to the longest precision signed integer
-   value.                                                  */
+   value.
+     allows +/- leadin ([-*]|[+*])*
+     supports 0x### (hex), 0b#### (binary), 0o#### (octal), 0### (octal)
+	 decimal 1-9[0-9]*
+	 buggy implementation supports +/- inline continue number and are either ignored(+)
+	 or changes the overall sign of the number(-).  A Decimal definatly ends the number.
+	 And octal/binary digits aren't checked for range, so 8/9 will over-flow in octal,
+	 and 2-9 overflow to upper bits in octal...
+	    0b901090 // would be like   0b 10100110    0b1001 +  010 + 1001<<3 + 0
+   */
 TYPELIB_PROC  int64_t TYPELIB_CALLTYPE  IntCreateFromText( CTEXTSTR p );
+/* Converts a text to the longest precision signed integer
+   value.  Does the work of IntCreateFromText.
+   IntCreateFromTextRef updates the pointer passed by reference so
+   the pointer ends at the first character after the returned number.
+   */
+TYPELIB_PROC  int64_t TYPELIB_CALLTYPE  IntCreateFromTextRef( CTEXTSTR *p_ );
 /* Create a high precision floating point value from PTEXT
    segment.                                                */
 TYPELIB_PROC  double TYPELIB_CALLTYPE  FloatCreateFromSeg( PTEXT pText );
@@ -3969,12 +3995,12 @@ TYPELIB_PROC  INDEX TYPELIB_CALLTYPE  vvtprintf( PVARTEXT pvt, CTEXTSTR format, 
 /* encode binary buffer into base64 encoding.
    outsize is updated with the length of the buffer.
  */
-TYPELIB_PROC  TEXTCHAR * TYPELIB_CALLTYPE  EncodeBase64Ex( uint8_t* buf, size_t length, size_t *outsize, const char *encoding );
+TYPELIB_PROC  TEXTCHAR * TYPELIB_CALLTYPE  EncodeBase64Ex( const uint8_t* buf, size_t length, size_t *outsize, const char *encoding );
 /* decode base64 buffer into binary buffer
    outsize is updated with the length of the buffer.
    result should be Release()'d
  */
-TYPELIB_PROC  uint8_t * TYPELIB_CALLTYPE  DecodeBase64Ex( char* buf, size_t length, size_t *outsize, const char *encoding );
+TYPELIB_PROC  uint8_t * TYPELIB_CALLTYPE  DecodeBase64Ex( const char* buf, size_t length, size_t *outsize, const char *encoding );
 /* xor a base64 encoded string over a utf8 string, keeping the utf8 characters in the same length...
    although technically this can result in invalid character encoding where upper bits get zeroed
    result should be Release()'d
@@ -3988,8 +4014,8 @@ TYPELIB_PROC  char * TYPELIB_CALLTYPE  b64xor( const char *a, const char *b );
 // extended command entry stuff... handles editing buffers with insert/overwrite/copy/paste/etc...
 typedef struct user_input_buffer_tag {
 	// -------------------- custom cmd buffer extension
-  // position counter for pulling history
-	INDEX nHistory;
+  // position counter for pulling history; negative indexes are recalled commands.
+	int nHistory;
   // a link queue which contains the prior lines of text entered for commands.
 	PLINKQUEUE InputHistory;
  // set to TRUE when nHistory has wrapped...
@@ -4738,6 +4764,40 @@ SYSLOG_SOCKET_SYSLOGD
 SYSLOG_PROC  LOGICAL SYSLOG_API  IsBadReadPtr ( CPOINTER pointer, uintptr_t len );
 #endif
 SYSLOG_PROC  CTEXTSTR SYSLOG_API  GetPackedTime ( void );
+//  returns the millisecond of the day (since UNIX Epoch) * 256 ( << 8 )
+// the lowest 8 bits are the timezone / 15.
+// The effect of the low [7/]8 bits being the time zone is that within the same millisecond
+// UTC +0 sorts first, followed by +1, +2, ... etc until -14, -13, -12,... -1
+// the low [7/]8 bits are the signed timezone
+// (timezone could have been either be hr*60 + min (ISO TZ format)
+// or in minutes (hr*60+mn) this would only take 7 bits
+// one would think 8 bit shifts would be slightly more efficient than 7 bits.
+// and sign extension for 8 bits already exists.
+// - REVISION - timezone with hr*100 does not divide by 15 cleanly.
+//     The timezone is ( hour*60 + min ) / 15 which is a range from -56 to 48
+//     minimal representation is 7 bits (0 - 127 or -64 - 63)
+//     still keeping 8 bits for shifting, so the effective range is only -56 to 48 of -128 to 127
+// struct time_of_day {
+//    uint64_t epoch_milliseconds : 56;
+//    int64_t timezone : 8; divided by 15... hours * 60 / 15
+// }
+SYSLOG_PROC  int64_t SYSLOG_API GetTimeOfDay( void );
+// binary little endian order; somewhat
+typedef struct sack_expanded_time_tag
+{
+	uint16_t ms;
+	uint8_t sc,mn,hr,dy,mo;
+	uint16_t yr;
+	int8_t zhr, zmn;
+} SACK_TIME;
+typedef struct sack_expanded_time_tag *PSACK_TIME;
+// convert a integer time value to an expanded structure.
+SYSLOG_PROC void     SYSLOG_API ConvertTickToTime( int64_t, PSACK_TIME st );
+// convert a expanded time structure to a integer value.
+SYSLOG_PROC int64_t SYSLOG_API ConvertTimeToTick( PSACK_TIME st );
+// returns timezone as hours*100 + minutes.
+// result is often negated?
+SYSLOG_PROC  int SYSLOG_API GetTimeZone(void);
 //
 typedef void (CPROC*UserLoggingCallback)( CTEXTSTR log_string );
 SYSLOG_PROC  void SYSLOG_API  SetSystemLog ( enum syslog_types type, const void *data );
@@ -5393,6 +5453,12 @@ typedef struct win_sockaddr_in SOCKADDR_IN;
 #undef StrRChr
 #undef StrStr
 #endif
+#if defined( __MAC__ )
+#  define strdup(s) StrDup(s)
+#  define strdup_free(s) Release(s)
+#else
+#  define strdup_free(s) free(s)
+#endif
 #ifdef __cplusplus
 #define SACK_MEMORY_NAMESPACE SACK_NAMESPACE namespace memory {
 #define SACK_MEMORY_NAMESPACE_END } SACK_NAMESPACE_END
@@ -5969,11 +6035,11 @@ MEM_PROC  uint64_t MEM_API  LockedExchange64 ( volatile uint64_t* p, uint64_t va
 /* A multi-processor safe increment of a variable.
    Parameters
    p :  pointer to a 32 bit value to increment.    */
-MEM_PROC  uint32_t MEM_API  LockedIncrement ( uint32_t* p );
+MEM_PROC  uint32_t MEM_API  LockedIncrement ( volatile uint32_t* p );
 /* Does a multi-processor safe decrement on a variable.
    Parameters
    p :  pointer to a 32 bit value to decrement.         */
-MEM_PROC  uint32_t MEM_API  LockedDecrement ( uint32_t* p );
+MEM_PROC  uint32_t MEM_API  LockedDecrement ( volatile uint32_t* p );
 #ifdef __cplusplus
 // like also __if_assembly__
 //extern "C" {
@@ -6360,10 +6426,17 @@ inline void operator delete (void * p)
 #endif
 // this is a method replacement to use PIPEs instead of SEMAPHORES
 // replacement code only affects linux.
-#if defined( __QNX__ ) || defined( __MAC__) || defined( __LINUX__ ) || defined( __ANDROID__ )
-#  define USE_PIPE_SEMS
+#if defined( __QNX__ ) || defined( __MAC__) || defined( __LINUX__ )
+#  if defined( __ANDROID__ ) || defined( EMSCRIPTEN ) || defined( __MAC__ )
+// android > 21 can use pthread_mutex_timedop
+#    define USE_PIPE_SEMS
+#  else
+//   Default behavior is to use pthread_mutex_timedlock for wakeable sleeps.
 // no semtimedop; no semctl, etc
-//#include <sys/sem.h>
+//#    include <sys/sem.h>
+//originally used semctl; but that consumes system resources that are not
+//cleaned up when the process exits.
+#endif
 #endif
 #ifdef USE_PIPE_SEMS
 #  define _NO_SEMTIMEDOP_
@@ -7071,6 +7144,11 @@ namespace sack {
 #ifndef WINVER
 #  define WINVER 0x0601
 #endif
+#ifndef _WIN32
+#  ifndef __LINUX__
+#    define __LINUX__
+#  endif
+#endif
 #if !defined(__LINUX__)
 #  ifndef STRICT
 #    define STRICT
@@ -8868,6 +8946,7 @@ TYPELIB_PROC  void TYPELIB_CALLTYPE         EmptyList      ( PLIST *pList );
    gave up doing this sort of thing afterwards after realizing
    the methods of a library and these static methods for a class
    aren't much different.                                        */
+#  if defined( INCLUDE_SAMPLE_CPLUSPLUS_WRAPPERS )
 typedef class iList
 {
 public:
@@ -8882,6 +8961,7 @@ public:
 	inline POINTER next( void ) { POINTER p; for( idx++;list && (( p = GetLink( &list, idx ) )==0) && idx < list->Cnt; )idx++; return p; }
 	inline POINTER get(INDEX index) { return GetLink( &list, index ); }
 } *piList;
+#  endif
 #endif
 // address of the thing...
 typedef uintptr_t (CPROC *ForProc)( uintptr_t user, INDEX idx, POINTER *item );
@@ -10602,8 +10682,23 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  FlattenLine ( PTEXT pLine );
 /* Create a highest precision signed integer from a PTEXT. */
 TYPELIB_PROC  int64_t TYPELIB_CALLTYPE  IntCreateFromSeg( PTEXT pText );
 /* Converts a text to the longest precision signed integer
-   value.                                                  */
+   value.
+     allows +/- leadin ([-*]|[+*])*
+     supports 0x### (hex), 0b#### (binary), 0o#### (octal), 0### (octal)
+	 decimal 1-9[0-9]*
+	 buggy implementation supports +/- inline continue number and are either ignored(+)
+	 or changes the overall sign of the number(-).  A Decimal definatly ends the number.
+	 And octal/binary digits aren't checked for range, so 8/9 will over-flow in octal,
+	 and 2-9 overflow to upper bits in octal...
+	    0b901090 // would be like   0b 10100110    0b1001 +  010 + 1001<<3 + 0
+   */
 TYPELIB_PROC  int64_t TYPELIB_CALLTYPE  IntCreateFromText( CTEXTSTR p );
+/* Converts a text to the longest precision signed integer
+   value.  Does the work of IntCreateFromText.
+   IntCreateFromTextRef updates the pointer passed by reference so
+   the pointer ends at the first character after the returned number.
+   */
+TYPELIB_PROC  int64_t TYPELIB_CALLTYPE  IntCreateFromTextRef( CTEXTSTR *p_ );
 /* Create a high precision floating point value from PTEXT
    segment.                                                */
 TYPELIB_PROC  double TYPELIB_CALLTYPE  FloatCreateFromSeg( PTEXT pText );
@@ -11004,12 +11099,12 @@ TYPELIB_PROC  INDEX TYPELIB_CALLTYPE  vvtprintf( PVARTEXT pvt, CTEXTSTR format, 
 /* encode binary buffer into base64 encoding.
    outsize is updated with the length of the buffer.
  */
-TYPELIB_PROC  TEXTCHAR * TYPELIB_CALLTYPE  EncodeBase64Ex( uint8_t* buf, size_t length, size_t *outsize, const char *encoding );
+TYPELIB_PROC  TEXTCHAR * TYPELIB_CALLTYPE  EncodeBase64Ex( const uint8_t* buf, size_t length, size_t *outsize, const char *encoding );
 /* decode base64 buffer into binary buffer
    outsize is updated with the length of the buffer.
    result should be Release()'d
  */
-TYPELIB_PROC  uint8_t * TYPELIB_CALLTYPE  DecodeBase64Ex( char* buf, size_t length, size_t *outsize, const char *encoding );
+TYPELIB_PROC  uint8_t * TYPELIB_CALLTYPE  DecodeBase64Ex( const char* buf, size_t length, size_t *outsize, const char *encoding );
 /* xor a base64 encoded string over a utf8 string, keeping the utf8 characters in the same length...
    although technically this can result in invalid character encoding where upper bits get zeroed
    result should be Release()'d
@@ -11023,8 +11118,8 @@ TYPELIB_PROC  char * TYPELIB_CALLTYPE  b64xor( const char *a, const char *b );
 // extended command entry stuff... handles editing buffers with insert/overwrite/copy/paste/etc...
 typedef struct user_input_buffer_tag {
 	// -------------------- custom cmd buffer extension
-  // position counter for pulling history
-	INDEX nHistory;
+  // position counter for pulling history; negative indexes are recalled commands.
+	int nHistory;
   // a link queue which contains the prior lines of text entered for commands.
 	PLINKQUEUE InputHistory;
  // set to TRUE when nHistory has wrapped...
@@ -11773,6 +11868,40 @@ SYSLOG_SOCKET_SYSLOGD
 SYSLOG_PROC  LOGICAL SYSLOG_API  IsBadReadPtr ( CPOINTER pointer, uintptr_t len );
 #endif
 SYSLOG_PROC  CTEXTSTR SYSLOG_API  GetPackedTime ( void );
+//  returns the millisecond of the day (since UNIX Epoch) * 256 ( << 8 )
+// the lowest 8 bits are the timezone / 15.
+// The effect of the low [7/]8 bits being the time zone is that within the same millisecond
+// UTC +0 sorts first, followed by +1, +2, ... etc until -14, -13, -12,... -1
+// the low [7/]8 bits are the signed timezone
+// (timezone could have been either be hr*60 + min (ISO TZ format)
+// or in minutes (hr*60+mn) this would only take 7 bits
+// one would think 8 bit shifts would be slightly more efficient than 7 bits.
+// and sign extension for 8 bits already exists.
+// - REVISION - timezone with hr*100 does not divide by 15 cleanly.
+//     The timezone is ( hour*60 + min ) / 15 which is a range from -56 to 48
+//     minimal representation is 7 bits (0 - 127 or -64 - 63)
+//     still keeping 8 bits for shifting, so the effective range is only -56 to 48 of -128 to 127
+// struct time_of_day {
+//    uint64_t epoch_milliseconds : 56;
+//    int64_t timezone : 8; divided by 15... hours * 60 / 15
+// }
+SYSLOG_PROC  int64_t SYSLOG_API GetTimeOfDay( void );
+// binary little endian order; somewhat
+typedef struct sack_expanded_time_tag
+{
+	uint16_t ms;
+	uint8_t sc,mn,hr,dy,mo;
+	uint16_t yr;
+	int8_t zhr, zmn;
+} SACK_TIME;
+typedef struct sack_expanded_time_tag *PSACK_TIME;
+// convert a integer time value to an expanded structure.
+SYSLOG_PROC void     SYSLOG_API ConvertTickToTime( int64_t, PSACK_TIME st );
+// convert a expanded time structure to a integer value.
+SYSLOG_PROC int64_t SYSLOG_API ConvertTimeToTick( PSACK_TIME st );
+// returns timezone as hours*100 + minutes.
+// result is often negated?
+SYSLOG_PROC  int SYSLOG_API GetTimeZone(void);
 //
 typedef void (CPROC*UserLoggingCallback)( CTEXTSTR log_string );
 SYSLOG_PROC  void SYSLOG_API  SetSystemLog ( enum syslog_types type, const void *data );
@@ -12428,6 +12557,12 @@ typedef struct win_sockaddr_in SOCKADDR_IN;
 #undef StrRChr
 #undef StrStr
 #endif
+#if defined( __MAC__ )
+#  define strdup(s) StrDup(s)
+#  define strdup_free(s) Release(s)
+#else
+#  define strdup_free(s) free(s)
+#endif
 #ifdef __cplusplus
 #define SACK_MEMORY_NAMESPACE SACK_NAMESPACE namespace memory {
 #define SACK_MEMORY_NAMESPACE_END } SACK_NAMESPACE_END
@@ -13004,11 +13139,11 @@ MEM_PROC  uint64_t MEM_API  LockedExchange64 ( volatile uint64_t* p, uint64_t va
 /* A multi-processor safe increment of a variable.
    Parameters
    p :  pointer to a 32 bit value to increment.    */
-MEM_PROC  uint32_t MEM_API  LockedIncrement ( uint32_t* p );
+MEM_PROC  uint32_t MEM_API  LockedIncrement ( volatile uint32_t* p );
 /* Does a multi-processor safe decrement on a variable.
    Parameters
    p :  pointer to a 32 bit value to decrement.         */
-MEM_PROC  uint32_t MEM_API  LockedDecrement ( uint32_t* p );
+MEM_PROC  uint32_t MEM_API  LockedDecrement ( volatile uint32_t* p );
 #ifdef __cplusplus
 // like also __if_assembly__
 //extern "C" {
@@ -13395,10 +13530,17 @@ inline void operator delete (void * p)
 #endif
 // this is a method replacement to use PIPEs instead of SEMAPHORES
 // replacement code only affects linux.
-#if defined( __QNX__ ) || defined( __MAC__) || defined( __LINUX__ ) || defined( __ANDROID__ )
-#  define USE_PIPE_SEMS
+#if defined( __QNX__ ) || defined( __MAC__) || defined( __LINUX__ )
+#  if defined( __ANDROID__ ) || defined( EMSCRIPTEN ) || defined( __MAC__ )
+// android > 21 can use pthread_mutex_timedop
+#    define USE_PIPE_SEMS
+#  else
+//   Default behavior is to use pthread_mutex_timedlock for wakeable sleeps.
 // no semtimedop; no semctl, etc
-//#include <sys/sem.h>
+//#    include <sys/sem.h>
+//originally used semctl; but that consumes system resources that are not
+//cleaned up when the process exits.
+#endif
 #endif
 #ifdef USE_PIPE_SEMS
 #  define _NO_SEMTIMEDOP_
@@ -15073,6 +15215,8 @@ PROCREG_PROC( int, LoadTree )( void );
    DropInterface( p );
    </code>                                                     */
 PROCREG_PROC( void, DropInterface )( CTEXTSTR pServiceName, POINTER interface_x );
+PROCREG_PROC( POINTER, GetInterface_v4 )( CTEXTSTR pServiceName, LOGICAL ReadConfig, int quietFail DBG_PASS );
+#define GetInterfaceV4( a, b )  GetInterface_v4( a, FALSE, b DBG_SRC )
 /* \Returns the pointer to a registered interface. This is
    typically a structure that contains pointer to functions. Takes
    a text string to an interface. Interfaces are registered at a
@@ -15301,6 +15445,7 @@ PLIST  DeleteListEx ( PLIST *pList DBG_PASS )
 //--------------------------------------------------------------------------
 static PLIST ExpandListEx( PLIST *pList, INDEX amount DBG_PASS )
 {
+ //-V595
 	PLIST old_list = (*pList);
 	PLIST pl;
 	uintptr_t size;
@@ -15553,6 +15698,7 @@ static struct data_list_local_data
 //--------------------------------------------------------------------------
 PDATALIST ExpandDataListEx( PDATALIST *ppdl, INDEX entries DBG_PASS )
 {
+ //-V595
 	PDATALIST pdl = (*ppdl);
 	PDATALIST pNewList;
 	if( !ppdl || !*ppdl )
@@ -15675,12 +15821,8 @@ POINTER  PeekLinkEx ( PLINKSTACK *pls, INDEX n )
 {
 	// should lock - but it's fast enough?
 	POINTER p = NULL;
-	if( pls && (*pls) && n >= (*pls)->Top )
-		return NULL;
-	if( pls && *pls && ((*pls)->Top-n) )
-		p = (*pls)->pNode[(*pls)->Top-(n+1)];
-	else
-		return NULL;
+	if( pls && *pls && ((*pls)->Top > n) )
+		p = (*pls)->pNode[(*pls)->Top - (n + 1)];
 	return p;
 }
 //--------------------------------------------------------------------------
@@ -15701,6 +15843,7 @@ static PLINKSTACK ExpandStackEx( PLINKSTACK *stack, INDEX entries DBG_PASS )
 	PLINKSTACK pNewStack;
 	if( *stack )
 		entries += (*stack)->Cnt;
+ //-V595
 	pNewStack = (PLINKSTACK)AllocateEx( my_offsetof( stack, pNode[entries] ) DBG_RELAY );
 	if( *stack )
 	{
@@ -15875,6 +16018,7 @@ static struct link_queue_local_data
 PLINKQUEUE CreateLinkQueueEx( DBG_VOIDPASS )
 {
 	PLINKQUEUE plq = 0;
+ //-V557
 	plq = (PLINKQUEUE)AllocateEx( MY_OFFSETOF( &plq, pNode[8] ) DBG_RELAY );
 #if USE_CUSTOM_ALLOCER
 	plq->Lock     = 0;
@@ -17074,6 +17218,7 @@ PTEXT SegCreateFromIntEx( int value DBG_PASS )
 #ifdef _UNICODE
 	pResult->data.size = swprintf( pResult->data.data, 12, WIDE("%d"), value );
 #else
+ //-V512
 	pResult->data.size = snprintf( pResult->data.data, 12, WIDE("%d"), value );
 #endif
 	pResult->data.data[11] = 0;
@@ -17087,6 +17232,7 @@ PTEXT SegCreateFrom_64Ex( int64_t value DBG_PASS )
 #ifdef _UNICODE
 	pResult->data.size = swprintf( pResult->data.data, 32, WIDE("%")_64f, value );
 #else
+ //-V512
 	pResult->data.size = snprintf( pResult->data.data, 32, WIDE("%")_64f, value );
 #endif
 pResult->data.data[31] = 0;
@@ -17100,6 +17246,7 @@ PTEXT SegCreateFromFloatEx( float value DBG_PASS )
 #ifdef _UNICODE
 	pResult->data.size = swprintf( pResult->data.data, 32, WIDE("%f"), value );
 #else
+ //-V512
 	pResult->data.size = snprintf( pResult->data.data, 32, WIDE("%f"), value );
 #endif
 	pResult->data.data[31] = 0;
@@ -17351,9 +17498,11 @@ PTEXT SegSplitEx( PTEXT *pLine, INDEX nPos  DBG_PASS)
 	if( nPos == nLen )
 		return *pLine;
 	here = SegCreateEx( nPos DBG_RELAY );
+ //-V595
 	here->flags  = (*pLine)->flags;
 	here->format = (*pLine)->format;
 	there = SegCreateEx( (nLen - nPos) DBG_RELAY );
+ //-V595
 	there->flags  = (*pLine)->flags;
 	there->format = (*pLine)->format;
  // was two characters presumably...
@@ -17523,6 +17672,7 @@ PTEXT TextParse( PTEXT input, CTEXTSTR punctuation, CTEXTSTR filter_space, int b
 				spaces++;
 				break;
 			}
+ //-V517
 				if(0) {
 		case '\t':
 					if( bTabs )
@@ -17541,6 +17691,7 @@ PTEXT TextParse( PTEXT input, CTEXTSTR punctuation, CTEXTSTR filter_space, int b
 						tabs++;
 						break;
 					}
+ //-V517
 				} else if(0) {
  // a space space character...
 		case '\r':
@@ -17550,6 +17701,7 @@ PTEXT TextParse( PTEXT input, CTEXTSTR punctuation, CTEXTSTR filter_space, int b
 						outdata = SegAppend( outdata, word );
 					}
 					break;
+ //-V517
 				} else if(0) {
  // handle multiple periods grouped (elipses)
 		case '.':
@@ -18392,16 +18544,15 @@ int CompareStrings( PTEXT pt1, int single1
 	return FALSE;
 }
 //--------------------------------------------------------------------------
-int64_t IntCreateFromText( CTEXTSTR p )
+int64_t IntCreateFromTextRef( CTEXTSTR *p_ )
 {
-	//CTEXTSTR p;
+	CTEXTSTR p = p_[0];
 	int s;
 	int begin;
 	int64_t num;
 	LOGICAL altBase = FALSE;
 	LOGICAL altBase2 = FALSE;
 	int64_t base = 10;
-	//p = GetText( pText );
 	if( !p )
 		return 0;
 	//if( pText->flags & TF_INDIRECT )
@@ -18424,6 +18575,7 @@ int64_t IntCreateFromText( CTEXTSTR p )
 		{
 			if( !altBase2 ) {
 				if( *p == 'x' ) { altBase2 = TRUE; base = 16; }
+				else if( *p == 'o' ) { altBase2 = TRUE; base = 8; }
 				else if( *p == 'b' ) { altBase2 = TRUE; base = 2; }
 				else break;
 			} else {
@@ -18451,9 +18603,15 @@ int64_t IntCreateFromText( CTEXTSTR p )
 		begin = FALSE;
 		p++;
 	}
+	p_[0] = p;
 	if( s & 1 )
 		num *= -1;
 	return num;
+}
+//--------------------------------------------------------------------------
+int64_t IntCreateFromText( CTEXTSTR p )
+{
+	return IntCreateFromTextRef( &p );
 }
 //--------------------------------------------------------------------------
 int64_t IntCreateFromSeg( PTEXT pText )
@@ -18536,7 +18694,7 @@ double FloatCreateFromSeg( PTEXT pText )
 // otherwise, only as many segments as are needed for the number are used...
 int IsSegAnyNumberEx( PTEXT *ppText, double *fNumber, int64_t *iNumber, int *bIntNumber, int bUseAll )
 {
-	CTEXTSTR pCurrentCharacter;
+	CTEXTSTR pCurrentCharacter = NULL;
 	PTEXT pBegin;
 	PTEXT pText = *ppText;
 	int decimal_count, s, begin = TRUE, digits;
@@ -20173,19 +20331,19 @@ char * u8xor( const char *a, size_t alen, const char *b, size_t blen, int *ofs )
 		if( (v & 0x80) == 0x00 ) { if( l ) lprintf( "short utf8 sequence found" ); mask = 0x3f; _mask = 0x3f; }
 		else if( (v & 0xC0) == 0x80 ) { if( !l ) lprintf( "invalid utf8 sequence" ); l--; _mask = 0x3f; }
 		else if( (v & 0xE0) == 0xC0 ) { if( l )
-  // 6 + 1 == 7
+  // 6 + 1 == 7 //-V640
 			lprintf( "short utf8 sequence found" ); l = 1; mask = 0x1; _mask = 0x3f; }
 		else if( (v & 0xF0) == 0xE0 ) { if( l )
-  // 6 + 5 + 0 == 11
+  // 6 + 5 + 0 == 11 //-V640
 			lprintf( "short utf8 sequence found" ); l = 2; mask = 0;  _mask = 0x1f; }
 		else if( (v & 0xF8) == 0xF0 ) { if( l )
-  // 6(2) + 4 + 0 == 16
+  // 6(2) + 4 + 0 == 16 //-V640
 			lprintf( "short utf8 sequence found" ); l = 3; mask = 0;  _mask = 0x0f; }
 		else if( (v & 0xFC) == 0xF8 ) { if( l )
-  // 6(3) + 3 + 0 == 21
+  // 6(3) + 3 + 0 == 21 //-V640
 			lprintf( "short utf8 sequence found" ); l = 4; mask = 0;  _mask = 0x07; }
 		else if( (v & 0xFE) == 0xFC ) { if( l )
-  // 6(4) + 2 + 0 == 26
+  // 6(4) + 2 + 0 == 26 //-V640
 			lprintf( "short utf8 sequence found" ); l = 5; mask = 0;  _mask = 0x03; }
 		char bchar = b[(n+o)%(keylen)];
 		(*out) = (v & ~mask ) | ( u8xor_table[v & mask ][bchar] & mask );
@@ -20206,24 +20364,24 @@ static void encodeblock( unsigned char in[3], TEXTCHAR out[4], size_t len, const
 	out[2] = (len > 1 ? base64[ ((in[1] & 0x0f) << 2) | ( ( len > 2 ) ? ((in[2] & 0xc0) >> 6) : 0 ) ] : base64[64]);
 	out[3] = (len > 2 ? base64[ in[2] & 0x3f ] : base64[64]);
 }
-static void decodeblock( char in[4], uint8_t out[3], size_t len, const char *base64 )
+static void decodeblock( const char in[4], uint8_t out[3], size_t len, const char *base64 )
 {
 	int index[4];
-	int n;
-	for( n = 0; n < 4; n++ )
+	size_t n;
+	for( n = 0; n < len; n++ )
 	{
-		//strchr( base64, in[n] );
-		index[n] = _base64_r[in[n]];
-		//if( ( index[n] - base64 ) == 64 )
-		//	last_byte = 1;
+		// propagate terminator.
+		if( n && ( index[n - 1] == 64 ) ) index[n] = 0;
+		else index[n] = _base64_r[in[n]];
 	}
-	//if(
+	for( ; n < 4; n++ )
+		index[n] = 0;
 	out[0] = (char)(( index[0] ) << 2 | ( index[1] ) >> 4);
 	out[1] = (char)(( index[1] ) << 4 | ( ( ( index[2] ) >> 2 ) & 0x0f ));
 	out[2] = (char)(( index[2] ) << 6 | ( ( index[3] ) & 0x3F ));
 	//out[] = (len > 2 ? base64[ in[2] & 0x3f ] : 0);
 }
-TEXTCHAR *EncodeBase64Ex( uint8_t* buf, size_t length, size_t *outsize, const char *base64 )
+TEXTCHAR *EncodeBase64Ex( const uint8_t* buf, size_t length, size_t *outsize, const char *base64 )
 {
 	size_t fake_outsize;
 	TEXTCHAR * real_output;
@@ -20250,6 +20408,34 @@ TEXTCHAR *EncodeBase64Ex( uint8_t* buf, size_t length, size_t *outsize, const ch
 }
 static void setupDecodeBytes( const char *code ) {
 	int n = 0;
+	// default all of these, allow code to override them.
+	// allow nul terminators (sortof)
+ // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
+	_base64_r[0] = 64;
+ // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
+	_base64_r['~'] = 64;
+ // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
+	_base64_r['='] = 64;
+	// My JS Encoding $_ and = at the end.  allows most to be identifiers too.
+	// 'standard' encoding +/
+	// variants -/
+	//          +,
+	//          ._
+	// variants -_
+ // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
+	_base64_r['$'] = 62;
+ // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
+	_base64_r['+'] = 62;
+ // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
+	_base64_r['-'] = 62;
+ // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
+	_base64_r['.'] = 62;
+ // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
+	_base64_r['_'] = 63;
+ // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
+	_base64_r['/'] = 63;
+ // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
+	_base64_r[','] = 63;
 	if( _last_base64_set != code ) {
 		_last_base64_set = code;
 		memset( _base64_r, 0, 256 );
@@ -20259,8 +20445,9 @@ static void setupDecodeBytes( const char *code ) {
 		}
 	}
 }
-uint8_t *DecodeBase64Ex( char* buf, size_t length, size_t *outsize, const char *base64 )
+uint8_t *DecodeBase64Ex( const char* buf, size_t length, size_t *outsize, const char *base64 )
 {
+	static const char *useBase64;
 	size_t fake_outsize;
 	uint8_t * real_output;
 	if( !outsize ) outsize = &fake_outsize;
@@ -20268,7 +20455,10 @@ uint8_t *DecodeBase64Ex( char* buf, size_t length, size_t *outsize, const char *
 		base64 = _base64;
 	else if( ((uintptr_t)base64) == 1 )
 		base64 = _base642;
-	setupDecodeBytes( base64 );
+	if( useBase64 != base64 ) {
+		useBase64 = base64;
+		setupDecodeBytes( base64 );
+	}
 	real_output = NewArray( uint8_t, ( ( ( length + 1 ) * 3 ) / 4 ) + 1 );
 	{
 		size_t n;
@@ -20280,15 +20470,21 @@ uint8_t *DecodeBase64Ex( char* buf, size_t length, size_t *outsize, const char *
 				blocklen = 4;
 			decodeblock( buf + n * 4, real_output + n*3, blocklen, base64 );
 		}
-		if( buf[length - 1] == '=' ) {
+		if( length % 4 == 1 )
+			(*outsize) = (((length + 3) / 4) * 3) - 3;
+		else if( length % 4 == 2 )
+			(*outsize) = (((length + 3) / 4) * 3) - 2;
+		else if( length % 4 == 3 )
+			(*outsize) = (((length + 3) / 4) * 3) - 1;
+		else if( buf[length - 1] == '=' ) {
 			if( buf[length - 2] == '=' ) {
-				(*outsize) = (length * 3 / 4) - 2;
+				(*outsize) = (((length + 3) / 4) * 3) - 2;
 			}
 			else
-				(*outsize) = (length * 3 / 4) - 1;
+				(*outsize) = (((length + 3) / 4) * 3) - 1;
 		}
 		else
-			(*outsize) = (length * 3 / 4) - 2;
+			(*outsize) = (((length + 3) / 4) * 3);
 		real_output[(*outsize)] = 0;
 	}
 	return real_output;
@@ -20648,6 +20844,8 @@ static PTEXT GatherLineEx( PTEXT *pOutput, INDEX *pIndex, int bInsert, int bSave
 				if( 0 ) {
 			case '\n':
 					bSetReturn = TRUE;
+					if( !bSaveCR )
+						break;
 				}
 				// store carriage return...
 			default:
@@ -22133,6 +22331,28 @@ PSSQL_PROC( int, SQLRecordQueryEx )( PODBC odbc
    odbc :     connection to do the query on.
    query :    query to execute.
    queryLength : actual length of the query (allows embedded NUL characters)
+   PDATALIST* :  pointer to datalist pointer which will contain struct jsox_value_container.
+			 for each result in this list until VALUE_UNDEFINED is used.
+		.name is the field name (constant)
+		.string is the text, value_type is the value type (so numbers can stay numbers)
+	pdlParams : parameters to bind to the query.  (struct json_value_container types)
+   Example
+   See SQLRecordQueryf, but omit the database parameter.         */
+PSSQL_PROC( int, SQLRecordQuery_js )( PODBC odbc
+	, CTEXTSTR query
+	, size_t queryLen
+	, PDATALIST *pdlResults
+	, PDATALIST pdlParams
+	DBG_PASS );
+/* Do a SQL query on the default odbc connection. The first
+   record results immediately if there are any records. Returns
+   the results as an array of strings. If you know the select
+   you are using .... "select a,b,c from xyz" then you know that
+   this will have 3 columns resulting.
+   Parameters
+   odbc :     connection to do the query on.
+   query :    query to execute.
+   queryLength : actual length of the query (allows embedded NUL characters)
    columns :  pointer to an int to receive the number of columns
               in the result. (the user will know this based on
               the query issued usually, so it can be NULL to
@@ -22144,20 +22364,27 @@ PSSQL_PROC( int, SQLRecordQueryEx )( PODBC odbc
               field names
    Example
    See SQLRecordQueryf, but omit the database parameter.         */
-PSSQL_PROC( int, SQLRecordQueryExx )( PODBC odbc
+PSSQL_PROC( int, SQLRecordQuery_v4 )( PODBC odbc
                                    , CTEXTSTR query
                                    , size_t queryLength
                                    , int *pnResult
                                    , CTEXTSTR **result
                                    , size_t **resultLengths
                                    , CTEXTSTR **fields
+                                   , PDATALIST pdlParameters
                                    DBG_PASS);
 /* <combine sack::sql::SQLRecordQueryEx@PODBC@CTEXTSTR@int *@CTEXTSTR **@CTEXTSTR **fields>
    \ \                                                                                      */
 #define SQLRecordQuery(o,q,prn,r,f) SQLRecordQueryEx( o,q,prn,r,f DBG_SRC )
 /* <combine sack::sql::SQLRecordQueryExx@PODBC@CTEXTSTR@size_t@int *@CTEXTSTR **@size_t *@CTEXTSTR **fields>
    \ \                                                                                      */
-#define SQLRecordQueryLen(o,q,ql,prn,r,rl,f) SQLRecordQueryExx( o,q,ql,prn,r,rl,f DBG_SRC )
+#if defined _DEBUG || defined _DEBUG_INFO
+#  define SQLRecordQueryLen(o,q,ql,prn,r,rl,f) SQLRecordQueryExx( o,q,ql,prn,r,rl,f, __FILE__,__LINE__ )
+#  define SQLRecordQueryExx(o,q,ql,ppr,res,reslen,fields ,file,line )  SQLRecordQuery_v4(o,q,ql,ppr,res,reslen,fields,NULL ,file,line )
+#else
+#  define SQLRecordQueryLen(o,q,ql,prn,r,rl,f) SQLRecordQueryExx( o,q,ql,prn,r,rl,f  )
+#  define SQLRecordQueryExx(o,q,ql,ppr,res,reslen,fields )  SQLRecordQuery_v4(o,q,ql,ppr,res,reslen,fields,NULL )
+#endif
    /* Gets the next result from a query.
    Parameters
    odbc :     database connection that the query was executed on
@@ -22175,6 +22402,15 @@ PSSQL_PROC( int, FetchSQLResult )( PODBC, CTEXTSTR *result );
    Values received are invalid after the next FetchSQLRecord or
    possibly other query.                                        */
 PSSQL_PROC( int, FetchSQLRecord )( PODBC, CTEXTSTR **result );
+/* Gets the next record result from the connection.
+   Parameters
+   odbc :     connection to get the result from; if NULL, uses
+			  \internal static connection.
+   result\ :  (unchanged; is same list as original)
+   Remarks
+   Values received are invalid after the next FetchSQLRecord or
+   possibly other query.                                        */
+PSSQL_PROC( int, FetchSQLRecordJS )(PODBC odbc, PDATALIST *ppdlRecord);
 /* Gets the last result on the specified ODBC connection.
    Parameters
    odbc :     connection to get the last error of
@@ -22943,6 +23179,8 @@ PGENERICSET GetFromSetPoolEx( GENERICSET **pSetSet, int setsetsizea, int setunit
 	uint32_t maxbias = 0;
 	void *unit = NULL;
 	uintptr_t ofs = ( ( ( maxcnt + 31 ) / 32 ) * 4 );
+	//if( pSet && (*pSet) && ( (*pSet)->nBias > 1000 ))
+	//	_lprintf( DBG_RELAY )("GetFromSet: %p", pSet );
 	if( !pSet )
  // can never return something from nothing.
 		return NULL;
@@ -23200,7 +23438,9 @@ void DeleteFromSetExx( GENERICSET *pSet, void *unit, int unitsize, int max DBG_P
 	uintptr_t nUnit = (uintptr_t)unit;
 	uintptr_t ofs = ( ( max + 31 ) / 32) * 4;
 	uintptr_t base;
-	//if( bLog ) _lprintf(DBG_RELAY)( WIDE("Deleting from  %p of %p "), pSet, unit );
+	//if( bLog )
+	//if( pSet && ((pSet)->nBias > 1000) )
+	//	_lprintf(DBG_RELAY)( WIDE("Deleting from  %p of %p "), pSet, unit );
 	while( pSet )
 	{
 		base = ( (uintptr_t)( pSet->bUsed ) + ofs );
@@ -23286,7 +23526,9 @@ void **GetLinearSetArrayEx( GENERICSET *pSet, int *pCount, int unitsize, int max
 	void  **array;
 	int items, cnt, n, ofs;
 	INDEX nMin, nNewMin;
-	GENERICSET *pCur, *pNewMin;
+	GENERICSET *pCur;
+ // useless initialization.  nNewMin will be set if this is valid; and there was no error generated for using THAT uninitialized.
+	GENERICSET *pNewMin = NULL;
 	//Log2( WIDE("Building Array unit size: %d(%08x)"), unitsize, unitsize );
 	items = CountUsedInSetEx( pSet, max );
 	if( pCount )
@@ -23992,7 +24234,7 @@ static void NativeRemoveBinaryNode( PTREEROOT root, PTREENODE node )
 		RehangBranch( root, node->lesser );
 		if( root->Destroy )
 			root->Destroy( node->userdata, node->key );
-		MemSet( node, 0, sizeof( node ) );
+		MemSet( node, 0, sizeof( *node ) );
 		DeleteFromSet( TREENODE, TreeNodeSet, node );
 		//Release( node );
 		return;
@@ -25486,6 +25728,7 @@ NETWORK_PROC( LOGICAL, DoPingEx )( CTEXTSTR pstrHost,
 //----- WHOIS.C -----
 NETWORK_PROC( LOGICAL, DoWhois )( CTEXTSTR pHost, CTEXTSTR pServer, PVARTEXT pvtResult );
 #ifdef __cplusplus
+#  if defined( INCLUDE_SAMPLE_CPLUSPLUS_WRAPPERS )
 typedef class network *PNETWORK;
 /* <combine sack::network::network>
    \ \                              */
@@ -25617,6 +25860,7 @@ public:
 	      return 0;
 	}
 }NETWORK;
+#  endif
 #endif
 SACK_NETWORK_NAMESPACE_END
 #ifdef __cplusplus
@@ -26067,7 +26311,8 @@ struct url_data * SACK_URLParse( const char *url )
 {
 	const char *_url = url;;
 	struct url_data *data = New( struct url_data );
-	struct url_cgi_data *cgi_data;
+ // another useless initialization.  This WILL be a value whereever the code needs to use it. NOT AN ERROR!
+	struct url_cgi_data *cgi_data = NULL;
 	TEXTRUNE ch;
 	int outchar = 0;
 	char * outbuf = NewArray( TEXTCHAR, StrLen( url ) + 1 );
@@ -26080,9 +26325,9 @@ struct url_data * SACK_URLParse( const char *url )
 			ch *= 16;
 			if( _url[0] >= '0' && _url[0] <= '9' )
 				ch += _url[0] - '0';
-			else if( _url[0] >= 'A' && _url[0] <= 'A' )
+			else if( _url[0] >= 'A' && _url[0] <= 'F' )
 				ch += (_url[0] - 'A') + 10;
-			else if( _url[0] >= '0' && _url[0] <= '9' )
+			else if( _url[0] >= 'a' && _url[0] <= 'f' )
 				ch += (_url[0] - 'a' ) + 10;
 			else {
 				Deallocate( char *, outbuf );
@@ -26695,6 +26940,8 @@ JSON_EMITTER_PROC( int, json_parse_add_data )( struct json_parse_state *context
                                              );
 // these are common functions that work for json or json6 stream parsers
 JSON_EMITTER_PROC( PDATALIST, json_parse_get_data )( struct json_parse_state *context );
+// get actual allocated root for a value... allows holding that.
+JSON_EMITTER_PROC( const char *, json_get_parse_buffer )(struct json_parse_state *pState, const char *buf);
 JSON_EMITTER_PROC( void, json_parse_dispose_state )( struct json_parse_state **context );
 JSON_EMITTER_PROC( void, json_parse_clear_state )(struct json_parse_state *context);
 JSON_EMITTER_PROC( PTEXT, json_parse_get_error )(struct json_parse_state *context);
@@ -26719,6 +26966,8 @@ JSON_EMITTER_PROC( LOGICAL, _json6_parse_message )( char * msg
                                                   , size_t msglen
                                                   , PDATALIST *msg_data_out
                                                   );
+JSON_EMITTER_PROC( struct json_parse_state *, json6_get_message_parser )( void );
+JSON_EMITTER_PROC( struct json_parse_state *, json_get_message_parser )( void );
 // Add some data to parse for json stream (which may consist of multiple values)
 // return 1 when a completed value/object is available.
 // after returning 1, call json_parse_get_data.  It is possible that there is
@@ -27031,6 +27280,10 @@ struct json_parser_shared_data {
 	PPLINKSTACKSET linkStacks;
 	PPLINKQUEUESET linkQueues;
 	PPDATALISTSET dataLists;
+ // used by simple parse_message interface.
+	struct json_parse_state *json_state;
+ // used by simple parse_message interface.
+	struct json_parse_state *json6_state;
 };
 #ifndef JSON_PARSER_MAIN_SOURCE
 extern
@@ -27384,7 +27637,9 @@ int json_parse_add_data( struct json_parse_state *state
 			//lprintf( "output from before is %p", output );
 			offset = (output->pos - output->buf);
 			offset2 = state->val.string - output->buf;
-			AddLink( state->outValBuffers, output->buf );
+			struct json_output_buffer *tmpout = (struct json_output_buffer*)GetFromSet( PARSE_BUFFER, &jpsd.parseBuffers );
+			tmpout[0] = output[0];
+			AddLink( state->outValBuffers, tmpout );
 			output->buf = NewArray( char, output->size + msglen + 1 );
 			MemCpy( output->buf + offset2, state->val.string, offset-offset2 );
 			output->size += msglen;
@@ -27920,19 +28175,23 @@ LOGICAL json_parse_message( const char * msg
 	, size_t msglen
 	, PDATALIST *_msg_output ) {
 	struct json_parse_state *state = json_begin_parse();
-	static struct json_parse_state *_state;
+	//static struct json_parse_state *_state;
 	state->complete_at_end = TRUE;
 	int result = json_parse_add_data( state, msg, msglen );
-	if( _state ) json_parse_dispose_state( &_state );
+	if( jpsd.json_state ) json_parse_dispose_state( &jpsd.json_state );
 	if( result > 0 ) {
 		(*_msg_output) = json_parse_get_data( state );
-		_state = state;
+		jpsd.json_state = state;
 		//json6_parse_dispose_state( &state );
 		return TRUE;
 	}
 	(*_msg_output) = NULL;
 	json_parse_dispose_state( &state );
 	return FALSE;
+}
+struct json_parse_state *json_get_message_parser( void ) {
+	//lprintf( "Return simple json parser:%p", jpsd.json_state );
+	return jpsd.json_state;
 }
 void json_dispose_decoded_message( struct json_context_object *format
                                  , POINTER msg_data )
@@ -29325,7 +29584,9 @@ int json6_parse_add_data( struct json_parse_state *state
 			//lprintf( "output from before is %p", output );
 			offset = (output->pos - output->buf);
 			offset2 = state->val.string ? (state->val.string - output->buf) : 0;
-			AddLink( state->outValBuffers, output->buf );
+			struct json_output_buffer *saveout = (struct json_output_buffer*)GetFromSet( PARSE_BUFFER, &jpsd.parseBuffers );
+			saveout[0] = output[0];
+			AddLink( state->outValBuffers, saveout );
 			output->buf = NewArray( char, output->size + msglen + 1 );
 			if( state->val.string ) {
 				MemCpy( output->buf + offset2, state->val.string, offset - offset2 );
@@ -30289,6 +30550,23 @@ PTEXT json_parse_get_error( struct json_parse_state *state ) {
 	}
 	return NULL;
 }
+const char *json_get_parse_buffer( struct json_parse_state *pState, const char *buf ) {
+	int idx;
+	PPARSE_BUFFER buffer;
+	//lprintf( "Getting buffer from %p", pState );
+	for( idx = 0; buffer = (PPARSE_BUFFER)PeekLinkEx( pState->outBuffers, idx ); idx++ )
+		if( ((uintptr_t)buf) >= ((uintptr_t)buffer->buf) && ((uintptr_t)buf) < ((uintptr_t)buffer->pos) )
+			return buffer->buf;
+	for( idx = 0; buffer = (PPARSE_BUFFER)PeekQueueEx( *pState->outQueue, idx ); idx++ )
+		if( ((uintptr_t)buf) >= ((uintptr_t)buffer->buf) && ((uintptr_t)buf) < ((uintptr_t)buffer->pos) )
+			return buffer->buf;
+	LIST_FORALL( pState->outValBuffers[0], idx, PPARSE_BUFFER, buffer ) {
+		if( ((uintptr_t)buf) >= ((uintptr_t)buffer->buf) && ((uintptr_t)buf) < ((uintptr_t)buffer->pos) )
+			return buffer->buf;
+	}
+	lprintf( "FAILED TO FIND BUFFER TO RETURN" );
+	return NULL;
+}
 void json_parse_dispose_state( struct json_parse_state **ppState ) {
 	struct json_parse_state *state = (*ppState);
 	struct json_parse_context *old_context;
@@ -30300,10 +30578,12 @@ void json_parse_dispose_state( struct json_parse_state **ppState ) {
 		DeleteFromSet( PARSE_BUFFER, jpsd.parseBuffers, buffer );
 	}
 	{
-		char *buf;
+		PPARSE_BUFFER buf;
 		INDEX idx;
-		LIST_FORALL( state->outValBuffers[0], idx, char*, buf ) {
-			Deallocate( char*, buf );
+		LIST_FORALL( state->outValBuffers[0], idx, PPARSE_BUFFER, buf ) {
+			Deallocate( const char *, buf->buf );
+			DeleteFromSet( PARSE_BUFFER, jpsd.parseBuffers, buf );
+			Deallocate( PPARSE_BUFFER, buf );
 		}
 		DeleteFromSet( PLIST, jpsd.listSet, state->outValBuffers );
 		//DeleteList( &state->outValBuffers );
@@ -30336,20 +30616,24 @@ LOGICAL json6_parse_message( const char * msg
 	, size_t msglen
 	, PDATALIST *_msg_output ) {
 	struct json_parse_state *state = json_begin_parse();
-	static struct json_parse_state *_state;
+	//static struct json_parse_state *_state;
 	state->complete_at_end = TRUE;
 	int result = json6_parse_add_data( state, msg, msglen );
-	if( _state ) json_parse_dispose_state( &_state );
+	if( jpsd.json6_state ) json_parse_dispose_state( &jpsd.json6_state );
 	if( result > 0 ) {
 		(*_msg_output) = json_parse_get_data( state );
-		_state = state;
+		jpsd.json6_state = state;
 		//json6_parse_dispose_state( &state );
 		return TRUE;
 	}
 	(*_msg_output) = NULL;
 	jpsd.last_parse_state = state;
-	_state = state;
+	jpsd.json6_state = state;
 	return FALSE;
+}
+struct json_parse_state *json6_get_message_parser( void ) {
+	//lprintf( "Return simple json6 parser:%p", jpsd.json6_state );
+	return jpsd.json6_state;
 }
 void json6_dispose_message( PDATALIST *msg_data )
 {
@@ -30595,9 +30879,9 @@ parse_message
 		  int index;
         struct jsox_value_container *value;
 		  DATALIST_FORALL( pdlMessage, index, struct jsox_value_container *. value ) {
-           /* for each value in the result.... the first layer will
-           always be just one element, either a simple type, or a VALUE_ARRAY or VALUE_OBJECT, which
-           then for each value->contains (as a datalist like above), process each of those values.
+           // for each value in the result.... the first layer will
+           // always be just one element, either a simple type, or a VALUE_ARRAY or VALUE_OBJECT, which
+           // then for each value->contains (as a datalist like above), process each of those values.
 		  }
         jsox_dispose_mesage( &pdlMessage );
     }
@@ -30620,9 +30904,9 @@ parse_message
         int index;
         struct jsox_value_container *value;
         DATALIST_FORALL( pdlMessage, index, struct jsox_value_container *. value ) {
-           /* for each value in the result.... the first layer will
-           always be just one element, either a simple type, or a VALUE_ARRAY or VALUE_OBJECT, which
-           then for each value->contains (as a datalist like above), process each of those values.
+           // for each value in the result.... the first layer will
+           // always be just one element, either a simple type, or a VALUE_ARRAY or VALUE_OBJECT, which
+           // then for each value->contains (as a datalist like above), process each of those values.
         }
         jsox_dispose_mesage( &pdlMessage );
 		  jsox_parse_add_data( parser, NULL, 0 ); // trigger parsing next message.
@@ -30707,6 +30991,8 @@ struct jsox_value_container {
 JSOX_PARSER_PROC( struct jsox_parse_state *, jsox_begin_parse )(void);
 // clear state; after an error state, this can allow reusing a state.
 JSOX_PARSER_PROC( void, jsox_parse_clear_state )( struct jsox_parse_state *state );
+// get actual allocated root for a value... allows holding that.
+JSOX_PARSER_PROC( const char *, jsox_get_parse_buffer )(struct jsox_parse_state *pState, const char *buf);
 // destroy current parse state.
 JSOX_PARSER_PROC( void, jsox_parse_dispose_state )(struct jsox_parse_state **ppState);
 // return >0 when a completed value/object is available.
@@ -30728,8 +31014,42 @@ JSOX_PARSER_PROC( LOGICAL, jsox_parse_message )(const char * msg
 	);
 // release all resources of a message from jsox_parse_message or jsox_parse_get_data
 JSOX_PARSER_PROC( void, jsox_dispose_message )(PDATALIST *msg_data);
+JSOX_PARSER_PROC( struct jsox_parse_state *, jsox_get_messge_parser )(void);
 JSOX_PARSER_PROC( char *, jsox_escape_string_length )(const char *string, size_t len, size_t *outlen);
 JSOX_PARSER_PROC( char *, jsox_escape_string )(const char *string);
+/*
+	jsox_get_pared_value()
+	takes a parsed message data list as a parameer, and a path.
+	A message may have been parsed into multiple parts.  This
+	early version will return just the first value in the datalist.
+	If there is an optional `path` specified, then that is used to
+	step through the JSOX parsed structure to get deeper values.
+	Path is specified as a list of fieldnames and array index numbers.
+	optional separator characters may be used between members '.', ' ', '/' and '\'.
+	Separator characters may be repeated or mixed with other seaprators and are all
+	considered a single separation.
+	optional bracket characters around an array index may be used     [0]    is often as good as 0.
+	Some example paths
+		messages[0]from
+		messages.0.from
+		messages [0] from
+		messages [0] lines[0]
+	{ messages : [ // array of messages
+	    { from : "someone", lines: [ "lines","of","message"] }
+	  ]
+	}
+	jsox_get_parsed_value() returns a value from a PDATALIST
+	jsox_get_parsed_object_value() and jsox_get_parsed_array_value() :  returns a value from a value member.
+*/
+JSOX_PARSER_PROC( struct jsox_value_container *, jsox_get_parsed_value )(PDATALIST pdlMessage, const char *path
+	, void( *callback )(uintptr_t psv, struct jsox_value_container *val), uintptr_t psv
+	);
+JSOX_PARSER_PROC( struct jsox_value_container *, jsox_get_parsed_object_value )(struct jsox_value_container *pdlMessage, const char *path
+	, void( *callback )(uintptr_t psv, struct jsox_value_container *val), uintptr_t psv
+	);
+JSOX_PARSER_PROC( struct jsox_value_container *, jsox_get_parsed_array_value )(struct jsox_value_container * pdlMessage, const char *path
+	, void( *callback )(uintptr_t psv, struct jsox_value_container *val), uintptr_t psv
+	);
 #ifdef __cplusplus
 } } SACK_NAMESPACE_END
 using namespace sack::network::jsox;
@@ -30846,6 +31166,8 @@ enum jsox_parse_context_modes {
 	JSOX_CONTEXT_OBJECT_FIELD_VALUE = 4,
 	JSOX_CONTEXT_CLASS_FIELD = 5,
 	JSOX_CONTEXT_CLASS_VALUE = 6,
+ // same as OBJECT_FIELD_VALUE; but within a CLASS_VALUE state
+	JSOX_CONTEXT_CLASS_FIELD_VALUE = 7,
 };
 #define JSOX_RESET_VAL()  {	  val.value_type = JSOX_VALUE_UNSET;	 val.contains = NULL;	              val._contains = NULL;	             val.name = NULL;	                  val.string = NULL;	                val.className = NULL;	             negative = FALSE; }
 #define JSOX_RESET_STATE_VAL()  {	  state->val.value_type = JSOX_VALUE_UNSET;	 state->val.contains = NULL;	              state->val._contains = NULL;	             state->val.name = NULL;	                  state->val.string = NULL;	                state->val.className = NULL;	             state->negative = FALSE; }
@@ -30987,6 +31309,8 @@ struct jsox_parser_shared_data {
 	PPDATALISTSET dataLists;
 	PJSOX_CLASSSET  classes;
 	PJSOX_CLASS_FIELDSET  class_fields;
+ // static parsing state for simple message interface.
+	struct jsox_parse_state *_state;
 };
 #ifndef JSOX_PARSER_MAIN_SOURCE
 extern
@@ -31432,6 +31756,7 @@ static int openObject( struct jsox_parse_state *state, struct jsox_output_buffer
 	return TRUE;
 }
 static LOGICAL openArray( struct jsox_parse_state *state, struct jsox_output_buffer* output, int c ) {
+	PJSOX_CLASS cls = NULL;
 	if( state->word > JSOX_WORD_POS_RESET && state->word < JSOX_WORD_POS_FIELD )
 		recoverIdent(state,output,c);
 	if( state->word == JSOX_WORD_POS_FIELD ) {
@@ -31456,11 +31781,19 @@ static LOGICAL openArray( struct jsox_parse_state *state, struct jsox_output_buf
 			state->val.string = output->pos;
 		}
 		else {
+			cls = GetFromSet( JSOX_CLASS, &jxpsd.classes );
+			cls->name = state->val.string;
+			cls->nameLen = output->pos - state->val.string;
+			cls->fields = NULL;
+			AddLink( &state->classes, cls );
+#if 0
+			// might be an external type
 			if( !state->pvtError ) state->pvtError = VarTextCreate();
 			vtprintf( state->pvtError, WIDE( "Unknown type specified for array:; %s at '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f
 				, state->val.string, c, state->n, state->line, state->col );
 			state->status = FALSE;
 			return FALSE;
+#endif
 		}
 	} else if( state->parse_context == JSOX_CONTEXT_OBJECT_FIELD ) {
 		if( !state->pvtError ) state->pvtError = VarTextCreate();
@@ -31480,7 +31813,7 @@ static LOGICAL openArray( struct jsox_parse_state *state, struct jsox_output_buf
 		old_context->current_class = state->current_class;
 		old_context->current_class_item = state->current_class_item;
 		old_context->arrayType = state->arrayType;
-		state->current_class = NULL;
+		state->current_class = cls;
 		state->current_class_item = 0;
 		state->arrayType = -1;
 // CreateDataList( sizeof( state->val ) );
@@ -31779,11 +32112,13 @@ static void pushValue( struct jsox_parse_state *state, PDATALIST *pdl, struct js
 #endif
 	if( val->value_type == JSOX_VALUE_ARRAY ) {
 		if( state->arrayType >= 0 ) {
+			struct jsox_value_container *innerVal = (struct jsox_value_container *)GetDataItem( &val->contains, 0 );
 			//size_t size;
 			val->className = (char*)GetLink( &knownArrayTypeNames, state->arrayType );
 			val->value_type = (enum jsox_value_types)(JSOX_VALUE_TYPED_ARRAY + state->arrayType);
 			//lprintf( "INPUT:%d %s", val->stringLen, val->string );
-			val->string = (char*)DecodeBase64Ex( val->string, val->stringLen, &val->stringLen, NULL );
+			if( state->arrayType < 12 )
+				val->string = (char*)DecodeBase64Ex( innerVal->string, innerVal->stringLen, &val->stringLen, NULL );
 			//lprintf( "base:%s", EncodeBase64Ex( "HELLO, World!", 13, NULL, NULL ) );
 			//lprintf( "Resolve base64 string:%s", val->string );
 		}
@@ -31957,7 +32292,10 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 				openArray( state, output, c );
 				break;
 			case ':':
-				if( state->parse_context == JSOX_CONTEXT_OBJECT_FIELD )
+				if( state->parse_context == JSOX_CONTEXT_OBJECT_FIELD
+					|| state->parse_context == JSOX_CONTEXT_CLASS_VALUE
+					|| state->parse_context == JSOX_CONTEXT_CLASS_FIELD
+					)
 				{
 					if( state->word != JSOX_WORD_POS_RESET
 						&& state->word != JSOX_WORD_POS_FIELD
@@ -31968,7 +32306,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 						vtprintf( state->pvtError, WIDE( "unquoted keyword used as object field name:parsing fault; unexpected %c at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
 						break;
 					}
-					else if( state->word == JSOX_WORD_POS_FIELD ) {
+					else if( state->word == JSOX_WORD_POS_FIELD || state->word == JSOX_WORD_POS_AFTER_FIELD && !state->completedString ) {
 						state->val.stringLen = ( output->pos - state->val.string );
 						(*output->pos++) = 0;
 					}
@@ -31976,7 +32314,6 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 						state->val.stringLen = ( output->pos - state->val.string );
 						(*output->pos++) = 0;
 					}
-					state->word = JSOX_WORD_POS_RESET;
 					if( state->val.name ) {
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
 						vtprintf( state->pvtError, "two names single value?" );
@@ -31986,7 +32323,12 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 					state->val.nameLen = state->val.stringLen;
 					state->val.string = NULL;
 					state->val.stringLen = 0;
-					state->parse_context = JSOX_CONTEXT_OBJECT_FIELD_VALUE;
+					// classname will later indicate this was a class...
+					// this can no longer be a prototype definition (class_field)
+					// but if it's a value, we want to stay that we're collecting class values.
+					state->parse_context = (state->parse_context == JSOX_CONTEXT_OBJECT_FIELD || state->parse_context == JSOX_CONTEXT_CLASS_FIELD)
+						? JSOX_CONTEXT_OBJECT_FIELD_VALUE
+						: JSOX_CONTEXT_CLASS_FIELD_VALUE;
 					state->val.value_type = JSOX_VALUE_UNSET;
 				}
 				else
@@ -32019,6 +32361,13 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 						}
 						JSOX_RESET_STATE_VAL();
 						state->word = JSOX_WORD_POS_RESET;
+						/*
+						state->val.value_type = JSOX_VALUE_OBJECT;
+						state->val.contains = state->elements[0];
+						state->val._contains = state->elements;
+						if( state->current_class )
+							state->val.className = state->current_class->name;
+						*/
 #ifdef DEBUG_PARSING_STCK
 						lprintf( "object pop stack (close obj) %d %p", context_stack.length, old_context );
 #endif
@@ -32034,12 +32383,25 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 					} else {
 						vtprintf( state->pvtError, WIDE( "State error; gathering class fields, and lost the class; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f
 							, c, state->n, state->line, state->col );
+						state->status = FALSE;
 					}
 				} else if( ( state->parse_context == JSOX_CONTEXT_OBJECT_FIELD ) || state->parse_context == JSOX_CONTEXT_CLASS_VALUE ) {
 					if( state->val.value_type != JSOX_VALUE_UNSET ) {
-						struct jsox_class_field *field = (struct jsox_class_field *)GetLink( &state->current_class->fields, state->current_class_item++ );
-						state->val.name = field->name;
-						state->val.nameLen = field->nameLen;
+						if( state->current_class ) {
+							if( state->current_class->fields ) {
+								struct jsox_class_field *field = (struct jsox_class_field *)GetLink( &state->current_class->fields, state->current_class_item++ );
+								state->val.name = field->name;
+								state->val.nameLen = field->nameLen;
+							}
+							else {
+								if( !state->val.name ) {
+									vtprintf( state->pvtError, "State error; class fields, class has no fields, and one was needed; '%c' unexpected at %" _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f
+										, c, state->n, state->line, state->col );
+									state->status = FALSE;
+									break;
+								}
+							}
+						}
 #ifdef DEBUG_PARSING
 						lprintf( "Push value closing class value %d %p", state->current_class_item, state->current_class );
 #endif
@@ -32050,7 +32412,8 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 					state->val.value_type = JSOX_VALUE_OBJECT;
 					state->val.contains = state->elements[0];
 					state->val._contains = state->elements;
-					state->val.className = state->current_class->name;
+					if( state->current_class )
+						state->val.className = state->current_class->name;
 					state->val.string = NULL;
 					{
 						struct jsox_parse_context *old_context = (struct jsox_parse_context *)PopLink( state->context_stack );
@@ -32092,6 +32455,8 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 					state->val.string = NULL;
 					state->val.contains = state->elements[0];
 					state->val._contains = state->elements;
+					if( state->current_class )
+						state->val.className = state->current_class->name;
 					{
 						struct jsox_parse_context *old_context = (struct jsox_parse_context *)PopLink( state->context_stack );
 						//struct jsox_value_container *oldVal = (struct jsox_value_container *)GetDataItem( &old_context->elements, old_context->elements->Cnt - 1 );
@@ -32141,6 +32506,8 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 					//state->val.string = NULL;
 					state->val.contains = state->elements[0];
 					state->val._contains = state->elements;
+					if( state->current_class )
+						state->val.className = state->current_class->name;
 					{
 						struct jsox_parse_context *old_context = (struct jsox_parse_context *)PopLink( state->context_stack );
 						//struct jsox_value_container *oldVal = (struct jsox_value_container *)GetDataItem( &old_context->elements, old_context->elements->Cnt - 1 );
@@ -32190,11 +32557,21 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 				}
 				else if( state->parse_context == JSOX_CONTEXT_CLASS_VALUE ) {
 					if( state->val.value_type != JSOX_VALUE_UNSET ) {
-						struct jsox_class_field *field = (struct jsox_class_field *)GetLink( &state->current_class->fields, state->current_class_item++ );
-						state->val.name = field->name;
-						state->val.nameLen = field->nameLen;
+						if( state->current_class->fields ) {
+							struct jsox_class_field *field = (struct jsox_class_field *)GetLink( &state->current_class->fields, state->current_class_item++ );
+							state->val.name = field->name;
+							state->val.nameLen = field->nameLen;
+						}
+						else if( !state->val.name ) {
+							if( !state->pvtError ) state->pvtError = VarTextCreate();
+// fault
+							vtprintf( state->pvtError, WIDE( "class field has no matching field definitions; fault while parsing; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, state->parse_context, c, state->n, state->line, state->col );
+							state->status = FALSE;
+							break;
+						}
 						pushValue( state, state->elements, &state->val );
 						JSOX_RESET_STATE_VAL();
+						//state->parse_context = JSOX_CONTEXT_CLASS_FIELD;
 						state->word = JSOX_WORD_POS_RESET;
 					}
 				}
@@ -32214,6 +32591,17 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 				}
 				else if( state->parse_context == JSOX_CONTEXT_OBJECT_FIELD_VALUE )
 				{
+					// after an array value, it will have returned to OBJECT_FIELD anyway
+#ifdef DEBUG_PARSING
+					lprintf( "comma after field value, push field to object: %s", state->val.name );
+#endif
+					state->parse_context = JSOX_CONTEXT_OBJECT_FIELD;
+					state->word = JSOX_WORD_POS_RESET;
+					if( state->val.value_type != JSOX_VALUE_UNSET )
+						pushValue( state, state->elements, &state->val );
+					JSOX_RESET_STATE_VAL();
+				}
+				else if( state->parse_context == JSOX_CONTEXT_CLASS_VALUE ) {
 					// after an array value, it will have returned to OBJECT_FIELD anyway
 #ifdef DEBUG_PARSING
 					lprintf( "comma after field value, push field to object: %s", state->val.name );
@@ -32316,8 +32704,8 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 							if( state->val.string ) {
 								state->val.value_type = JSOX_VALUE_STRING;
 								state->word = JSOX_WORD_POS_AFTER_FIELD;
-								if( state->parse_context == JSOX_CONTEXT_UNKNOWN )
-									state->completed = TRUE;
+								//if( state->parse_context == JSOX_CONTEXT_UNKNOWN )
+								//	state->completed = TRUE;
 							}
 						}
 						else {
@@ -32799,6 +33187,18 @@ PDATALIST jsox_parse_get_data( struct jsox_parse_state *state ) {
 	else state->elements[0]->Cnt = 0;
 	return result[0];
 }
+const char *jsox_get_parse_buffer( struct jsox_parse_state *pState, const char *buf ) {
+	int idx;
+	PJSOX_PARSE_BUFFER buffer;
+	for( idx = 0; ; idx-- )
+		while( buffer = (PJSOX_PARSE_BUFFER)PeekLinkEx( pState->outBuffers, idx ) ) {
+			if( !buffer ) break;
+			if( ((uintptr_t)buf) >= ((uintptr_t)buffer->buf) && ((uintptr_t)buf) < ((uintptr_t)buffer->pos) )
+				return buffer->buf;
+		}
+	lprintf( "FAILED TO FIND BUFFER TO RETURN" );
+	return NULL;
+}
 void _jsox_dispose_message( PDATALIST *msg_data )
 {
 	struct jsox_value_container *val;
@@ -32932,20 +33332,118 @@ LOGICAL jsox_parse_message( const char * msg
 	, size_t msglen
 	, PDATALIST *_msg_output ) {
 	struct jsox_parse_state *state = jsox_begin_parse();
-	static struct jsox_parse_state *_state;
+	//static struct jsox_parse_state *_state;
 	state->complete_at_end = TRUE;
 	int result = jsox_parse_add_data( state, msg, msglen );
-	if( _state ) jsox_parse_dispose_state( &_state );
+	if( jxpsd._state ) jsox_parse_dispose_state( &jxpsd._state );
 	if( result > 0 ) {
 		(*_msg_output) = jsox_parse_get_data( state );
-		_state = state;
+		jxpsd._state = state;
 		//jsox_parse_dispose_state( &state );
 		return TRUE;
 	}
 	(*_msg_output) = NULL;
 	jxpsd.last_parse_state = state;
-	_state = state;
+	jxpsd._state = state;
 	return FALSE;
+}
+struct jsox_parse_state *jsox_get_message_parser( void ) {
+	return jxpsd._state;
+}
+static void stepPath( const char **path ) {
+	int skipped;
+	do {
+		skipped = 0;
+		switch( path[0][0] ) {
+		case '.':
+		case '/':
+		case '\\':
+		case ' ':
+			path[0]++;
+			skipped = 1;
+			break;
+		}
+	} while( skipped );
+}
+struct jsox_value_container *jsox_get_parsed_array_value( struct jsox_value_container *val, const char *path
+	, void( *callback )(uintptr_t psv, struct jsox_value_container *val), uintptr_t psv
+) {
+	INDEX idx;
+	if( path[0] == '[' )
+		path++;
+	int64_t index = IntCreateFromTextRef( &path );
+	if( path[0] == ']' )
+		path++;
+	struct jsox_value_container * member = (struct jsox_value_container*)GetDataItem( &val->contains, index );
+	stepPath( &path );
+	if( !path[0] ) {
+		callback( psv, member );
+		return member;
+	}
+	else {
+		if( member->value_type == JSOX_VALUE_ARRAY ) {
+			return jsox_get_parsed_array_value( member, path, callback, psv );
+		}
+		else if( member->value_type == JSOX_VALUE_OBJECT ) {
+			return jsox_get_parsed_object_value( member, path, callback, psv );
+		}
+		else {
+			lprintf( "Path across pimitive value...." );
+		}
+	}
+	return NULL;
+}
+struct jsox_value_container *jsox_get_parsed_object_value( struct jsox_value_container *val, const char *path
+	, void( *callback )(uintptr_t psv, struct jsox_value_container *val), uintptr_t psv
+) {
+	INDEX idx;
+	struct jsox_value_container * member;
+	DATA_FORALL( val->contains, idx, struct jsox_value_container *, member ) {
+		if( StrCmpEx( member->name, path, member->nameLen ) == 0 ) {
+			const char *subpath = path + member->nameLen;
+			stepPath( &subpath );
+			if( !subpath[0] ) {
+				callback( psv, member );
+				return member;
+			}
+			else {
+				if( member->value_type == JSOX_VALUE_ARRAY ) {
+					return jsox_get_parsed_array_value( member, subpath, callback, psv );
+				}
+				else if( member->value_type == JSOX_VALUE_OBJECT ) {
+					return jsox_get_parsed_object_value( member, subpath, callback, psv );
+				}
+				else {
+					lprintf( "Path across pimitive value...." );
+				}
+			}
+		}
+	}
+	return NULL;
+}
+struct jsox_value_container *jsox_get_parsed_value( PDATALIST pdlMessage, const char *path
+	, void( *callback )(uintptr_t psv, struct jsox_value_container *val), uintptr_t psv
+) {
+	INDEX idx;
+	struct jsox_value_container * val;
+	DATA_FORALL( pdlMessage, idx, struct jsox_value_container *, val ) {
+		if( !path || !path[0] ) {
+			callback( psv, val );
+			return val;
+		}
+		if( val->value_type == JSOX_VALUE_OBJECT ) {
+			return jsox_get_parsed_object_value( val, path, callback, psv );
+		}
+		else if( val->value_type == JSOX_VALUE_ARRAY ) {
+			return jsox_get_parsed_array_value( val, path, callback, psv );
+		}
+		else {
+			if( path && path[0] ) {
+				lprintf( "Error; path across a primitive value" );
+			}
+		}
+	}
+	return NULL;
 }
 #undef GetUtfChar
 #ifdef __cplusplus
@@ -33580,6 +34078,10 @@ struct file_system_interface {
 	LOGICAL (CPROC *find_is_directory)( struct find_cursor *cursor );
 	LOGICAL (CPROC *is_directory)( uintptr_t psvInstance, const char *cursor );
 	LOGICAL (CPROC *rename )( uintptr_t psvInstance, const char *original_name, const char *new_name );
+	uintptr_t (CPROC *ioctl)( uintptr_t psvInstance, uintptr_t opCode, va_list args );
+	uintptr_t (CPROC *fs_ioctl)(uintptr_t psvInstance, uintptr_t opCode, va_list args);
+	uint64_t( CPROC *find_get_ctime )(struct find_cursor *cursor);
+	uint64_t( CPROC *find_get_wtime )(struct find_cursor *cursor);
 };
 /* \ \
    Parameters
@@ -33613,17 +34115,19 @@ FILESYS_PROC  int FILESYS_API  CompareMask ( CTEXTSTR mask, CTEXTSTR name, int k
 FILESYS_PROC  int FILESYS_API  ScanFilesEx ( CTEXTSTR base
            , CTEXTSTR mask
            , void **pInfo
-           , void CPROC Process( uintptr_t psvUser, CTEXTSTR name, int flags )
-           , int flags
+           , void CPROC Process( uintptr_t psvUser, CTEXTSTR name, enum ScanFileProcessFlags flags )
+           , enum ScanFileFlags flags
 		   , uintptr_t psvUser, LOGICAL begin_sub_path, struct file_system_mounted_interface *mount );
 FILESYS_PROC  int FILESYS_API  ScanFiles ( CTEXTSTR base
            , CTEXTSTR mask
            , void **pInfo
-           , void CPROC Process( uintptr_t psvUser, CTEXTSTR name, int flags )
-           , int flags
+           , void CPROC Process( uintptr_t psvUser, CTEXTSTR name, enum ScanFileProcessFlags flags )
+           , enum ScanFileFlags flags
            , uintptr_t psvUser );
 FILESYS_PROC  void FILESYS_API  ScanDrives ( void (CPROC *Process)(uintptr_t user, CTEXTSTR letter, int flags)
 										  , uintptr_t user );
+// pass the pointer (pInfo) from aobve; get find_cursor.
+FILESYS_PROC struct find_cursor * FILESYS_API GetScanFileCursor( void *pInfo );
 // result is length of name filled into pResult if pResult == NULL && nResult = 0
 // the result will the be length of the name matching the file.
 FILESYS_PROC  int FILESYS_API  GetMatchingFileName ( CTEXTSTR filemask, int flags, TEXTSTR pResult, int nResult );
@@ -33819,6 +34323,8 @@ FILESYS_PROC  int FILESYS_API  sack_renameEx ( CTEXTSTR file_source, CTEXTSTR ne
 FILESYS_PROC  int FILESYS_API  sack_rename ( CTEXTSTR file_source, CTEXTSTR new_name );
 FILESYS_PROC  void FILESYS_API sack_set_common_data_application( CTEXTSTR name );
 FILESYS_PROC  void FILESYS_API sack_set_common_data_producer( CTEXTSTR name );
+FILESYS_PROC  uintptr_t FILESYS_API  sack_ioctl( FILE *file, uintptr_t opCode, ... );
+FILESYS_PROC  uintptr_t FILESYS_API  sack_fs_ioctl( struct file_system_mounted_interface *mount, uintptr_t opCode, ... );
 #ifndef NO_FILEOP_ALIAS
 #  ifndef NO_OPEN_MACRO
 # define open(a,...) sack_iopen(0,a,##__VA_ARGS__)
@@ -34373,7 +34879,7 @@ uint32_t  LockedExchange( volatile uint32_t* p, uint32_t val )
 #  endif
 #endif
 }
-uint32_t LockedIncrement( uint32_t* p ) {
+uint32_t LockedIncrement( volatile uint32_t* p ) {
 #ifdef _WIN32
 	return InterlockedIncrement( (volatile LONG *)p );
 #endif
@@ -34381,7 +34887,7 @@ uint32_t LockedIncrement( uint32_t* p ) {
 	return __atomic_add_fetch( p, 1, __ATOMIC_RELAXED );
 #endif
 }
-uint32_t LockedDecrement( uint32_t* p ) {
+uint32_t LockedDecrement( volatile uint32_t* p ) {
 #ifdef _WIN32
 	return InterlockedDecrement( (volatile LONG *)p );
 #endif
@@ -34575,7 +35081,8 @@ static void DumpSection( PCRITICALSECTION pcs )
 				else {
 					if( prior && *prior ) {
 						// shouldn't happen, if there's no waiter set, then there shouldn't be a prior.
-						DebugBreak();
+						if( *prior != 1 )
+							DebugBreak();
 					}
 #ifdef LOG_DEBUG_CRITICAL_SECTIONS
 					ll_lprintf( WIDE( "Claimed critical section." ) );
@@ -35173,6 +35680,7 @@ uintptr_t GetFileSize( int fd )
 	static int first = 1;
 #endif
 	int readonly = FALSE;
+	if( !dwSize ) return NULL;
 	if( !g.bInit )
 	{
 		//ODS( WIDE("Doing Init") );
@@ -35963,7 +36471,8 @@ POINTER HeapAllocateAlignedEx( PMEM pHeap, uintptr_t dwSize, uint16_t alignment 
  /*pc->alignemnt = */
 			((uint16_t*)(retval - sizeof(uint32_t)))[0] =alignment;
  /*pc->to_chunk_start = */
-			((uint16_t*)(retval - sizeof(uint32_t)))[1] =(uint16_t)(((((uintptr_t)pc->byData) + (alignment - 1)) & masks[alignment]) - (uintptr_t)pc->byData);
+			((uint16_t*)(retval - sizeof(uint32_t)))[1] =(uint16_t)(((((uintptr_t)pc->byData) + (alignment - 1)) & mask) - (uintptr_t)pc->byData);
+ //-V773
 			return (POINTER)retval;
 		}
 		else {
@@ -38095,6 +38604,7 @@ void InvokeDeadstart( void )
 	if( bSuspend )
 	{
 		if( l.flags.bLog )
+ //-V595
 			lprintf( WIDE("Suspended, first proc is %s"), proc_schedule?proc_schedule->func:WIDE("No First") );
 		return;
 	}
