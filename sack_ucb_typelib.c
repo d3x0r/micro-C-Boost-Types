@@ -445,198 +445,203 @@ But WHO doesn't have stdint?  BTW is sizeof( size_t ) == sizeof( void* )
 #include <wchar.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#if !defined( _WIN32 ) && !defined( __MAC__ )
+#  include <syscall.h>
+#elif defined( __MAC__ )
+#  include <sys/syscall.h>
+#endif
 #ifndef MY_TYPES_INCLUDED
-#define MY_TYPES_INCLUDED
+#  define MY_TYPES_INCLUDED
 // include this before anything else
 // thereby allowing us to redefine exit()
  // CHAR_BIT
-#include <limits.h>
+#  include <limits.h>
  // typelib requires this
-#ifdef _MSC_VER
-#ifndef UNDER_CE
+#  ifdef _MSC_VER
+#    ifndef UNDER_CE
  // memlib requires this, and it MUST be included befoer string.h if it is used.
-#include <intrin.h>
-#endif
-#endif
+#      include <intrin.h>
+#    endif
+#  endif
  // typelib requires this
-#include <string.h>
-#if !defined( WIN32 ) && !defined( _WIN32 ) && !defined( _PNACL )
-#include <dlfcn.h>
-#endif
-#if defined( _MSC_VER )
+#  include <string.h>
+#  if !defined( WIN32 ) && !defined( _WIN32 ) && !defined( _PNACL )
+#    include <dlfcn.h>
+#  endif
+#  if defined( _MSC_VER )
 // disable pointer conversion warnings - wish I could disable this
 // according to types...
 //#pragma warning( disable:4312; disable:4311 )
 // disable deprication warnings of snprintf, et al.
 //#pragma warning( disable:4996 )
-#define EMPTY_STRUCT struct { char nothing[]; }
-#endif
-#if defined( __WATCOMC__ )
-#define EMPTY_STRUCT char
-#endif
-#ifdef __cplusplus
+#    define EMPTY_STRUCT struct { char nothing[]; }
+#  endif
+#  if defined( __WATCOMC__ )
+#     define EMPTY_STRUCT char
+#  endif
+#  ifdef __cplusplus
 /* Could also consider defining 'SACK_NAMESPACE' as 'extern "C"
    ' {' and '..._END' as '}'                                    */
-#define SACK_NAMESPACE namespace sack {
+#    define SACK_NAMESPACE namespace sack {
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define SACK_NAMESPACE_END }
+#    define SACK_NAMESPACE_END }
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _CONTAINER_NAMESPACE namespace containers {
+#    define _CONTAINER_NAMESPACE namespace containers {
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _CONTAINER_NAMESPACE_END }
+#    define _CONTAINER_NAMESPACE_END }
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _LINKLIST_NAMESPACE namespace list {
+#    define _LINKLIST_NAMESPACE namespace list {
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _LINKLIST_NAMESPACE_END }
+#    define _LINKLIST_NAMESPACE_END }
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _DATALIST_NAMESPACE namespace data_list {
+#    define _DATALIST_NAMESPACE namespace data_list {
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _DATALIST_NAMESPACE_END }
+#    define _DATALIST_NAMESPACE_END }
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _SETS_NAMESPACE namespace sets {
+#    define _SETS_NAMESPACE namespace sets {
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _SETS_NAMESPACE_END }
+#    define _SETS_NAMESPACE_END }
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _TEXT_NAMESPACE namespace text {
+#    define _TEXT_NAMESPACE namespace text {
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _TEXT_NAMESPACE_END }
+#    define _TEXT_NAMESPACE_END }
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define TEXT_NAMESPACE SACK_NAMESPACE _CONTAINER_NAMESPACE namespace text {
+#    define TEXT_NAMESPACE SACK_NAMESPACE _CONTAINER_NAMESPACE namespace text {
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define TEXT_NAMESPACE_END  } _CONTAINER_NAMESPACE_END SACK_NAMESPACE_END
-#else
+#    define TEXT_NAMESPACE_END  } _CONTAINER_NAMESPACE_END SACK_NAMESPACE_END
+#  else
 /* Define the sack namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define SACK_NAMESPACE
+#    define SACK_NAMESPACE
 /* Define the sack namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define SACK_NAMESPACE_END
+#    define SACK_NAMESPACE_END
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _CONTAINER_NAMESPACE
+#    define _CONTAINER_NAMESPACE
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _CONTAINER_NAMESPACE_END
+#    define _CONTAINER_NAMESPACE_END
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _LINKLIST_NAMESPACE
+#    define _LINKLIST_NAMESPACE
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _LINKLIST_NAMESPACE_END
+#    define _LINKLIST_NAMESPACE_END
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _DATALIST_NAMESPACE
+#    define _DATALIST_NAMESPACE
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _DATALIST_NAMESPACE_END
+#    define _DATALIST_NAMESPACE_END
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _SETS_NAMESPACE
+#    define _SETS_NAMESPACE
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _SETS_NAMESPACE_END
+#    define _SETS_NAMESPACE_END
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _TEXT_NAMESPACE
+#    define _TEXT_NAMESPACE
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _TEXT_NAMESPACE_END
+#    define _TEXT_NAMESPACE_END
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define TEXT_NAMESPACE
+#    define TEXT_NAMESPACE
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define TEXT_NAMESPACE_END
-#endif
+#    define TEXT_NAMESPACE_END
+#  endif
 /* declare composite SACK_CONTAINER namespace to declare sack::container in a single line */
-#define SACK_CONTAINER_NAMESPACE SACK_NAMESPACE _CONTAINER_NAMESPACE
+#  define SACK_CONTAINER_NAMESPACE SACK_NAMESPACE _CONTAINER_NAMESPACE
 /* declare composite SACK_CONTAINER namespace to close sack::container in a single line */
-#define SACK_CONTAINER_NAMESPACE_END _CONTAINER_NAMESPACE_END SACK_NAMESPACE_END
+#  define SACK_CONTAINER_NAMESPACE_END _CONTAINER_NAMESPACE_END SACK_NAMESPACE_END
 /* declare composite SACK_CONTAINER namespace to declare sack::container::list in a single line */
-#define SACK_CONTAINER_LINKLIST_NAMESPACE SACK_CONTAINER_NAMESPACE _LISTLIST_NAMESPACE
+#  define SACK_CONTAINER_LINKLIST_NAMESPACE SACK_CONTAINER_NAMESPACE _LISTLIST_NAMESPACE
 /* declare composite SACK_CONTAINER namespace to close sack::container::list in a single line */
-#define SACK_CONTAINER_LINKLIST_NAMESPACE_END _LISTLIST_NAMESPACE_END SACK_CONTAINER_NAMESPACE
+#  define SACK_CONTAINER_LINKLIST_NAMESPACE_END _LISTLIST_NAMESPACE_END SACK_CONTAINER_NAMESPACE
 // this symbols is defined to enforce
 // the C Procedure standard - using a stack, and resulting
 // in EDX:EAX etc...
-#define CPROC
-#ifdef SACK_BAG_EXPORTS
-# ifdef BUILD_GLUE
+#  define CPROC
+#  ifdef SACK_BAG_EXPORTS
+#    ifdef BUILD_GLUE
 // this is used as the export method appropriate for C#?
-#  define EXPORT_METHOD [DllImport(LibName)] public
-# else
-#  ifdef __cplusplus_cli
-#   if defined( __STATIC__ ) || defined( __LINUX__ ) || defined( __ANDROID__ )
-#     define EXPORT_METHOD
-#     define IMPORT_METHOD extern
-#   else
-#     define EXPORT_METHOD __declspec(dllexport)
-#     define IMPORT_METHOD __declspec(dllimport)
-#   endif
-#   define LITERAL_LIB_EXPORT_METHOD __declspec(dllexport)
-#   define LITERAL_LIB_IMPORT_METHOD extern
-//__declspec(dllimport)
-#  else
-#   if defined( __STATIC__ ) || defined( __LINUX__ ) || defined( __ANDROID__ )
-#      define EXPORT_METHOD
-#      define IMPORT_METHOD extern
+#      define EXPORT_METHOD [DllImport(LibName)] public
 #    else
+#      ifdef __cplusplus_cli
+#        if defined( __STATIC__ ) || defined( __LINUX__ ) || defined( __ANDROID__ )
+#          define EXPORT_METHOD
+#          define IMPORT_METHOD extern
+#        else
+#          define EXPORT_METHOD __declspec(dllexport)
+#          define IMPORT_METHOD __declspec(dllimport)
+#        endif
+#        define LITERAL_LIB_EXPORT_METHOD __declspec(dllexport)
+#        define LITERAL_LIB_IMPORT_METHOD extern
+//__declspec(dllimport)
+#      else
+#        if defined( __STATIC__ ) || defined( __LINUX__ ) || defined( __ANDROID__ )
+#          define EXPORT_METHOD
+#          define IMPORT_METHOD extern
+#        else
 /* Method to declare functions exported from a DLL. (nothign on
    LINUX or building statically, but __declspec(dllimport) on
    windows )                                                    */
-#      define EXPORT_METHOD __declspec(dllexport)
+#          define EXPORT_METHOD __declspec(dllexport)
 /* method to define a function which will be Imported from a
    library. Under windows, this is probably
    __declspec(dllimport). Under linux this is probably 'extern'. */
-#      define IMPORT_METHOD __declspec(dllimport)
+#          define IMPORT_METHOD __declspec(dllimport)
+#        endif
+#        define LITERAL_LIB_EXPORT_METHOD __declspec(dllexport)
+#        define LITERAL_LIB_IMPORT_METHOD __declspec(dllimport)
+#      endif
 #    endif
-#      define LITERAL_LIB_EXPORT_METHOD __declspec(dllexport)
-#      define LITERAL_LIB_IMPORT_METHOD __declspec(dllimport)
-#  endif
-# endif
-#else
-# if ( !defined( __STATIC__ ) && defined( WIN32 ) && !defined( __cplusplus_cli) )
-#  define EXPORT_METHOD __declspec(dllexport)
-#  define IMPORT_METHOD __declspec(dllimport)
-#  define LITERAL_LIB_EXPORT_METHOD __declspec(dllexport)
-#  define LITERAL_LIB_IMPORT_METHOD __declspec(dllimport)
-# else
-// MRT:  This is needed.  Need to see what may be defined wrong and fix it.
-#  if defined( __LINUX__ ) || defined( __STATIC__ )
-#    define EXPORT_METHOD
-#    define IMPORT_METHOD extern
-#    define LITERAL_LIB_EXPORT_METHOD
-#    define LITERAL_LIB_IMPORT_METHOD extern
 #  else
+#  if ( !defined( __STATIC__ ) && defined( WIN32 ) && !defined( __cplusplus_cli) )
 #    define EXPORT_METHOD __declspec(dllexport)
 #    define IMPORT_METHOD __declspec(dllimport)
+#    define LITERAL_LIB_EXPORT_METHOD __declspec(dllexport)
+#    define LITERAL_LIB_IMPORT_METHOD __declspec(dllimport)
+#  else
+// MRT:  This is needed.  Need to see what may be defined wrong and fix it.
+#    if defined( __LINUX__ ) || defined( __STATIC__ )
+#      define EXPORT_METHOD
+#      define IMPORT_METHOD extern
+#      define LITERAL_LIB_EXPORT_METHOD
+#      define LITERAL_LIB_IMPORT_METHOD extern
+#    else
+#      define EXPORT_METHOD __declspec(dllexport)
+#      define IMPORT_METHOD __declspec(dllimport)
 /* Define how methods in LITERAL_LIBRARIES are exported.
    literal_libraries are libraries that are used for plugins,
    and are dynamically loaded by code. They break the rules of
    system prefix and suffix extensions. LITERAL_LIBRARIES are
    always dynamic, and never static.                           */
-#    define LITERAL_LIB_EXPORT_METHOD __declspec(dllexport)
+#      define LITERAL_LIB_EXPORT_METHOD __declspec(dllexport)
 /* Define how methods in LITERAL_LIBRARIES are imported.
    literal_libraries are libraries that are used for plugins,
    and are dynamically loaded by code. They break the rules of
    system prefix and suffix extensions. LITERAL_LIBRARIES are
    always dynamic, and never static.                           */
-#    define LITERAL_LIB_IMPORT_METHOD __declspec(dllimport)
+#      define LITERAL_LIB_IMPORT_METHOD __declspec(dllimport)
+#    endif
 #  endif
-# endif
 #endif
 // used when the keword specifying a structure is packed
 // needs to prefix the struct keyword.
@@ -1386,25 +1391,29 @@ SACK_NAMESPACE
 // threads and processes.
 typedef uint64_t THREAD_ID;
 #define GetMyThreadIDNL GetMyThreadID
-#if defined( _WIN32 ) || defined( __CYGWIN__ )
+#if defined( _WIN32 )
 #  define _GetMyThreadID()  ( (( ((uint64_t)GetCurrentProcessId()) << 32 ) | ( (uint64_t)GetCurrentThreadId() ) ) )
 #  define GetMyThreadID()  (GetThisThreadID())
 #else
 // this is now always the case
 // it's a safer solution anyhow...
-#  ifndef GETPID_RETURNS_PPID
-#    define GETPID_RETURNS_PPID
-#  endif
-#  ifdef GETPID_RETURNS_PPID
-#    ifdef __ANDROID__
-#      define GetMyThreadID()  (( ((uint64_t)getpid()) << 32 ) | ( (uint64_t)(gettid()) ) )
-#    else
-#      define GetMyThreadID()  (( ((uint64_t)getpid()) << 32 ) | ( (uint64_t)(pthread_self()) ) )
-#    endif
+#  ifdef __MAC__
+#    define GetMyThreadID()  (( ((uint64_t)getpid()) << 32 ) | ( (uint64_t)( syscall(SYS_thread_selfid) ) ) )
 #  else
-#    define GetMyThreadID()  (( ((uint64_t)getppid()) << 32 ) | ( (uint64_t)(getpid()|0x40000000)) )
+#    ifndef GETPID_RETURNS_PPID
+#      define GETPID_RETURNS_PPID
+#    endif
+#    ifdef GETPID_RETURNS_PPID
+#      ifdef __ANDROID__
+#        define GetMyThreadID()  (( ((uint64_t)getpid()) << 32 ) | ( (uint64_t)(gettid()) ) )
+#      else
+#        define GetMyThreadID()  (( ((uint64_t)getpid()) << 32 ) | ( (uint64_t)(syscall(SYS_gettid)) ) )
+#      endif
+#    else
+#      define GetMyThreadID()  (( ((uint64_t)getppid()) << 32 ) | ( (uint64_t)(getpid()|0x40000000)) )
+#    endif
 #  endif
-#    define _GetMyThreadID GetMyThreadID
+#  define _GetMyThreadID GetMyThreadID
 #endif
 //---------------------- Declare Link; 'single and a half'ly-linked lists -----------------------
 // Thse macros are for linking and unlininking things in a linked list.
@@ -3495,7 +3504,7 @@ TYPELIB_PROC  void TYPELIB_CALLTYPE  SegReleaseEx( PTEXT seg DBG_PASS );
    DBG_PASS :  \file and line debugging information               */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegConcatEx   (PTEXT output,PTEXT input,int32_t offset,size_t length DBG_PASS);
 /* <combine sack::containers::text::SegConcatEx@PTEXT@PTEXT@int32_t@size_t length>
-   looks like it takes a peice of one segment and appends it to
+   looks like it takes a piece of one segment and appends it to
    another....
    Needs More research to document correctly and exemplify.                     */
 #define SegConcat(out,in,ofs,len) SegConcatEx(out,in,ofs,len DBG_SRC)
@@ -4589,73 +4598,7 @@ IMPORT_METHOD
  // namespace sack {
 SACK_NAMESPACE_END
 // this should become common to all libraries and programs...
- // pronounced 'kahn-struct'
-/* Defines interface for Construct API.
-   Description
-   This API is for distributed process tracking. A launching
-   program will receive notifications to cause certain events to
-   happen. Applications built for use by this execution tracking
-   program will register that they are loading while they are
-   loading, and before the application Main() is invoked. the
-   application should then call LoadComplete() once they have
-   initialized and are ready to process. This allows a
-   quick-wait to wait for the process to register that it is
-   loading, and a longer wait for process completion. Certain
-   processes may not require others to be completely loaded, but
-   maybe just loading. (Two peer processes that have to
-   coordinate together to have either one complete
-   initialization).                                              */
-/* Define the procedure call type for construct API methods. */
-#define CONSTRUCT_API CPROC
-#ifdef CONSTRUCT_SOURCE
-#define CONSTRUCT_PROC EXPORT_METHOD
-#else
-/* Library linkage specification. */
-#define CONSTRUCT_PROC IMPORT_METHOD
-#endif
-#ifdef __cplusplus
-/* Defines TASK namespace (unused?) */
-#define _TASK_NAMESPACE namespace task {
-/* Define Construct namespace. Construct is for distributed
-   process tracking project. Applications will register on-load
-   that they are loading, and should register load completed
-   when they are done loading, or exit.                         */
-#define _CONSTRUCT_NAMESPACE namespace construct {
-/* Defines TASK namespace ending.(unused?) */
-#define _TASK_NAMESPACE_END }
-/* Define Construct namespace end. Construct is for distributed
-   process tracking project. Applications will register on-load
-   that they are loading, and should register load completed
-   when they are done loading, or exit.                         */
-#define _CONSTRUCT_NAMESPACE_END }
-#else
-#define _TASK_NAMESPACE
-#define _CONSTRUCT_NAMESPACE
-#define _TASK_NAMESPACE_END
-#define _CONSTRUCT_NAMESPACE_END
-#endif
-/* Define a symbol to specify full sack::task::construct
-   namespace.                                            */
-#define CONSTRUCT_NAMESPACE SACK_NAMESPACE _TASK_NAMESPACE _CONSTRUCT_NAMESPACE
-/* Define a symbol to specify full sack::task::construct
-   namespace ending.                                     */
-#define CONSTRUCT_NAMESPACE_END _CONSTRUCT_NAMESPACE_END _TASK_NAMESPACE_END SACK_NAMESPACE_END
-	SACK_NAMESPACE
-	_TASK_NAMESPACE
-	/* Registers with message service, assuming the summoner message service is active.
-	 Provides communication methods with a task manager, so the application can notify,
-	 start has completed.   The service is ready to work.*/
-_CONSTRUCT_NAMESPACE
-/* Called to indicate that a process is done initializing and is
-   ready to process. Notifies summoner service of Loading
-   completed. If enabled, there is also a library component that
-   will run at deadstart to just confirm initializing, this
-   would actually indicate the service is now ready to serve.    */
-CONSTRUCT_PROC void CONSTRUCT_API LoadComplete( void );
-CONSTRUCT_NAMESPACE_END
-#ifdef __cplusplus
-	using namespace sack::task::construct;
-#endif
+//#include <construct.h> // pronounced 'kahn-struct'
 /*
  *  Crafted by James Buckeyne
  *  Part of SACK github.com/d3x0r/SACK
@@ -7548,199 +7491,204 @@ But WHO doesn't have stdint?  BTW is sizeof( size_t ) == sizeof( void* )
 #include <wchar.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#if !defined( _WIN32 ) && !defined( __MAC__ )
+#  include <syscall.h>
+#elif defined( __MAC__ )
+#  include <sys/syscall.h>
+#endif
 #ifndef MY_TYPES_INCLUDED
-#define MY_TYPES_INCLUDED
+#  define MY_TYPES_INCLUDED
 // include this before anything else
 // thereby allowing us to redefine exit()
  // CHAR_BIT
-#include <limits.h>
+#  include <limits.h>
  // typelib requires this
-#include <stdarg.h>
-#ifdef _MSC_VER
-#ifndef UNDER_CE
+#  include <stdarg.h>
+#  ifdef _MSC_VER
+#    ifndef UNDER_CE
  // memlib requires this, and it MUST be included befoer string.h if it is used.
-#include <intrin.h>
-#endif
-#endif
+#      include <intrin.h>
+#    endif
+#  endif
  // typelib requires this
-#include <string.h>
-#if !defined( WIN32 ) && !defined( _WIN32 ) && !defined( _PNACL )
-#include <dlfcn.h>
-#endif
-#if defined( _MSC_VER )
+#  include <string.h>
+#  if !defined( WIN32 ) && !defined( _WIN32 ) && !defined( _PNACL )
+#    include <dlfcn.h>
+#  endif
+#  if defined( _MSC_VER )
 // disable pointer conversion warnings - wish I could disable this
 // according to types...
 //#pragma warning( disable:4312; disable:4311 )
 // disable deprication warnings of snprintf, et al.
 //#pragma warning( disable:4996 )
-#define EMPTY_STRUCT struct { char nothing[]; }
-#endif
-#if defined( __WATCOMC__ )
-#define EMPTY_STRUCT char
-#endif
-#ifdef __cplusplus
+#    define EMPTY_STRUCT struct { char nothing[]; }
+#  endif
+#  if defined( __WATCOMC__ )
+#     define EMPTY_STRUCT char
+#  endif
+#  ifdef __cplusplus
 /* Could also consider defining 'SACK_NAMESPACE' as 'extern "C"
    ' {' and '..._END' as '}'                                    */
-#define SACK_NAMESPACE namespace sack {
+#    define SACK_NAMESPACE namespace sack {
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define SACK_NAMESPACE_END }
+#    define SACK_NAMESPACE_END }
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _CONTAINER_NAMESPACE namespace containers {
+#    define _CONTAINER_NAMESPACE namespace containers {
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _CONTAINER_NAMESPACE_END }
+#    define _CONTAINER_NAMESPACE_END }
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _LINKLIST_NAMESPACE namespace list {
+#    define _LINKLIST_NAMESPACE namespace list {
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _LINKLIST_NAMESPACE_END }
+#    define _LINKLIST_NAMESPACE_END }
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _DATALIST_NAMESPACE namespace data_list {
+#    define _DATALIST_NAMESPACE namespace data_list {
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _DATALIST_NAMESPACE_END }
+#    define _DATALIST_NAMESPACE_END }
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _SETS_NAMESPACE namespace sets {
+#    define _SETS_NAMESPACE namespace sets {
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _SETS_NAMESPACE_END }
+#    define _SETS_NAMESPACE_END }
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _TEXT_NAMESPACE namespace text {
+#    define _TEXT_NAMESPACE namespace text {
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _TEXT_NAMESPACE_END }
+#    define _TEXT_NAMESPACE_END }
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define TEXT_NAMESPACE SACK_NAMESPACE _CONTAINER_NAMESPACE namespace text {
+#    define TEXT_NAMESPACE SACK_NAMESPACE _CONTAINER_NAMESPACE namespace text {
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define TEXT_NAMESPACE_END  } _CONTAINER_NAMESPACE_END SACK_NAMESPACE_END
-#else
+#    define TEXT_NAMESPACE_END  } _CONTAINER_NAMESPACE_END SACK_NAMESPACE_END
+#  else
 /* Define the sack namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define SACK_NAMESPACE
+#    define SACK_NAMESPACE
 /* Define the sack namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define SACK_NAMESPACE_END
+#    define SACK_NAMESPACE_END
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _CONTAINER_NAMESPACE
+#    define _CONTAINER_NAMESPACE
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _CONTAINER_NAMESPACE_END
+#    define _CONTAINER_NAMESPACE_END
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _LINKLIST_NAMESPACE
+#    define _LINKLIST_NAMESPACE
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _LINKLIST_NAMESPACE_END
+#    define _LINKLIST_NAMESPACE_END
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _DATALIST_NAMESPACE
+#    define _DATALIST_NAMESPACE
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _DATALIST_NAMESPACE_END
+#    define _DATALIST_NAMESPACE_END
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _SETS_NAMESPACE
+#    define _SETS_NAMESPACE
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _SETS_NAMESPACE_END
+#    define _SETS_NAMESPACE_END
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _TEXT_NAMESPACE
+#    define _TEXT_NAMESPACE
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define _TEXT_NAMESPACE_END
+#    define _TEXT_NAMESPACE_END
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define TEXT_NAMESPACE
+#    define TEXT_NAMESPACE
 /* Define the container namespace (when building with C++, the
    wrappers are namespace{} instead of extern"c"{} )           */
-#define TEXT_NAMESPACE_END
-#endif
+#    define TEXT_NAMESPACE_END
+#  endif
 /* declare composite SACK_CONTAINER namespace to declare sack::container in a single line */
-#define SACK_CONTAINER_NAMESPACE SACK_NAMESPACE _CONTAINER_NAMESPACE
+#  define SACK_CONTAINER_NAMESPACE SACK_NAMESPACE _CONTAINER_NAMESPACE
 /* declare composite SACK_CONTAINER namespace to close sack::container in a single line */
-#define SACK_CONTAINER_NAMESPACE_END _CONTAINER_NAMESPACE_END SACK_NAMESPACE_END
+#  define SACK_CONTAINER_NAMESPACE_END _CONTAINER_NAMESPACE_END SACK_NAMESPACE_END
 /* declare composite SACK_CONTAINER namespace to declare sack::container::list in a single line */
-#define SACK_CONTAINER_LINKLIST_NAMESPACE SACK_CONTAINER_NAMESPACE _LISTLIST_NAMESPACE
+#  define SACK_CONTAINER_LINKLIST_NAMESPACE SACK_CONTAINER_NAMESPACE _LISTLIST_NAMESPACE
 /* declare composite SACK_CONTAINER namespace to close sack::container::list in a single line */
-#define SACK_CONTAINER_LINKLIST_NAMESPACE_END _LISTLIST_NAMESPACE_END SACK_CONTAINER_NAMESPACE
+#  define SACK_CONTAINER_LINKLIST_NAMESPACE_END _LISTLIST_NAMESPACE_END SACK_CONTAINER_NAMESPACE
 // this symbols is defined to enforce
 // the C Procedure standard - using a stack, and resulting
 // in EDX:EAX etc...
-#define CPROC
-#ifdef SACK_BAG_EXPORTS
-# ifdef BUILD_GLUE
+#  define CPROC
+#  ifdef SACK_BAG_EXPORTS
+#    ifdef BUILD_GLUE
 // this is used as the export method appropriate for C#?
-#  define EXPORT_METHOD [DllImport(LibName)] public
-# else
-#  ifdef __cplusplus_cli
-#   if defined( __STATIC__ ) || defined( __LINUX__ ) || defined( __ANDROID__ )
-#     define EXPORT_METHOD
-#     define IMPORT_METHOD extern
-#   else
-#     define EXPORT_METHOD __declspec(dllexport)
-#     define IMPORT_METHOD __declspec(dllimport)
-#   endif
-#   define LITERAL_LIB_EXPORT_METHOD __declspec(dllexport)
-#   define LITERAL_LIB_IMPORT_METHOD extern
-//__declspec(dllimport)
-#  else
-#   if defined( __STATIC__ ) || defined( __LINUX__ ) || defined( __ANDROID__ )
-#      define EXPORT_METHOD
-#      define IMPORT_METHOD extern
+#      define EXPORT_METHOD [DllImport(LibName)] public
 #    else
+#      ifdef __cplusplus_cli
+#        if defined( __STATIC__ ) || defined( __LINUX__ ) || defined( __ANDROID__ )
+#          define EXPORT_METHOD
+#          define IMPORT_METHOD extern
+#        else
+#          define EXPORT_METHOD __declspec(dllexport)
+#          define IMPORT_METHOD __declspec(dllimport)
+#        endif
+#        define LITERAL_LIB_EXPORT_METHOD __declspec(dllexport)
+#        define LITERAL_LIB_IMPORT_METHOD extern
+//__declspec(dllimport)
+#      else
+#        if defined( __STATIC__ ) || defined( __LINUX__ ) || defined( __ANDROID__ )
+#          define EXPORT_METHOD
+#          define IMPORT_METHOD extern
+#        else
 /* Method to declare functions exported from a DLL. (nothign on
    LINUX or building statically, but __declspec(dllimport) on
    windows )                                                    */
-#      define EXPORT_METHOD __declspec(dllexport)
+#          define EXPORT_METHOD __declspec(dllexport)
 /* method to define a function which will be Imported from a
    library. Under windows, this is probably
    __declspec(dllimport). Under linux this is probably 'extern'. */
-#      define IMPORT_METHOD __declspec(dllimport)
+#          define IMPORT_METHOD __declspec(dllimport)
+#        endif
+#        define LITERAL_LIB_EXPORT_METHOD __declspec(dllexport)
+#        define LITERAL_LIB_IMPORT_METHOD __declspec(dllimport)
+#      endif
 #    endif
-#      define LITERAL_LIB_EXPORT_METHOD __declspec(dllexport)
-#      define LITERAL_LIB_IMPORT_METHOD __declspec(dllimport)
-#  endif
-# endif
-#else
-# if ( !defined( __STATIC__ ) && defined( WIN32 ) && !defined( __cplusplus_cli) )
-#  define EXPORT_METHOD __declspec(dllexport)
-#  define IMPORT_METHOD __declspec(dllimport)
-#  define LITERAL_LIB_EXPORT_METHOD __declspec(dllexport)
-#  define LITERAL_LIB_IMPORT_METHOD __declspec(dllimport)
-# else
-// MRT:  This is needed.  Need to see what may be defined wrong and fix it.
-#  if defined( __LINUX__ ) || defined( __STATIC__ )
-#    define EXPORT_METHOD
-#    define IMPORT_METHOD extern
-#    define LITERAL_LIB_EXPORT_METHOD
-#    define LITERAL_LIB_IMPORT_METHOD extern
 #  else
+#  if ( !defined( __STATIC__ ) && defined( WIN32 ) && !defined( __cplusplus_cli) )
 #    define EXPORT_METHOD __declspec(dllexport)
 #    define IMPORT_METHOD __declspec(dllimport)
+#    define LITERAL_LIB_EXPORT_METHOD __declspec(dllexport)
+#    define LITERAL_LIB_IMPORT_METHOD __declspec(dllimport)
+#  else
+// MRT:  This is needed.  Need to see what may be defined wrong and fix it.
+#    if defined( __LINUX__ ) || defined( __STATIC__ )
+#      define EXPORT_METHOD
+#      define IMPORT_METHOD extern
+#      define LITERAL_LIB_EXPORT_METHOD
+#      define LITERAL_LIB_IMPORT_METHOD extern
+#    else
+#      define EXPORT_METHOD __declspec(dllexport)
+#      define IMPORT_METHOD __declspec(dllimport)
 /* Define how methods in LITERAL_LIBRARIES are exported.
    literal_libraries are libraries that are used for plugins,
    and are dynamically loaded by code. They break the rules of
    system prefix and suffix extensions. LITERAL_LIBRARIES are
    always dynamic, and never static.                           */
-#    define LITERAL_LIB_EXPORT_METHOD __declspec(dllexport)
+#      define LITERAL_LIB_EXPORT_METHOD __declspec(dllexport)
 /* Define how methods in LITERAL_LIBRARIES are imported.
    literal_libraries are libraries that are used for plugins,
    and are dynamically loaded by code. They break the rules of
    system prefix and suffix extensions. LITERAL_LIBRARIES are
    always dynamic, and never static.                           */
-#    define LITERAL_LIB_IMPORT_METHOD __declspec(dllimport)
+#      define LITERAL_LIB_IMPORT_METHOD __declspec(dllimport)
+#    endif
 #  endif
-# endif
 #endif
 // used when the keword specifying a structure is packed
 // needs to prefix the struct keyword.
@@ -8490,25 +8438,29 @@ SACK_NAMESPACE
 // threads and processes.
 typedef uint64_t THREAD_ID;
 #define GetMyThreadIDNL GetMyThreadID
-#if defined( _WIN32 ) || defined( __CYGWIN__ )
+#if defined( _WIN32 )
 #  define _GetMyThreadID()  ( (( ((uint64_t)GetCurrentProcessId()) << 32 ) | ( (uint64_t)GetCurrentThreadId() ) ) )
 #  define GetMyThreadID()  (GetThisThreadID())
 #else
 // this is now always the case
 // it's a safer solution anyhow...
-#  ifndef GETPID_RETURNS_PPID
-#    define GETPID_RETURNS_PPID
-#  endif
-#  ifdef GETPID_RETURNS_PPID
-#    ifdef __ANDROID__
-#      define GetMyThreadID()  (( ((uint64_t)getpid()) << 32 ) | ( (uint64_t)(gettid()) ) )
-#    else
-#      define GetMyThreadID()  (( ((uint64_t)getpid()) << 32 ) | ( (uint64_t)(pthread_self()) ) )
-#    endif
+#  ifdef __MAC__
+#    define GetMyThreadID()  (( ((uint64_t)getpid()) << 32 ) | ( (uint64_t)( syscall(SYS_thread_selfid) ) ) )
 #  else
-#    define GetMyThreadID()  (( ((uint64_t)getppid()) << 32 ) | ( (uint64_t)(getpid()|0x40000000)) )
+#    ifndef GETPID_RETURNS_PPID
+#      define GETPID_RETURNS_PPID
+#    endif
+#    ifdef GETPID_RETURNS_PPID
+#      ifdef __ANDROID__
+#        define GetMyThreadID()  (( ((uint64_t)getpid()) << 32 ) | ( (uint64_t)(gettid()) ) )
+#      else
+#        define GetMyThreadID()  (( ((uint64_t)getpid()) << 32 ) | ( (uint64_t)(syscall(SYS_gettid)) ) )
+#      endif
+#    else
+#      define GetMyThreadID()  (( ((uint64_t)getppid()) << 32 ) | ( (uint64_t)(getpid()|0x40000000)) )
+#    endif
 #  endif
-#    define _GetMyThreadID GetMyThreadID
+#  define _GetMyThreadID GetMyThreadID
 #endif
 //---------------------- Declare Link; 'single and a half'ly-linked lists -----------------------
 // Thse macros are for linking and unlininking things in a linked list.
@@ -10599,7 +10551,7 @@ TYPELIB_PROC  void TYPELIB_CALLTYPE  SegReleaseEx( PTEXT seg DBG_PASS );
    DBG_PASS :  \file and line debugging information               */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegConcatEx   (PTEXT output,PTEXT input,int32_t offset,size_t length DBG_PASS);
 /* <combine sack::containers::text::SegConcatEx@PTEXT@PTEXT@int32_t@size_t length>
-   looks like it takes a peice of one segment and appends it to
+   looks like it takes a piece of one segment and appends it to
    another....
    Needs More research to document correctly and exemplify.                     */
 #define SegConcat(out,in,ofs,len) SegConcatEx(out,in,ofs,len DBG_SRC)
@@ -11693,73 +11645,7 @@ IMPORT_METHOD
  // namespace sack {
 SACK_NAMESPACE_END
 // this should become common to all libraries and programs...
- // pronounced 'kahn-struct'
-/* Defines interface for Construct API.
-   Description
-   This API is for distributed process tracking. A launching
-   program will receive notifications to cause certain events to
-   happen. Applications built for use by this execution tracking
-   program will register that they are loading while they are
-   loading, and before the application Main() is invoked. the
-   application should then call LoadComplete() once they have
-   initialized and are ready to process. This allows a
-   quick-wait to wait for the process to register that it is
-   loading, and a longer wait for process completion. Certain
-   processes may not require others to be completely loaded, but
-   maybe just loading. (Two peer processes that have to
-   coordinate together to have either one complete
-   initialization).                                              */
-/* Define the procedure call type for construct API methods. */
-#define CONSTRUCT_API CPROC
-#ifdef CONSTRUCT_SOURCE
-#define CONSTRUCT_PROC EXPORT_METHOD
-#else
-/* Library linkage specification. */
-#define CONSTRUCT_PROC IMPORT_METHOD
-#endif
-#ifdef __cplusplus
-/* Defines TASK namespace (unused?) */
-#define _TASK_NAMESPACE namespace task {
-/* Define Construct namespace. Construct is for distributed
-   process tracking project. Applications will register on-load
-   that they are loading, and should register load completed
-   when they are done loading, or exit.                         */
-#define _CONSTRUCT_NAMESPACE namespace construct {
-/* Defines TASK namespace ending.(unused?) */
-#define _TASK_NAMESPACE_END }
-/* Define Construct namespace end. Construct is for distributed
-   process tracking project. Applications will register on-load
-   that they are loading, and should register load completed
-   when they are done loading, or exit.                         */
-#define _CONSTRUCT_NAMESPACE_END }
-#else
-#define _TASK_NAMESPACE
-#define _CONSTRUCT_NAMESPACE
-#define _TASK_NAMESPACE_END
-#define _CONSTRUCT_NAMESPACE_END
-#endif
-/* Define a symbol to specify full sack::task::construct
-   namespace.                                            */
-#define CONSTRUCT_NAMESPACE SACK_NAMESPACE _TASK_NAMESPACE _CONSTRUCT_NAMESPACE
-/* Define a symbol to specify full sack::task::construct
-   namespace ending.                                     */
-#define CONSTRUCT_NAMESPACE_END _CONSTRUCT_NAMESPACE_END _TASK_NAMESPACE_END SACK_NAMESPACE_END
-	SACK_NAMESPACE
-	_TASK_NAMESPACE
-	/* Registers with message service, assuming the summoner message service is active.
-	 Provides communication methods with a task manager, so the application can notify,
-	 start has completed.   The service is ready to work.*/
-_CONSTRUCT_NAMESPACE
-/* Called to indicate that a process is done initializing and is
-   ready to process. Notifies summoner service of Loading
-   completed. If enabled, there is also a library component that
-   will run at deadstart to just confirm initializing, this
-   would actually indicate the service is now ready to serve.    */
-CONSTRUCT_PROC void CONSTRUCT_API LoadComplete( void );
-CONSTRUCT_NAMESPACE_END
-#ifdef __cplusplus
-	using namespace sack::task::construct;
-#endif
+//#include <construct.h> // pronounced 'kahn-struct'
 /*
  *  Crafted by James Buckeyne
  *  Part of SACK github.com/d3x0r/SACK
@@ -17555,7 +17441,7 @@ PTEXT TextParse( PTEXT input, CTEXTSTR punctuation, CTEXTSTR filter_space, int b
 //#define DBG_OVERRIDE DBG_SRC
 #define DBG_OVERRIDE DBG_RELAY
 	/* takes a line of input and creates a line equivalent to it, but
-	   burst into its block peices.*/
+	   burst into its block pieces.*/
 	VARTEXT out;
 	PTEXT outdata=(PTEXT)NULL,
 	      word;
@@ -17747,14 +17633,14 @@ PTEXT TextParse( PTEXT input, CTEXTSTR punctuation, CTEXTSTR filter_space, int b
 				{
 					int c;
 					if( has_plus == -1 ) {
-						if( !punctuation || StrChr( punctuation, '-' ) )
+						if( !punctuation || StrChr( punctuation, '+' ) )
 							has_plus = 1;
 						else
 							has_plus = 0;
 					}
 					if( !has_plus )
 					{
-						VarTextAddCharacterEx( &out, '-' DBG_OVERRIDE );
+						VarTextAddCharacterEx( &out, '+' DBG_OVERRIDE );
 						break;
 					}
 					if( ( c = NextChar() ) &&
@@ -17820,7 +17706,7 @@ PTEXT burstEx( PTEXT input DBG_PASS )
 //#define DBG_OVERRIDE DBG_SRC
 //#define DBG_OVERRIDE DBG_RELAY
 	/* takes a line of input and creates a line equivalent to it, but
-		burst into its block peices.*/
+		burst into its block pieces.*/
 	VARTEXT out;
 	PTEXT outdata=(PTEXT)NULL,
 			word;
@@ -18147,7 +18033,7 @@ INDEX LineLengthEx( PTEXT pt, LOGICAL bSingle )
 //---------------------------------------------------------------------------
 // attempts to build a solitary line segment from the text passed
 // however, if there are color changes, or absolute position changes
-// this cannot work... and it must provide multiple peices...
+// this cannot work... and it must provide multiple pieces...
 #undef BuildLineExx
 PTEXT BuildLineExx( PTEXT pt, LOGICAL bSingle, PTEXT pEOL DBG_PASS )
 {
@@ -25028,6 +24914,22 @@ typedef void (CPROC*cppCloseCallback)(uintptr_t);
 typedef void (CPROC*cppWriteComplete)(uintptr_t );
 typedef void (CPROC*cppNotifyCallback)(uintptr_t, PCLIENT newClient);
 typedef void (CPROC*cppConnectCallback)(uintptr_t, int);
+enum SackNetworkErrorIdentifier {
+	SACK_NETWORK_ERROR_,
+ // error during control information exchange over TLS
+	SACK_NETWORK_ERROR_SSL_HANDSHAKE,
+ // error after first packet.
+	SACK_NETWORK_ERROR_SSL_HANDSHAKE_2,
+ // error verifying validity of certificate chain from server.
+	SACK_NETWORK_ERROR_SSL_CERTCHAIN_FAIL,
+ // other ssl error
+	SACK_NETWORK_ERROR_SSL_FAIL,
+ //
+	SACK_NETWORK_ERROR_HTTP_CHUNK,
+ // command parsing resulted in invalid command.  (HTTPS request to HTTP)
+	SACK_NETWORK_ERROR_HTTP_UNSUPPORTED,
+};
+typedef void (CPROC*cErrorCallback)(uintptr_t psvError, PCLIENT pc, enum SackNetworkErrorIdentifier error, ... );
 NETWORK_PROC( void, SetNetworkWriteComplete )( PCLIENT, cWriteComplete );
 #ifdef __cplusplus
 /* <combine sack::network::SetNetworkWriteComplete@PCLIENT@cWriteComplete>
@@ -25055,6 +24957,21 @@ NETWORK_PROC( void, SetCPPNetworkCloseCallback )( PCLIENT, cppCloseCallback, uin
 /* <combine sack::network::SetNetworkCloseCallback@PCLIENT@cCloseCallback>
    \ \                                                                     */
 #define SetCloseCallback SetNetworkCloseCallback
+/* Sets an error event callback which is triggered during low level (SSL)
+   operations.  Error code passed to callback will give more information.
+   Parameters
+   pc :              socket to set event handler on
+   callback :        Address of error handling callback.
+   psvUser :         data passed to callback for application purposes.
+*/
+NETWORK_PROC( void, SetNetworkErrorCallback )(PCLIENT pc, cErrorCallback callback, uintptr_t psvUser );
+/*
+   Trigger error callback with specified error code (meta code like http.c can trigger this(?))
+   Parameters
+   pc :              socket to set event handler on
+   code :        Address of error handling callback.
+ */
+NETWORK_PROC( void, TriggerNetworkErrorCallback )(PCLIENT pc, enum SackNetworkErrorIdentifier error );
  // wwords is BYTES and wClients=16 is defaulted to 16
 #ifdef __LINUX__
 NETWORK_PROC( LOGICAL, NetworkWait )(POINTER unused,uint32_t wClients,int wUserData);
@@ -25080,8 +24997,11 @@ NETWORK_PROC( SOCKADDR *, CreateAddress_hton )( uint32_t dwIP,uint16_t nHisPort)
 #ifndef WIN32
 NETWORK_PROC( SOCKADDR *, CreateUnixAddress )( CTEXTSTR path );
 #endif
+/* obsolete */
 NETWORK_PROC( SOCKADDR *, CreateAddress )( uint32_t dwIP,uint16_t nHisPort);
+/* obsolete */
 NETWORK_PROC( SOCKADDR *, SetAddressPort )( SOCKADDR *pAddr, uint16_t nDefaultPort );
+/* obsolete */
 NETWORK_PROC( SOCKADDR *, SetNonDefaultPort )( SOCKADDR *pAddr, uint16_t nDefaultPort );
 /*
  * this is the preferred method to create an address
@@ -25137,8 +25057,6 @@ NETWORK_PROC( LOGICAL, IsAddressV6 )( SOCKADDR *addr );
  // return a copy of this address...
 NETWORK_PROC( SOCKADDR *, DuplicateAddressEx )( SOCKADDR *pAddr DBG_PASS );
 #define DuplicateAddress(a) DuplicateAddressEx( a DBG_SRC )
-NETWORK_PROC( void, SackNetwork_SetSocketSecure )( PCLIENT lpClient );
-NETWORK_PROC( void, SackNetwork_AllowSecurityDowngrade )( PCLIENT lpClient );
 /* Transmission Control Protocol connection methods. This
    controls opening sockets that are based on TCP.        */
 _TCP_NAMESPACE
@@ -25170,9 +25088,11 @@ NETWORK_PROC( PCLIENT, CPPOpenTCPListenerAddrExx )( SOCKADDR *, cppNotifyCallbac
    with a NULL pointer and 0 size, before the connect complete.   */
 NETWORK_PROC( PCLIENT, OpenTCPListenerAddrExx )( SOCKADDR *, cNotifyCallback NotifyCallback DBG_PASS );
 #define OpenTCPListenerAddrEx(sa,ca) OpenTCPListenerAddrExx( sa, ca DBG_SRC )
+NETWORK_PROC( PCLIENT, OpenTCPListenerAddr_v2d )(SOCKADDR *, cNotifyCallback NotifyCallback, LOGICAL ready DBG_PASS);
+#define OpenTCPListenerAddr_v2(sa,ca,ready) OpenTCPListenerAddr_v2d( sa, ca,ready DBG_SRC )
 /* <combine sack::network::tcp::OpenTCPListenerAddrEx@SOCKADDR *@cNotifyCallback>
    \ \                                                                            */
-#define OpenTCPListenerAddr( pAddr ) OpenTCPListenerAddrEx( paddr, NULL );
+#define OpenTCPListenerAddr( pAddr ) OpenTCPListenerAddrExxx( paddr, NULL, FALSE DBG_SRC );
 #ifdef __cplusplus
 /* <combine sack::network::tcp::OpenTCPListenerEx@uint16_t@cNotifyCallback>
    \ \                                                                 */
@@ -25181,11 +25101,27 @@ NETWORK_PROC( PCLIENT, CPPOpenTCPListenerExx )( uint16_t wPort, cppNotifyCallbac
 #endif
 /* <combine sack::network::tcp::OpenTCPListenerAddrEx@SOCKADDR *@cNotifyCallback>
    \ \                                                                            */
+NETWORK_PROC( PCLIENT, OpenTCPListener_v2d )(uint16_t wPort, cNotifyCallback NotifyCallback, LOGICAL waitForReady DBG_PASS);
+#define OpenTCPListener_v2(a,b) OpenTCPListener_v2d(a,b,FALSE DBG_SRC )
+NETWORK_PROC( PCLIENT, CPPOpenTCPListenerAddr_v2d )(SOCKADDR *pAddr
+	, cppNotifyCallback NotifyCallback
+	, uintptr_t psvConnect
+	, LOGICAL waitForReady
+	DBG_PASS);
+#define CPPOpenTCPListenerAddr_v2(a,b,c,d)  CPPOpenTCPListenerAddr_v2d(a,b,c,d DBG_SRC )
+/* <combine sack::network::tcp::OpenTCPListenerAddrEx@SOCKADDR *@cNotifyCallback>
+   \ \                                                                            */
 NETWORK_PROC( PCLIENT, OpenTCPListenerExx )( uint16_t wPort, cNotifyCallback NotifyCallback DBG_PASS );
 #define OpenTCPListenerEx(a,b) OpenTCPListenerExx(a,b DBG_SRC )
 /* <combine sack::network::tcp::OpenTCPListenerEx@uint16_t@cNotifyCallback>
    \ \                                                                 */
 #define OpenTCPListener( wPort )    OpenTCPListenerEx( wPort, NULL )
+/*
+  When opening a tcp listener socket, the socket ends up 'ready' and
+  able to send events before the application may be finished.
+  Adding an option to
+ */
+NETWORK_PROC( void, SetNetworkListenerReady )( PCLIENT pListen );
 /* <combine sack::network::tcp::OpenTCPListener>
    \ \                                           */
 #define OpenTCPServer OpenTCPListener
@@ -25485,11 +25421,11 @@ NETWORK_PROC( LOGICAL, doTCPWriteExx )( PCLIENT lpClient
 #define SendTCPLong(c,b,l) doTCPWriteExx(c,b,l, TRUE, FALSE DBG_SRC)
 _TCP_NAMESPACE_END
 NETWORK_PROC( void, SetNetworkLong )(PCLIENT lpClient,int nLong,uintptr_t dwValue);
-NETWORK_PROC( void, SetNetworkInt )(PCLIENT lpClient,int nLong, int value);
+NETWORK_PROC( uintptr_t, GetNetworkLong )(PCLIENT lpClient, int nLong);
 /* Obsolete. See SetNetworkLong. */
+NETWORK_PROC( void, SetNetworkInt )(PCLIENT lpClient,int nLong, int value);
+NETWORK_PROC( int, GetNetworkInt )(PCLIENT lpClient, int nLong);
 NETWORK_PROC( void, SetNetworkWord )(PCLIENT lpClient,int nLong,uint16_t wValue);
-NETWORK_PROC( uintptr_t, GetNetworkLong )(PCLIENT lpClient,int nLong);
-NETWORK_PROC( int, GetNetworkInt )(PCLIENT lpClient,int nLong);
 NETWORK_PROC( uint16_t, GetNetworkWord )(PCLIENT lpClient,int nLong);
 /* Symbols which may be passed to GetNetworkLong to get internal
    parts of the client.                                          */
@@ -25517,6 +25453,7 @@ NETWORK_PROC( int, GetMacAddress)(PCLIENT pc, uint8_t* buf, size_t *buflen );
 //NETWORK_PROC( int, GetMacAddress)(PCLIENT pc );
 //int get_mac_addr (char *device, unsigned char *buffer)
 NETWORK_PROC( PLIST, GetMacAddresses)( void );
+NETWORK_PROC( LOGICAL, sack_network_is_active )( PCLIENT pc );
 NETWORK_PROC( void, RemoveClientExx )(PCLIENT lpClient, LOGICAL bBlockNofity, LOGICAL bLinger DBG_PASS );
 /* <combine sack::network::RemoveClientExx@PCLIENT@LOGICAL@LOGICAL bLinger>
    \ \                                                                      */
@@ -25530,6 +25467,14 @@ NETWORK_PROC( LOGICAL, ssl_BeginServer )( PCLIENT pc, CPOINTER cert, size_t cert
 NETWORK_PROC( LOGICAL, ssl_GetPrivateKey )(PCLIENT pc, POINTER *keydata, size_t *keysize);
 NETWORK_PROC( LOGICAL, ssl_IsClientSecure )(PCLIENT pc);
 NETWORK_PROC( void, ssl_SetIgnoreVerification )(PCLIENT pc);
+// during ssl error callback, this can be used to revert (server) sockets to
+// non SSL.
+// a CLient socket will have already sent SSL Data on the socket, and it would
+// be unclean to try to change protocol.
+// the Server, however, fails the handshake on the first receive, and previously
+// just closed, but new error handling allows fallback to HTTP in order to send
+// a redirect to the HTTPS address proper.
+NETWORK_PROC( void, ssl_EndSecure )(PCLIENT pc, POINTER buffer, size_t buflen );
 /* use this to send on SSL Connection instead of SendTCP. */
 NETWORK_PROC( LOGICAL, ssl_Send )( PCLIENT pc, CPOINTER buffer, size_t length );
 /* User Datagram Packet connection methods. This controls
@@ -26082,7 +26027,7 @@ enum ProcessHttpResult{
 HTTP_EXPORT
  /* Creates an empty http state, the next operation should be
    AddHttpData.                                              */
-HTTPState  HTTPAPI CreateHttpState( void );
+HTTPState  HTTPAPI CreateHttpState( PCLIENT *pc );
 HTTP_EXPORT
  /* Destroys a http state, releasing all resources associated
    with it.                                                  */
@@ -26264,8 +26209,8 @@ static struct default_port default_ports[] = { { WIDE("http"), 80 }
 															, { WIDE("file"), 0 }
 															};
 // TEXTSTR result = ConvertURIText( addr, length )
-// SACK_ParseURL takes a URL string and gets the peices it can identify
-// if a peice is not specified, the result will be NULL.
+// SACK_ParseURL takes a URL string and gets the pieces it can identify
+// if a piece is not specified, the result will be NULL.
 enum URLParseState
 {
   // find ':', store characters in buffer
@@ -31178,6 +31123,7 @@ struct jsox_input_buffer {
 	size_t       size;
   // last position in _input if context closed before end of buffer
 	char const * pos;
+	LOGICAL      tempBuf;
 };
 struct jsox_output_buffer {
       // prior input buffer
@@ -31186,6 +31132,7 @@ struct jsox_output_buffer {
 	size_t  size;
   // last position in _input if context closed before end of buffer
 	char * pos;
+	LOGICAL      unusedTempBuf;
 };
 typedef struct jsox_input_buffer JSOX_PARSE_BUFFER, *PJSOX_PARSE_BUFFER;
 #define MAXJSOX_PARSE_BUFFERSPERSET 128
@@ -31446,12 +31393,17 @@ char *jsox_escape_string_length( const char *string, size_t len, size_t *outlen 
 char *jsox_escape_string( const char *string ) {
 	return jsox_escape_string_length( string, strlen( string ), NULL );
 }
+#undef __GetUtfChar
+#undef _zero
+#define BADUTF8 0xFFFFFFF
 #define _2char(result,from) (((*from) += 2),( ( result & 0x1F ) << 6 ) | ( ( result & 0x3f00 )>>8))
-#define _zero(result,from)  ((*from)++,0)
+#define _zero(result,from)  ((*from)++,BADUTF8)
+#define _gzero(result,from)  ((*from)++,0)
 #define _3char(result,from) ( ((*from) += 3),( ( ( result & 0xF ) << 12 ) | ( ( result & 0x3F00 ) >> 2 ) | ( ( result & 0x3f0000 ) >> 16 )) )
-#define _4char(result,from)  ( ((*from) += 4), ( ( ( result & 0x7 ) << 18 )						     | ( ( result & 0x3F00 ) << 4 )						   | ( ( result & 0x3f0000 ) >> 10 )						    | ( ( result & 0x3f000000 ) >> 24 ) ) )
-#define get4Chars(p) ((((TEXTRUNE*) ((uintptr_t)(p) & ~0x3) )[0]				  >> (CHAR_BIT*((uintptr_t)(p) & 0x3)))			             | (( ((uintptr_t)(p)) & 0x3 )				                          ? (((TEXTRUNE*) ((uintptr_t)(p) & ~0x3) )[1]					      << (CHAR_BIT*(4-((uintptr_t)(p) & 0x3))))				     :(TEXTRUNE)0 ))
-#define __GetUtfChar( result, from )           ((result = get4Chars(*from)),		     ( ( !(result & 0xFF) )              ?_zero(result,from)	                                                    :( ( result & 0x80 )		                       ?( ( result & 0xE0 ) == 0xC0 )			   ?( ( ( result & 0xC000 ) == 0x8000 ) ?_2char(result,from) : _zero(result,from)  )			    :( ( ( result & 0xF0 ) == 0xE0 )				                           ?( ( ( ( result & 0xC000 ) == 0x8000 ) && ( ( result & 0xC00000 ) == 0x800000 ) ) ? _3char(result,from) : _zero(result,from)  )				   :( ( ( result & 0xF8 ) == 0xF0 )		                       ? ( ( ( ( result & 0xC000 ) == 0x8000 ) && ( ( result & 0xC00000 ) == 0x800000 ) && ( ( result & 0xC0000000 ) == 0x80000000 ) )					  ?_4char(result,from):_zero(result,from) )				                                                                                                                  :( ( ( result & 0xC0 ) == 0x80 )					                                                                                                  ?_zero(result,from)					                                                                                                                       : ( (*from)++, (result & 0x7F) ) ) ) )		                                                                                       : ( (*from)++, (result & 0x7F) ) ) ) )
+#define _4char(result,from)  ( ((*from) += 4), ( ( ( result & 0x7 ) << 18 )                             | ( ( result & 0x3F00 ) << 4 )                           | ( ( result & 0x3f0000 ) >> 10 )                            | ( ( result & 0x3f000000 ) >> 24 ) ) )
+// load 4 bytes in a little endian way; might result in a 8 byte variable, but only 4 are valid.
+#define get4Chars(p) ((((TEXTRUNE*) ((uintptr_t)(p) & ~0x3) )[0]                  >> (CHAR_BIT*((uintptr_t)(p) & 0x3)))                         | (( ((uintptr_t)(p)) & 0x3 )                                          ? (((TEXTRUNE*) ((uintptr_t)(p) & ~0x3) )[1]                          << (CHAR_BIT*(4-((uintptr_t)(p) & 0x3))))                     :(TEXTRUNE)0 ))
+#define __GetUtfChar( result, from )           ((result = get4Chars(*from)),             ( ( !(result & 0xFF) )              ?_gzero(result,from)         :( ( result & 0x80 )                               ?( ( result & 0xE0 ) == 0xC0 )               ?( ( ( result & 0xC000 ) == 0x8000 ) ?_2char(result,from) : _zero(result,from)  )                :( ( ( result & 0xF0 ) == 0xE0 )                                           ?( ( ( ( result & 0xC000 ) == 0x8000 ) && ( ( result & 0xC00000 ) == 0x800000 ) ) ? _3char(result,from) : _zero(result,from)  )                   :( ( ( result & 0xF8 ) == 0xF0 )                               ? ( ( ( ( result & 0xC000 ) == 0x8000 ) && ( ( result & 0xC00000 ) == 0x800000 ) && ( ( result & 0xC0000000 ) == 0x80000000 ) )                      ?_4char(result,from):_zero(result,from) )                                                                                                                                  :( ( ( result & 0xC0 ) == 0x80 )                                                                                                                      ?_zero(result,from)                                                                                                                                           : ( (*from)++, (result & 0x7F) ) ) ) )                                                                                               : ( (*from)++, (result & 0x7F) ) ) ) )
 #define GetUtfChar(x) __GetUtfChar(c,x)
 static int gatherStringX(struct jsox_parse_state *state, CTEXTSTR msg, CTEXTSTR *msg_input, size_t msglen, TEXTSTR *pmOut, TEXTRUNE start_c
 		//, int literalString
@@ -31460,13 +31412,21 @@ static int gatherStringX(struct jsox_parse_state *state, CTEXTSTR msg, CTEXTSTR 
 	// collect a string
 	int status = 0;
 	size_t n;
+	size_t nextN = ( *msg_input ) - msg;
 	//int escape;
 	//LOGICAL cr_escaped;
 	TEXTRUNE c;
 	//escape = 0;
 	//cr_escaped = FALSE;
-	while( ( ( n = (*msg_input) - msg ), ( n < msglen ) ) && ( ( c = GetUtfChar( msg_input ) ), ( status >= 0 ) ) )
+	while( ( ( n = nextN ), ( n < msglen ) )
+		&& ( ( ( c = GetUtfChar( msg_input ) ) != BADUTF8 )
+			&& ( status >= 0 ) ) )
 	{
+		if( (nextN = msg_input[0] - msg ) > msglen ) {
+ // restore input position.
+			(msg_input[0]) = msg + n;
+			return status;
+		}
 		(state->col)++;
 		if( c == start_c ) {
 			if( state->escape ) { ( *mOut++ ) = c; state->escape = FALSE; }
@@ -32155,10 +32115,28 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 	if( !state->status )
 		return -1;
 	if( msg && msglen ) {
-		input = GetFromSet( JSOX_PARSE_BUFFER, &jxpsd.parseBuffers );
-		input->pos = input->buf = msg;
-		input->size = msglen;
-		EnqueLinkNL( state->inBuffers, input );
+		if( input = (PJSOX_PARSE_BUFFER)PeekQueue( state->inBuffers[0] ) ) {
+			size_t used = input->pos - input->buf;
+			size_t unused = input->size - used;
+			if( input->tempBuf || ( unused < 6 ) ) {
+				const char *newBuf = NewArray( const char, unused + msglen );
+				memcpy( (char*)newBuf, input->pos, unused );
+				memcpy( (char*)newBuf + unused, msg, msglen );
+				if( input->tempBuf )
+					Deallocate( CPOINTER, input->buf );
+				input->pos = input->buf = newBuf;
+				input->tempBuf = TRUE;
+			}
+		}
+		// no input; or this buffer wasn't appended to the previous buffer...
+		if( !input || !input->tempBuf )
+		{
+			input = GetFromSet( JSOX_PARSE_BUFFER, &jxpsd.parseBuffers );
+			input->pos = input->buf = msg;
+			input->size = msglen;
+			input->tempBuf = FALSE;
+			EnqueLinkNL( state->inBuffers, input );
+		}
 		if( state->gatheringString
 			|| state->gatheringNumber
 			|| state->word == JSOX_WORD_POS_FIELD
@@ -32216,6 +32194,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 		}
 	}
 	while( state->status && ( input = (PJSOX_PARSE_BUFFER)DequeLinkNL( state->inBuffers ) ) ) {
+		size_t newN;
 		output = (struct jsox_output_buffer*)DequeLinkNL( state->outQueue );
 		//lprintf( "output is %p", output );
 		state->n = input->pos - input->buf;
@@ -32240,7 +32219,9 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 			}
 			else {
 				state->n = input->pos - input->buf;
-				if( state->n > input->size ) DebugBreak();
+				if( state->n > input->size ) {
+					DebugBreak();
+				}
 			}
 		}
 		if( state->gatheringNumber ) {
@@ -32248,14 +32229,19 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 			goto continueNumber;
 		}
 		//lprintf( "Completed at start?%d", state->completed );
-		while( state->status && (state->n < input->size) && (c = GetUtfChar( &input->pos )) )
+		while( state->status && (state->n < input->size) && ( (c = GetUtfChar( &input->pos ))!= BADUTF8) )
 		{
 #ifdef DEBUG_PARSING
 			lprintf( "parse character %c %d %d %d %d", c<32?'.':c, state->word, state->parse_context, state->parse_context, state->word );
 #endif
 			state->col++;
-			state->n = input->pos - input->buf;
-			if( state->n > input->size ) DebugBreak();
+			newN = input->pos - input->buf;
+			if( newN > input->size ) {
+				// partial utf8 character across buffer boundaries.
+				//DebugBreak();
+				break;
+			}
+			state->n = newN;
 			if( state->comment ) {
 				if( state->comment == 1 ) {
 					if( c == '*' ) { state->comment = 3; continue; }
@@ -32953,11 +32939,15 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 						continueNumber:
 							fromDate = state->numberFromDate;
 						}
-						while( (_msg_input = input->pos), ((state->n < input->size) && (c = GetUtfChar( &input->pos ))) )
+						while( (_msg_input = input->pos), ((state->n < input->size) && ( (c = GetUtfChar( &input->pos ))!= BADUTF8)) )
 						{
+							newN = input->pos - input->buf;
+							if( newN > input->size ) {
+								break;
+							}
+							state->n = newN;
 							//lprintf( "Number input:%c", c );
 							state->col++;
-							state->n = (input->pos - input->buf);
 							if( state->n > input->size ) DebugBreak();
 							// leading zeros should be forbidden.
 							if( c == '_' )
@@ -33130,6 +33120,8 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 		//lprintf( "at end... %d %d comp:%d", state->n, input->size, state->completed );
 		if( input ) {
 			if( state->n >= input->size ) {
+				if( input->tempBuf )
+					Deallocate( CPOINTER, input->buf );
 				DeleteFromSet( JSOX_PARSE_BUFFER, jxpsd.parseBuffers, input );
 				if( state->gatheringString
 					|| state->gatheringNumber
@@ -33446,6 +33438,8 @@ struct jsox_value_container *jsox_get_parsed_value( PDATALIST pdlMessage, const 
 	return NULL;
 }
 #undef GetUtfChar
+#undef __GetUtfChar
+#undef _zero
 #ifdef __cplusplus
 } } SACK_NAMESPACE_END
 #endif
@@ -34130,7 +34124,7 @@ FILESYS_PROC  void FILESYS_API  ScanDrives ( void (CPROC *Process)(uintptr_t use
 FILESYS_PROC struct find_cursor * FILESYS_API GetScanFileCursor( void *pInfo );
 // result is length of name filled into pResult if pResult == NULL && nResult = 0
 // the result will the be length of the name matching the file.
-FILESYS_PROC  int FILESYS_API  GetMatchingFileName ( CTEXTSTR filemask, int flags, TEXTSTR pResult, int nResult );
+FILESYS_PROC  int FILESYS_API  GetMatchingFileName ( CTEXTSTR filemask, enum ScanFileFlags flags, TEXTSTR pResult, int nResult );
 // searches a path for the last '/' or '\'
 FILESYS_PROC  CTEXTSTR FILESYS_API  pathrchr ( CTEXTSTR path );
 #ifdef __cplusplus
@@ -34141,7 +34135,7 @@ FILESYS_PROC  CTEXTSTR FILESYS_API  pathchr ( CTEXTSTR path );
 // returns pointer passed (if it worked?)
 FILESYS_PROC  TEXTSTR FILESYS_API  GetCurrentPath ( TEXTSTR path, int buffer_len );
 FILESYS_PROC  int FILESYS_API  SetCurrentPath ( CTEXTSTR path );
-/* Creates a directory. If parent peices of the directory do not
+/* Creates a directory. If parent pieces of the directory do not
    exist, those parts are created also.
    Example
    <code lang="c#">
@@ -35739,8 +35733,9 @@ uintptr_t GetFileSize( int fd )
 		 }
 		else if( pWhat )
 		{
+#ifndef __STATIC_GLOBALS__
 			int len;
-         char tmpbuf[256];
+		         char tmpbuf[256];
 #ifdef __ANDROID__
 			//if( !IsPath( "./tmp" ) )
 			//	if( !MakePath( "./tmp" ) )
@@ -35752,6 +35747,7 @@ uintptr_t GetFileSize( int fd )
 			snprintf( tmpbuf, 256, WIDE("/tmp/.shared.%s"), pWhat );
 #endif
 			bTemp = TRUE;
+#endif
 		}
 		//ll_lprintf( "Open Space: %s", filename?filename:"anonymous" );
 		if( !pMem && filename )
