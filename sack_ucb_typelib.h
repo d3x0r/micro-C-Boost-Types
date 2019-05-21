@@ -14,7 +14,7 @@
    Includes the MOST stuff here ( a full windows.h parse is many
    many lines of code.)                                          */
 /* A macro to build a wide character string of __FILE__ */
-#define _WIDE__FILE__(n) WIDE(n)
+#define _WIDE__FILE__(n) n
 #define WIDE__FILE__ _WIDE__FILE__(__FILE__)
 #if _XOPEN_SOURCE < 500
 #  undef _XOPEN_SOURCE
@@ -166,7 +166,7 @@ __declspec(dllimport) DWORD WINAPI timeGetTime(void);
 #  ifdef __cplusplus_cli
 #    include <vcclr.h>
  /*lprintf( */
-#    define DebugBreak() System::Console::WriteLine(gcnew System::String( WIDE__FILE__ WIDE("(") STRSYM(__LINE__) WIDE(") Would DebugBreak here...") ) );
+#    define DebugBreak() System::Console::WriteLine(gcnew System::String( WIDE__FILE__ "(" STRSYM(__LINE__) ") Would DebugBreak here..." ) );
 //typedef unsigned int HANDLE;
 //typedef unsigned int HMODULE;
 //typedef unsigned int HWND;
@@ -715,12 +715,12 @@ SACK_NAMESPACE
 #define WINPROC(type,name)   type WINAPI name
 #define CALLBACKPROC(type,name) type CALLBACK name
 #if defined( __WATCOMC__ )
-#define LIBMAIN()   static int __LibMain( HINSTANCE ); PRELOAD( LibraryInitializer ) {	 __LibMain( GetModuleHandle(_WIDE(TARGETNAME)) );   }	 static int __LibMain( HINSTANCE hInstance ) {
+#define LIBMAIN()   static int __LibMain( HINSTANCE ); PRELOAD( LibraryInitializer ) {	 __LibMain( GetModuleHandle(TARGETNAME) );   }	 static int __LibMain( HINSTANCE hInstance ) {
 #define LIBEXIT() } static int LibExit( void ); ATEXIT( LiraryUninitializer ) { LibExit(); } int LibExit(void) {
 #define LIBMAIN_END() }
 #else
 #ifdef TARGETNAME
-#define LIBMAIN()   static int __LibMain( HINSTANCE ); PRELOAD( LibraryInitializer ) {	 __LibMain( GetModuleHandle(_WIDE(TARGETNAME)) );   }	 static int __LibMain( HINSTANCE hInstance ) {
+#define LIBMAIN()   static int __LibMain( HINSTANCE ); PRELOAD( LibraryInitializer ) {	 __LibMain( GetModuleHandle(TARGETNAME) );   }	 static int __LibMain( HINSTANCE hInstance ) {
 #else
 #define LIBMAIN()   TARGETNAME_NOT_DEFINED
 #endif
@@ -783,13 +783,13 @@ SACK_NAMESPACE
 #define STDCALL _stdcall
 #define PUBLIC(type,name)        type STDPROC name
 #ifdef __STATIC__
-			/*Log( WIDE("Library Enter" ) );*/
+			/*Log( "Library Enter" );*/
 #define LIBMAIN() static WINPROC(int, LibMain)(HINSTANCE hInstance, DWORD dwReason, void *unused )		 { if( dwReason == DLL_PROCESS_ATTACH ) {
  /* end if */
 #define LIBEXIT() } if( dwReason == DLL_PROCESS_DETACH ) {
 #define LIBMAIN_END()  } return 1; }
 #else
-			/*Log( WIDE("Library Enter" ) );*/
+			/*Log( "Library Enter" );*/
 #define LIBMAIN() WINPROC(int, LibMain)(HINSTANCE hInstance, DWORD dwReason, void *unused )		 { if( dwReason == DLL_PROCESS_ATTACH ) {
  /* end if */
 #define LIBEXIT() } if( dwReason == DLL_PROCESS_DETACH ) {
@@ -801,13 +801,13 @@ SACK_NAMESPACE
 #define PACKED
 #endif
 #define TOCHR(n) #n[0]
-#define TOSTR(n) WIDE(#n)
+#define TOSTR(n) #n
 #define STRSYM(n) TOSTR(n)
-#define _WIDE__FILE__(n) WIDE(n)
+#define _WIDE__FILE__(n) n
 #define WIDE__FILE__ _WIDE__FILE__(__FILE__)
 /* a constant text string that represents the current source
    filename and line... fourmated as "source.c(11) :"        */
-#define FILELINE  TEXT(__FILE__) WIDE("(" ) TEXT(STRSYM(__LINE__))WIDE(" : " ))
+#define FILELINE  TEXT(__FILE__) "(" TEXT(STRSYM(__LINE__))" : ")
 #if defined( _MSC_VER ) || defined( __PPCCPP__ )
 /* try and define a way to emit comipler messages... but like no compilers support standard ways to do this accross the board.*/
 #define pragnote(msg) message( FILELINE msg )
@@ -820,10 +820,10 @@ SACK_NAMESPACE
 #define pragnoteonly(msg) msg
 #endif
 /* specify a consistant macro to pass current file and line information.   This are appended parameters, and common usage is to only use these with _DEBUG set. */
-#define FILELINE_SRC         , (CTEXTSTR)_WIDE(__FILE__), __LINE__
+#define FILELINE_SRC         , __FILE__, __LINE__
 /* specify a consistant macro to pass current file and line information, to functions which void param lists.   This are appended parameters, and common usage is to only use these with _DEBUG set. */
-#define FILELINE_VOIDSRC     (CTEXTSTR)_WIDE(__FILE__), __LINE__
-//#define FILELINE_LEADSRC     (CTEXTSTR)_WIDE(__FILE__), __LINE__,
+#define FILELINE_VOIDSRC     __FILE__, __LINE__
+//#define FILELINE_LEADSRC     __FILE__, __LINE__,
 /* specify a consistant macro to define file and line parameters, to functions with otherwise void param lists.  This are appended parameters, and common usage is to only use these with _DEBUG set. */
 #define FILELINE_VOIDPASS    CTEXTSTR pFile, uint32_t nLine
 //#define FILELINE_LEADPASS    CTEXTSTR pFile, uint32_t nLine,
@@ -836,15 +836,15 @@ SACK_NAMESPACE
 /* specify a consistant macro to forward file and line parameters, to functions which have void parameter lists without this information.  This are appended parameters, and common usage is to only use these with _DEBUG set. */
 #define FILELINE_VOIDRELAY   pFile, nLine
 /* specify a consistant macro to format file and line information for printf formated strings. */
-#define FILELINE_FILELINEFMT WIDE("%s(%") _32f WIDE("): ")
-#define FILELINE_FILELINEFMT_MIN WIDE("%s(%") _32f WIDE(")")
+#define FILELINE_FILELINEFMT "%s(%" _32f "): "
+#define FILELINE_FILELINEFMT_MIN "%s(%" _32f ")"
 #define FILELINE_NULL        , NULL, 0
 #define FILELINE_VOIDNULL    NULL, 0
 /* define static parameters which are the declaration's current file and line, for stubbing in where debugging is being stripped.
   usage
     FILELINE_VARSRC: // declare pFile and nLine variables.
 	*/
-#define FILELINE_VARSRC       CTEXTSTR pFile = _WIDE(__FILE__); uint32_t nLine = __LINE__
+#define FILELINE_VARSRC       CTEXTSTR pFile = __FILE__; uint32_t nLine = __LINE__
 // this is for passing FILE, LINE information to allocate
 // useful during DEBUG phases only...
 // drop out these debug relay paramters for managed code...
@@ -1108,43 +1108,6 @@ typedef volatile uintptr_t        *PVPTRSZVAL;
 typedef size_t         INDEX;
 /* An index which is not valid; equates to 0xFFFFFFFFUL or negative one cast as an INDEX... ((INDEX)-1). */
 #define INVALID_INDEX ((INDEX)-1)
-#ifdef __CYGWIN__
-typedef unsigned short wchar_t;
-#endif
-// may consider changing this to uint16_t* for unicode...
-typedef wchar_t X_16;
-/* This is a pointer to wchar_t. A 16 bit value that is
-   character data, and is not signed or unsigned.       */
-typedef wchar_t *PX_16;
-#if defined( UNICODE ) || defined( SACK_COM_OBJECT )
-//should also consider revisiting code that was updated for TEXTCHAR to char conversion methods...
-#  ifdef _MSC_VER
-#    ifdef UNDER_CE
-#      define NULTERM
-#    else
-#      define NULTERM __nullterminated
-#    endif
-#  else
-#    define NULTERM
-#  endif
-#define WIDE(s)  L##s
-#define _WIDE(s)  WIDE(s)
-#define cWIDE(s)  s
-#define _cWIDE(s)  cWIDE(s)
- // constant text string content
-typedef NULTERM          const X_16      *CTEXTSTR;
- // pointer to constant text string content
-typedef NULTERM          CTEXTSTR        *PCTEXTSTR;
-typedef NULTERM          X_16            *TEXTSTR;
-/* a text 16 bit character  */
-typedef X_16             TEXTCHAR;
-#else
-#define WIDE(s)   s
-#define _WIDE(s)  s
-#define cWIDE(s)   s
-/* Modified WIDE wrapper that actually forces non-unicode
-   string.                                                */
-#define _cWIDE(s)  s
 // constant text string content
 typedef const char     *CTEXTSTR;
 /* A non constant array of TEXTCHAR. A pointer to TEXTCHAR. A
@@ -1160,7 +1123,6 @@ typedef CTEXTSTR const *PCTEXTSTR;
 #endif
 /* a text 8 bit character  */
 typedef char            TEXTCHAR;
-#endif
 /* a character rune.  Strings should be interpreted as UTF-8 or 16 depending on UNICODE compile option.
    GetUtfChar() from strings.  */
 typedef uint32_t             TEXTRUNE;
@@ -1194,41 +1156,41 @@ SACK_NAMESPACE_END
 SACK_NAMESPACE
 /* 16 bit unsigned decimal output printf format specifier. This would
    otherwise be defined in \<inttypes.h\>                */
-#define _16f   WIDE("u" )
+#define _16f   "u"
 /* 16 bit hex output printf format specifier. This would
    otherwise be defined in \<inttypes.h\>                */
-#define _16fx   WIDE("x" )
+#define _16fx   "x"
 /* 16 bit HEX output printf format specifier. This would
    otherwise be defined in \<inttypes.h\>                */
-#define _16fX   WIDE("X" )
+#define _16fX   "X"
 /* 16 bit signed decimal output printf format specifier. This
    would otherwise be defined in \<inttypes.h\>               */
-#define _16fs   WIDE("d" )
+#define _16fs   "d"
 /* 8 bit unsigned decimal output printf format specifier. This would
    otherwise be defined in \<inttypes.h\>                */
-#define _8f   WIDE("u" )
+#define _8f   "u"
 /* 8 bit hex output printf format specifier. This would
    otherwise be defined in \<inttypes.h\>                */
-#define _8fx   WIDE("x" )
+#define _8fx   "x"
 /* 8 bit HEX output printf format specifier. This would
    otherwise be defined in \<inttypes.h\>                */
-#define _8fX   WIDE("X" )
+#define _8fX   "X"
 /* 8 bit signed decimal output printf format specifier. This
    would otherwise be defined in \<inttypes.h\>               */
-#define _8fs   WIDE("d" )
+#define _8fs   "d"
 #if defined( __STDC_FORMAT_MACROS )
-#  define _32f   _WIDE( PRIu32 )
-#  define _32fx   _WIDE( PRIx32 )
-#  define _32fX   _WIDE( PRIX32 )
-#  define _32fs   _WIDE( PRId32 )
-#  define _64f    _WIDE(PRIu64)
-#  define _64fx   _WIDE(PRIx64)
-#  define _64fX   _WIDE(PRIX64)
-#  define _64fs   _WIDE(PRId64)
-#  define _64f    _WIDE(PRIu64)
-#  define _64fx   _WIDE(PRIx64)
-#  define _64fX   _WIDE(PRIX64)
-#  define _64fs   _WIDE(PRId64)
+#  define _32f   PRIu32
+#  define _32fx    PRIx32
+#  define _32fX    PRIX32
+#  define _32fs    PRId32
+#  define _64f    PRIu64
+#  define _64fx   PRIx64
+#  define _64fX   PRIX64
+#  define _64fs   PRId64
+#  define _64f    PRIu64
+#  define _64fx   PRIx64
+#  define _64fX   PRIX64
+#  define _64fs   PRId64
 // non-unicode strings
 #  define c_32f    PRIu32
 #  define c_32fx   PRIx32
@@ -1239,10 +1201,10 @@ SACK_NAMESPACE
 #  define c_64fX   PRIX64
 #  define c_64fs   PRId64
 #else
-#  define _32f   WIDE("u" )
-#  define _32fx   WIDE("x" )
-#  define _32fX   WIDE("X" )
-#  define _32fs   WIDE("d" )
+#  define _32f   "u"
+#  define _32fx   "x"
+#  define _32fX   "X"
+#  define _32fs   "d"
 #  define c_32f   "u"
 #  define c_32fx  "x"
 #  define c_32fX  "X"
@@ -1252,38 +1214,32 @@ SACK_NAMESPACE
 #  define c_64fX   "llX"
 #  define c_64fs   "lld"
 #endif
-#if defined( UNICODE )
-#  define _cstring_f WIDE("s")
-#  define _string_f WIDE("S")
-#  define _ustring_f WIDE("S")
-#else
-#  define _cstring_f WIDE("s")
-#  define _string_f WIDE("s")
-#  define _ustring_f WIDE("S")
-#endif
+#  define _cstring_f "s"
+#  define _string_f "s"
+#  define _ustring_f "S"
 #if defined( __64__ )
 #  if defined( __STDC_FORMAT_MACROS )
 #    if !defined( __GNUC__ ) || defined( _WIN32 )
-#      define _size_f    _WIDE( PRIu64 )
-#      define _size_fx   _WIDE( PRIx64 )
-#      define _size_fX   _WIDE( PRIX64 )
-#      define _size_fs   _WIDE( PRId64 )
+#      define _size_f     PRIu64
+#      define _size_fx    PRIx64
+#      define _size_fX    PRIX64
+#      define _size_fs    PRId64
 #      define c_size_f    PRIu64
 #      define c_size_fx   PRIx64
 #      define c_size_fX   PRIX64
 #      define c_size_fs   PRId64
 #    else
-#      define _size_f    WIDE( "zu" )
-#      define _size_fx   WIDE( "zx" )
-#      define _size_fX   WIDE( "zX" )
-#      define _size_fs   WIDE( "zd" )
+#      define _size_f    "zu"
+#      define _size_fx   "zx"
+#      define _size_fX   "zX"
+#      define _size_fs   "zd"
 #      define c_size_f    "zu"
 #      define c_size_fx   "zx"
 #      define c_size_fX   "zX"
 #      define c_size_fs   "zd"
 #    endif
-#    define _PTRSZVALfs _WIDE( PRIuPTR )
-#    define _PTRSZVALfx _WIDE( PRIxPTR )
+#    define _PTRSZVALfs  PRIuPTR
+#    define _PTRSZVALfx  PRIxPTR
 #    define cPTRSZVALfs PRIuPTR
 #    define cPTRSZVALfx PRIxPTR
 #  else
@@ -1297,17 +1253,17 @@ SACK_NAMESPACE
 #      define c_size_fX  c_64fX
 #      define c_size_fs  c_64fs
 #    else
-#      define _size_f    WIDE( "zu" )
-#      define _size_fx   WIDE( "zx" )
-#      define _size_fX   WIDE( "zX" )
-#      define _size_fs   WIDE( "zd" )
+#      define _size_f    "zu"
+#      define _size_fx   "zx"
+#      define _size_fX   "zX"
+#      define _size_fs   "zd"
 #      define c_size_f    "zu"
 #      define c_size_fx   "zx"
 #      define c_size_fX   "zX"
 #      define c_size_fs   "zd"
 #    endif
-#    define _PTRSZVALfs _WIDE( PRIuPTR )
-#    define _PTRSZVALfx _WIDE( PRIxPTR )
+#    define _PTRSZVALfs  PRIuPTR
+#    define _PTRSZVALfx  PRIxPTR
 #    define cPTRSZVALfs PRIuPTR
 #    define cPTRSZVALfx PRIxPTR
 #  endif
@@ -1315,26 +1271,26 @@ SACK_NAMESPACE
 #  if defined( __STDC_FORMAT_MACROS )
       // this HAS been fixed in UCRT - 2015!  but it'll take 5 years before everyone has that...
 #    if !defined( __GNUC__ ) || defined( _WIN32 )
-#      define _size_f    _WIDE( PRIu32 )
-#      define _size_fx   _WIDE( PRIx32 )
-#      define _size_fX   _WIDE( PRIX32 )
-#      define _size_fs   _WIDE( PRId32 )
+#      define _size_f     PRIu32
+#      define _size_fx    PRIx32
+#      define _size_fX    PRIX32
+#      define _size_fs    PRId32
 #      define c_size_f    PRIu32
 #      define c_size_fx   PRIx32
 #      define c_size_fX   PRIX32
 #      define c_size_fs   PRId32
 #    else
-#      define _size_f    WIDE( "zu" )
-#      define _size_fx   WIDE( "zx" )
-#      define _size_fX   WIDE( "zX" )
-#      define _size_fs   WIDE( "zd" )
+#      define _size_f    "zu"
+#      define _size_fx   "zx"
+#      define _size_fX   "zX"
+#      define _size_fs   "zd"
 #      define c_size_f    "zu"
 #      define c_size_fx   "zx"
 #      define c_size_fX   "zX"
 #      define c_size_fs   "zd"
 #    endif
-#    define _PTRSZVALfs _WIDE( PRIuPTR )
-#    define _PTRSZVALfx _WIDE( PRIxPTR )
+#    define _PTRSZVALfs  PRIuPTR
+#    define _PTRSZVALfx  PRIxPTR
 #    define cPTRSZVALfs PRIuPTR
 #    define cPTRSZVALfx PRIxPTR
 #  else
@@ -1349,36 +1305,36 @@ SACK_NAMESPACE
 #      define c_size_fX   c_32fX
 #      define c_size_fs   c_32fs
 #    else
-#      define _size_f    WIDE( "zu" )
-#      define _size_fx   WIDE( "zx" )
-#      define _size_fX   WIDE( "zX" )
-#      define _size_fs   WIDE( "zd" )
+#      define _size_f    "zu"
+#      define _size_fx   "zx"
+#      define _size_fX   "zX"
+#      define _size_fs   "zd"
 #      define c_size_f    "zu"
 #      define c_size_fx   "zx"
 #      define c_size_fX   "zX"
 #      define c_size_fs   "zd"
 #    endif
-#    define _PTRSZVALfs _WIDE( PRIuPTR )
-#    define _PTRSZVALfx _WIDE( PRIxPTR )
+#    define _PTRSZVALfs  PRIuPTR
+#    define _PTRSZVALfx  PRIxPTR
 #    define cPTRSZVALfs PRIuPTR
 #    define cPTRSZVALfx PRIxPTR
 #  endif
 #endif
-#define PTRSZVALf WIDE("p" )
-#define _PTRSZVALf WIDE("p" )
+#define PTRSZVALf "p"
+#define _PTRSZVALf "p"
 #if defined( _MSC_VER ) && ( _MSC_VER < 1900 )
 /* 64 bit unsigned decimal output printf format specifier. This would
    otherwise be defined in \<inttypes.h\> as PRIu64              */
-#define _64f    WIDE("llu")
+#define _64f    "llu"
 /* 64 bit hex output printf format specifier. This would
    otherwise be defined in \<inttypes.h\> as PRIxFAST64                */
-#define _64fx   WIDE("llx")
+#define _64fx   "llx"
 /* 64 bit HEX output printf format specifier. This would
    otherwise be defined in \<inttypes.h\> as PRIxFAST64                */
-#define _64fX   WIDE("llX")
+#define _64fX   "llX"
 /* 64 bit signed decimal output printf format specifier. This
    would otherwise be defined in \<inttypes.h\> as PRIdFAST64               */
-#define _64fs   WIDE("lld")
+#define _64fs   "lld"
 #endif
 // This should be for several years a
 // sufficiently large type to represent
@@ -1462,7 +1418,7 @@ typedef uint64_t THREAD_ID;
 //      'someNode' is removed from its existing list, and added to the 'rootUsed' list.
 //
 // For Declaring the link structure members for lists
-#define DeclareLink( type )  type *next;type **me
+#define DeclareLink( type )  type *next; type **me
 /* Link a new node into the list.
    Example
    struct mynode
@@ -1574,11 +1530,11 @@ typedef uint64_t THREAD_ID;
    n :  the count of masks to fit.       */
 #define MASKSETSIZE(t,n) (MASKTYPE_INDEX(t,(n+1)))
 // declare a set of flags...
-#define MASK_TOP_MASK_VAL(length,val) ((val)&( (0xFFFFFFFFUL) >> (32-(length)) ))
+#define MASK_TOP_MASK_VAL(length,val) ((val)&( ((MASKSET_READTYPE)-1) >> ((sizeof(MASKSET_READTYPE) * CHAR_BIT)-(length)) ))
 /* the mask in the dword resulting from shift-right.   (gets a mask of X bits in length) */
-#define MASK_TOP_MASK(length) ( (0xFFFFFFFFUL) >> (32-(length)) )
+#define MASK_TOP_MASK(length) ( ((MASKSET_READTYPE)-1) >> ((sizeof(MASKSET_READTYPE) * CHAR_BIT)-(length)) )
 /* the mast in the dword shifted to the left to overlap the field in the word */
-#define MASK_MASK(n,length)   (MASK_TOP_MASK(length) << (((n)*(length))&0x7) )
+#define MASK_MASK(n,length)   (MASK_TOP_MASK(length) << (((n)*(length)) & (sizeof(MASKSET_READTYPE) - 1) ) )
 // masks value with the mask size, then applies that mask back to the correct word indexing
 #define MASK_MASK_VAL(n,length,val)   (MASK_TOP_MASK_VAL(length,val) << (((n)*(length))&0x7) )
 /* declare a mask set.
@@ -1602,7 +1558,7 @@ typedef uint64_t THREAD_ID;
 /* This type stores data, it has a self-contained length in
    bytes of the data stored.  Length is in characters       */
 _CONTAINER_NAMESPACE
-/* This is a slab array of pointers, each pointer may be
+/* LIST is a slab array of pointers, each pointer may be
    assigned to point to any user data.
    Remarks
    When the list is filled to the capacity of Cnt elements, the
@@ -3282,24 +3238,10 @@ TYPELIB_PROC  int TYPELIB_CALLTYPE  TextSimilar  ( PTEXT pText, CTEXTSTR text );
 #  include <strings.h>
 /* windows went with stricmp() and strnicmp(), whereas linux
  went with strcasecmp() and strncasecmp()                  */
-#  ifdef UNICODE
-#    ifndef NO_UNICODE_C
-#      define strnicmp strncasecmp
+#  define strnicmp strncasecmp
 /* windows went with stricmp() and strnicmp(), whereas linux
    went with strcasecmp() and strncasecmp()                  */
-#      define stricmp strcasecmp
-#    else
-#      define strnicmp wcsncasecmp
-/* windows went with stricmp() and strnicmp(), whereas linux
-   went with strcasecmp() and strncasecmp()                  */
-#      define stricmp wcscasecmp
-#    endif
-#  else
-#    define strnicmp strncasecmp
-/* windows went with stricmp() and strnicmp(), whereas linux
-   went with strcasecmp() and strncasecmp()                  */
-#     define stricmp strcasecmp
-#  endif
+#  define stricmp strcasecmp
 #endif
 /* Copy segment formatting to another segment... */
 TYPELIB_PROC  void TYPELIB_CALLTYPE  SegCopyFormat( PTEXT to_this, PTEXT copy_this );
@@ -3319,7 +3261,7 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromTextEx( CTEXTSTR text DBG_PAS
 /* Creates a PTEXT segment from a string.
    Example
    <code lang="c++">
-   PTEXT line = SegCreateFromText( WIDE("Around the world in a day.") );
+   PTEXT line = SegCreateFromText( "Around the world in a day." );
    </code>                                                         */
 #define SegCreateFromText(t) SegCreateFromTextEx(t DBG_SRC)
 /* \ \
@@ -3731,7 +3673,7 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  BuildLineExx( PTEXT pt, LOGICAL bSingle, P
 // text parse - more generic flavor of burst.
 //
 //static CTEXTSTR normal_punctuation=WIDE("\'\"\\({[<>]}):@%/,;!?=*&$^~#`");
-// filter_to_space WIDE(" \t")
+// filter_to_space " \t"
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  TextParse ( PTEXT input, CTEXTSTR punctuation, CTEXTSTR filter_tospace, int bTabs, int bSpaces  DBG_PASS );
 /* normal_punctuation=WIDE("'"\\({[\<\>]}):@%/,;!?=*&amp;$^~#`");
    Process a line of PTEXT into another line of PTEXT, but with
@@ -4773,12 +4715,12 @@ SYSLOG_PROC  void SYSLOG_API  SetSystemLoggingLevel ( uint32_t nLevel );
 // int result is useless... but allows this to be
 // within expressions, which with this method should be easy.
 typedef INDEX (CPROC*RealVLogFunction)(CTEXTSTR format, va_list args )
-//#if defined( __GNUC__ ) && !defined( _UNICODE )
+//#if defined( __GNUC__ )
 //	__attribute__ ((__format__ (__vprintf__, 1, 2)))
 //#endif
 	;
 typedef INDEX (CPROC*RealLogFunction)(CTEXTSTR format,...)
-#if defined( __GNUC__ ) && !defined( _UNICODE )
+#if defined( __GNUC__ )
 	__attribute__ ((__format__ (__printf__, 1, 2)))
 #endif
 	;
@@ -5179,7 +5121,7 @@ SYSTEM_PROC( void, DeAttachThreadToLibraries )( LOGICAL attach );
 #define LoadFunction(l,f) LoadFunctionEx(l,f DBG_SRC )
 SYSTEM_PROC( generic_function, LoadPrivateFunctionEx )( CTEXTSTR libname, CTEXTSTR funcname DBG_PASS );
 #define LoadPrivateFunction(l,f) LoadPrivateFunctionEx(l,f DBG_SRC )
-#define OnLibraryLoad(name)	  DefineRegistryMethod(WIDE("SACK"),_OnLibraryLoad,WIDE("system/library"),WIDE("load_event"),name WIDE("_LoadEvent"),void,(void), __LINE__)
+#define OnLibraryLoad(name)	  DefineRegistryMethod("SACK",_OnLibraryLoad,"system/library","load_event",name "_LoadEvent",void,(void), __LINE__)
 // the callback passed will be called during LoadLibrary to allow an external
 // handler to download or extract the library; the resulting library should also
 // be loaded by the callback using the standard 'LoadFunction' methods
@@ -5261,13 +5203,8 @@ typedef struct addrinfoW {
     struct addrinfoW    *ai_next;
 } ADDRINFOW;
 typedef ADDRINFOW   *PADDRINFOW;
-#ifdef UNICODE
-typedef ADDRINFOW   ADDRINFOT;
-typedef ADDRINFOW   *PADDRINFOT;
-#else
 typedef ADDRINFOA   ADDRINFOT;
 typedef ADDRINFOA   *PADDRINFOT;
-#endif
 typedef ADDRINFOA   ADDRINFO;
 typedef ADDRINFOA   *LPADDRINFO;
 #endif
@@ -5547,7 +5484,7 @@ namespace memory {
 typedef struct memory_block_tag* PMEM;
 // what is an abstract name for the memory mapping handle...
 // where is a filename for the filebacking of the shared memory
-// DigSpace( WIDE(TEXT( "Picture Memory" )), WIDE(TEXT( "Picture.mem" )), 100000 );
+// DigSpace( "Picture Memory", "Picture.mem", 100000 );
 /* <combinewith sack::memory::OpenSpaceExx@CTEXTSTR@CTEXTSTR@uintptr_t@uintptr_t *@uint32_t*>
    \ \                                                                                 */
 MEM_PROC  POINTER MEM_API  OpenSpace ( CTEXTSTR pWhat, CTEXTSTR pWhere, uintptr_t *dwSize );
@@ -6192,7 +6129,7 @@ MEM_PROC  int MEM_API  StrCmpEx ( CTEXTSTR s1, CTEXTSTR s2, INDEX maxlen );
    The beginning of the string in s1 that matches s2.
    Example
    <code lang="c++">
-   TEXTCHAR const *found = StrStr( WIDE( "look in this string" ), WIDE( "in" ) );
+   TEXTCHAR const *found = StrStr( "look in this string", "in" );
                                                ^returns a pointer to here.
    </code>                                                                        */
 MEM_PROC  CTEXTSTR MEM_API  StrStr ( CTEXTSTR s1, CTEXTSTR s2 );
@@ -6208,8 +6145,8 @@ MEM_PROC  CTEXTSTR MEM_API  StrStr ( CTEXTSTR s1, CTEXTSTR s2 );
    The beginning of the string in s1 that matches s2.
    Example
    <code>
-   TEXTCHAR *writable_string = StrDup( WIDE( "look in this string" ) );
-   TEXTCHAR *found = StrStr( writable_string, WIDE( "in" ) );
+   TEXTCHAR *writable_string = StrDup( "look in this string" );
+   TEXTCHAR *found = StrStr( writable_string, "in" );
    // returns a pointer to 'in' in the writable string, which can then be modified.
    </code>                                                                          */
 MEM_PROC  TEXTSTR MEM_API  StrStr ( TEXTSTR s1, CTEXTSTR s2 );
@@ -6819,44 +6756,22 @@ using namespace sack::timers;
 // sometimes PATH_MAX is what's used, well it's should be MAXPATH which is MAX_PATH
 # define PATH_MAX MAXPATH
 #endif
-#ifdef _UNICODE
-#  ifdef _WIN32
-#    ifdef CONSOLE_SHELL
-    // in order to get wide characters from the commandline we have to use the GetCommandLineW function, convert it to utf8 for internal usage.
-#      define SaneWinMain(a,b) int main( int a, char **argv_real ) { char *tmp; TEXTCHAR **b; ParseIntoArgs( GetCommandLineW(), &a, &b ); Deallocate( char*, tmp ); {
-	//int n; TEXTCHAR **b; b = NewArray( TEXTSTR, a + 1 ); for( n = 0; n < a; n++ ) b[n] = DupCharToText( argv_real[n] ); b[n] = NULL; {
-#      define EndSaneWinMain() } }
-#    else
-#      define SaneWinMain(a,b) int APIENTRY WinMain( HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmdLine, int nCmdShow ) { char *tmp; int a; TEXTCHAR **b; ParseIntoArgs( tmp = WcharConvert( GetCommandLineW() ), &a, &b ); Deallocate( char*, tmp ); {
-#      define EndSaneWinMain() } }
-#    endif
+#ifdef _WIN32
+#  ifdef CONSOLE_SHELL
+ // in order to get wide characters from the commandline we have to use the GetCommandLineW function, convert it to utf8 for internal usage.
+#    define SaneWinMain(a,b) int main( int a, char **argv_real ) { char *tmp; TEXTCHAR **b; ParseIntoArgs( tmp = WcharConvert( GetCommandLineW() ), &a, &b ); Deallocate( char*, tmp ); {
+#    define EndSaneWinMain() } }
 #  else
-#    if defined( __ANDROID__ ) && !defined( ANDROID_CONSOLE_UTIL )
-#      define SaneWinMain(a,b) int SACK_Main( int a, char **b )
-#      define EndSaneWinMain()
-#    else
-#      define SaneWinMain(a,b) int main( int a, char **argv_real ) { int n; TEXTCHAR **b; b = NewArray( TEXTSTR, a + 1 ); for( n = 0; n < a; n++ ) b[n] = DupCharToText( argv_real[n] ); b[n] = NULL; {
-#      define EndSaneWinMain() } }
-#    endif
+#    define SaneWinMain(a,b) int APIENTRY WinMain( HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmdLine, int nCmdShow ) { int a; char *tmp; TEXTCHAR **b; ParseIntoArgs( tmp = WcharConvert( GetCommandLineW() ), &a, &b ); {
+#    define EndSaneWinMain() } }
 #  endif
 #else
-#  ifdef _WIN32
-#    ifdef CONSOLE_SHELL
-// in order to get wide characters from the commandline we have to use the GetCommandLineW function, convert it to utf8 for internal usage.
-#      define SaneWinMain(a,b) int main( int a, char **argv_real ) { char *tmp; TEXTCHAR **b; ParseIntoArgs( tmp = WcharConvert( GetCommandLineW() ), &a, &b ); Deallocate( char*, tmp ); {
-#      define EndSaneWinMain() } }
-#    else
-#      define SaneWinMain(a,b) int APIENTRY WinMain( HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmdLine, int nCmdShow ) { int a; char *tmp; TEXTCHAR **b; ParseIntoArgs( tmp = WcharConvert( GetCommandLineW() ), &a, &b ); {
-#      define EndSaneWinMain() } }
-#    endif
+#  if defined( __ANDROID__ ) && !defined( ANDROID_CONSOLE_UTIL )
+#    define SaneWinMain(a,b) int SACK_Main( int a, char **b )
+#    define EndSaneWinMain()
 #  else
-#    if defined( __ANDROID__ ) && !defined( ANDROID_CONSOLE_UTIL )
-#      define SaneWinMain(a,b) int SACK_Main( int a, char **b )
-#      define EndSaneWinMain()
-#    else
-#      define SaneWinMain(a,b) int main( int a, char **b ) { char **argv_real = b; {
-#      define EndSaneWinMain() } }
-#    endif
+#    define SaneWinMain(a,b) int main( int a, char **b ) { char **argv_real = b; {
+#    define EndSaneWinMain() } }
 #  endif
 #endif
 //  these are rude defines overloading otherwise very practical types
@@ -7032,7 +6947,7 @@ using namespace sack::timers;
    Includes the MOST stuff here ( a full windows.h parse is many
    many lines of code.)                                          */
 /* A macro to build a wide character string of __FILE__ */
-#define _WIDE__FILE__(n) WIDE(n)
+#define _WIDE__FILE__(n) n
 #define WIDE__FILE__ _WIDE__FILE__(__FILE__)
 #if _XOPEN_SOURCE < 500
 #  undef _XOPEN_SOURCE
@@ -7185,7 +7100,7 @@ __declspec(dllimport) DWORD WINAPI timeGetTime(void);
 #  ifdef __cplusplus_cli
 #    include <vcclr.h>
  /*lprintf( */
-#    define DebugBreak() System::Console::WriteLine(gcnew System::String( WIDE__FILE__ WIDE("(") STRSYM(__LINE__) WIDE(") Would DebugBreak here...") ) );
+#    define DebugBreak() System::Console::WriteLine(gcnew System::String( WIDE__FILE__ "(" STRSYM(__LINE__) ") Would DebugBreak here..." ) );
 //typedef unsigned int HANDLE;
 //typedef unsigned int HMODULE;
 //typedef unsigned int HWND;
@@ -7735,12 +7650,12 @@ SACK_NAMESPACE
 #define WINPROC(type,name)   type WINAPI name
 #define CALLBACKPROC(type,name) type CALLBACK name
 #if defined( __WATCOMC__ )
-#define LIBMAIN()   static int __LibMain( HINSTANCE ); PRELOAD( LibraryInitializer ) {	 __LibMain( GetModuleHandle(_WIDE(TARGETNAME)) );   }	 static int __LibMain( HINSTANCE hInstance ) {
+#define LIBMAIN()   static int __LibMain( HINSTANCE ); PRELOAD( LibraryInitializer ) {	 __LibMain( GetModuleHandle(TARGETNAME) );   }	 static int __LibMain( HINSTANCE hInstance ) {
 #define LIBEXIT() } static int LibExit( void ); ATEXIT( LiraryUninitializer ) { LibExit(); } int LibExit(void) {
 #define LIBMAIN_END() }
 #else
 #ifdef TARGETNAME
-#define LIBMAIN()   static int __LibMain( HINSTANCE ); PRELOAD( LibraryInitializer ) {	 __LibMain( GetModuleHandle(_WIDE(TARGETNAME)) );   }	 static int __LibMain( HINSTANCE hInstance ) {
+#define LIBMAIN()   static int __LibMain( HINSTANCE ); PRELOAD( LibraryInitializer ) {	 __LibMain( GetModuleHandle(TARGETNAME) );   }	 static int __LibMain( HINSTANCE hInstance ) {
 #else
 #define LIBMAIN()   TARGETNAME_NOT_DEFINED
 #endif
@@ -7803,13 +7718,13 @@ SACK_NAMESPACE
 #define STDCALL _stdcall
 #define PUBLIC(type,name)        type STDPROC name
 #ifdef __STATIC__
-			/*Log( WIDE("Library Enter" ) );*/
+			/*Log( "Library Enter" );*/
 #define LIBMAIN() static WINPROC(int, LibMain)(HINSTANCE hInstance, DWORD dwReason, void *unused )		 { if( dwReason == DLL_PROCESS_ATTACH ) {
  /* end if */
 #define LIBEXIT() } if( dwReason == DLL_PROCESS_DETACH ) {
 #define LIBMAIN_END()  } return 1; }
 #else
-			/*Log( WIDE("Library Enter" ) );*/
+			/*Log( "Library Enter" );*/
 #define LIBMAIN() WINPROC(int, LibMain)(HINSTANCE hInstance, DWORD dwReason, void *unused )		 { if( dwReason == DLL_PROCESS_ATTACH ) {
  /* end if */
 #define LIBEXIT() } if( dwReason == DLL_PROCESS_DETACH ) {
@@ -7821,13 +7736,13 @@ SACK_NAMESPACE
 #define PACKED
 #endif
 #define TOCHR(n) #n[0]
-#define TOSTR(n) WIDE(#n)
+#define TOSTR(n) #n
 #define STRSYM(n) TOSTR(n)
-#define _WIDE__FILE__(n) WIDE(n)
+#define _WIDE__FILE__(n) n
 #define WIDE__FILE__ _WIDE__FILE__(__FILE__)
 /* a constant text string that represents the current source
    filename and line... fourmated as "source.c(11) :"        */
-#define FILELINE  TEXT(__FILE__) WIDE("(" ) TEXT(STRSYM(__LINE__))WIDE(" : " ))
+#define FILELINE  TEXT(__FILE__) "(" TEXT(STRSYM(__LINE__))" : ")
 #if defined( _MSC_VER ) || defined( __PPCCPP__ )
 /* try and define a way to emit comipler messages... but like no compilers support standard ways to do this accross the board.*/
 #define pragnote(msg) message( FILELINE msg )
@@ -7840,10 +7755,10 @@ SACK_NAMESPACE
 #define pragnoteonly(msg) msg
 #endif
 /* specify a consistant macro to pass current file and line information.   This are appended parameters, and common usage is to only use these with _DEBUG set. */
-#define FILELINE_SRC         , (CTEXTSTR)_WIDE(__FILE__), __LINE__
+#define FILELINE_SRC         , __FILE__, __LINE__
 /* specify a consistant macro to pass current file and line information, to functions which void param lists.   This are appended parameters, and common usage is to only use these with _DEBUG set. */
-#define FILELINE_VOIDSRC     (CTEXTSTR)_WIDE(__FILE__), __LINE__
-//#define FILELINE_LEADSRC     (CTEXTSTR)_WIDE(__FILE__), __LINE__,
+#define FILELINE_VOIDSRC     __FILE__, __LINE__
+//#define FILELINE_LEADSRC     __FILE__, __LINE__,
 /* specify a consistant macro to define file and line parameters, to functions with otherwise void param lists.  This are appended parameters, and common usage is to only use these with _DEBUG set. */
 #define FILELINE_VOIDPASS    CTEXTSTR pFile, uint32_t nLine
 //#define FILELINE_LEADPASS    CTEXTSTR pFile, uint32_t nLine,
@@ -7856,15 +7771,15 @@ SACK_NAMESPACE
 /* specify a consistant macro to forward file and line parameters, to functions which have void parameter lists without this information.  This are appended parameters, and common usage is to only use these with _DEBUG set. */
 #define FILELINE_VOIDRELAY   pFile, nLine
 /* specify a consistant macro to format file and line information for printf formated strings. */
-#define FILELINE_FILELINEFMT WIDE("%s(%") _32f WIDE("): ")
-#define FILELINE_FILELINEFMT_MIN WIDE("%s(%") _32f WIDE(")")
+#define FILELINE_FILELINEFMT "%s(%" _32f "): "
+#define FILELINE_FILELINEFMT_MIN "%s(%" _32f ")"
 #define FILELINE_NULL        , NULL, 0
 #define FILELINE_VOIDNULL    NULL, 0
 /* define static parameters which are the declaration's current file and line, for stubbing in where debugging is being stripped.
   usage
     FILELINE_VARSRC: // declare pFile and nLine variables.
 	*/
-#define FILELINE_VARSRC       CTEXTSTR pFile = _WIDE(__FILE__); uint32_t nLine = __LINE__
+#define FILELINE_VARSRC       CTEXTSTR pFile = __FILE__; uint32_t nLine = __LINE__
 // this is for passing FILE, LINE information to allocate
 // useful during DEBUG phases only...
 // drop out these debug relay paramters for managed code...
@@ -8128,43 +8043,6 @@ typedef volatile uintptr_t        *PVPTRSZVAL;
 typedef size_t         INDEX;
 /* An index which is not valid; equates to 0xFFFFFFFFUL or negative one cast as an INDEX... ((INDEX)-1). */
 #define INVALID_INDEX ((INDEX)-1)
-#ifdef __CYGWIN__
-typedef unsigned short wchar_t;
-#endif
-// may consider changing this to uint16_t* for unicode...
-typedef wchar_t X_16;
-/* This is a pointer to wchar_t. A 16 bit value that is
-   character data, and is not signed or unsigned.       */
-typedef wchar_t *PX_16;
-#if defined( UNICODE ) || defined( SACK_COM_OBJECT )
-//should also consider revisiting code that was updated for TEXTCHAR to char conversion methods...
-#  ifdef _MSC_VER
-#    ifdef UNDER_CE
-#      define NULTERM
-#    else
-#      define NULTERM __nullterminated
-#    endif
-#  else
-#    define NULTERM
-#  endif
-#define WIDE(s)  L##s
-#define _WIDE(s)  WIDE(s)
-#define cWIDE(s)  s
-#define _cWIDE(s)  cWIDE(s)
- // constant text string content
-typedef NULTERM          const X_16      *CTEXTSTR;
- // pointer to constant text string content
-typedef NULTERM          CTEXTSTR        *PCTEXTSTR;
-typedef NULTERM          X_16            *TEXTSTR;
-/* a text 16 bit character  */
-typedef X_16             TEXTCHAR;
-#else
-#define WIDE(s)   s
-#define _WIDE(s)  s
-#define cWIDE(s)   s
-/* Modified WIDE wrapper that actually forces non-unicode
-   string.                                                */
-#define _cWIDE(s)  s
 // constant text string content
 typedef const char     *CTEXTSTR;
 /* A non constant array of TEXTCHAR. A pointer to TEXTCHAR. A
@@ -8180,7 +8058,6 @@ typedef CTEXTSTR const *PCTEXTSTR;
 #endif
 /* a text 8 bit character  */
 typedef char            TEXTCHAR;
-#endif
 /* a character rune.  Strings should be interpreted as UTF-8 or 16 depending on UNICODE compile option.
    GetUtfChar() from strings.  */
 typedef uint32_t             TEXTRUNE;
@@ -8214,41 +8091,41 @@ SACK_NAMESPACE_END
 SACK_NAMESPACE
 /* 16 bit unsigned decimal output printf format specifier. This would
    otherwise be defined in \<inttypes.h\>                */
-#define _16f   WIDE("u" )
+#define _16f   "u"
 /* 16 bit hex output printf format specifier. This would
    otherwise be defined in \<inttypes.h\>                */
-#define _16fx   WIDE("x" )
+#define _16fx   "x"
 /* 16 bit HEX output printf format specifier. This would
    otherwise be defined in \<inttypes.h\>                */
-#define _16fX   WIDE("X" )
+#define _16fX   "X"
 /* 16 bit signed decimal output printf format specifier. This
    would otherwise be defined in \<inttypes.h\>               */
-#define _16fs   WIDE("d" )
+#define _16fs   "d"
 /* 8 bit unsigned decimal output printf format specifier. This would
    otherwise be defined in \<inttypes.h\>                */
-#define _8f   WIDE("u" )
+#define _8f   "u"
 /* 8 bit hex output printf format specifier. This would
    otherwise be defined in \<inttypes.h\>                */
-#define _8fx   WIDE("x" )
+#define _8fx   "x"
 /* 8 bit HEX output printf format specifier. This would
    otherwise be defined in \<inttypes.h\>                */
-#define _8fX   WIDE("X" )
+#define _8fX   "X"
 /* 8 bit signed decimal output printf format specifier. This
    would otherwise be defined in \<inttypes.h\>               */
-#define _8fs   WIDE("d" )
+#define _8fs   "d"
 #if defined( __STDC_FORMAT_MACROS )
-#  define _32f   _WIDE( PRIu32 )
-#  define _32fx   _WIDE( PRIx32 )
-#  define _32fX   _WIDE( PRIX32 )
-#  define _32fs   _WIDE( PRId32 )
-#  define _64f    _WIDE(PRIu64)
-#  define _64fx   _WIDE(PRIx64)
-#  define _64fX   _WIDE(PRIX64)
-#  define _64fs   _WIDE(PRId64)
-#  define _64f    _WIDE(PRIu64)
-#  define _64fx   _WIDE(PRIx64)
-#  define _64fX   _WIDE(PRIX64)
-#  define _64fs   _WIDE(PRId64)
+#  define _32f   PRIu32
+#  define _32fx    PRIx32
+#  define _32fX    PRIX32
+#  define _32fs    PRId32
+#  define _64f    PRIu64
+#  define _64fx   PRIx64
+#  define _64fX   PRIX64
+#  define _64fs   PRId64
+#  define _64f    PRIu64
+#  define _64fx   PRIx64
+#  define _64fX   PRIX64
+#  define _64fs   PRId64
 // non-unicode strings
 #  define c_32f    PRIu32
 #  define c_32fx   PRIx32
@@ -8259,10 +8136,10 @@ SACK_NAMESPACE
 #  define c_64fX   PRIX64
 #  define c_64fs   PRId64
 #else
-#  define _32f   WIDE("u" )
-#  define _32fx   WIDE("x" )
-#  define _32fX   WIDE("X" )
-#  define _32fs   WIDE("d" )
+#  define _32f   "u"
+#  define _32fx   "x"
+#  define _32fX   "X"
+#  define _32fs   "d"
 #  define c_32f   "u"
 #  define c_32fx  "x"
 #  define c_32fX  "X"
@@ -8272,38 +8149,32 @@ SACK_NAMESPACE
 #  define c_64fX   "llX"
 #  define c_64fs   "lld"
 #endif
-#if defined( UNICODE )
-#  define _cstring_f WIDE("s")
-#  define _string_f WIDE("S")
-#  define _ustring_f WIDE("S")
-#else
-#  define _cstring_f WIDE("s")
-#  define _string_f WIDE("s")
-#  define _ustring_f WIDE("S")
-#endif
+#  define _cstring_f "s"
+#  define _string_f "s"
+#  define _ustring_f "S"
 #if defined( __64__ )
 #  if defined( __STDC_FORMAT_MACROS )
 #    if !defined( __GNUC__ ) || defined( _WIN32 )
-#      define _size_f    _WIDE( PRIu64 )
-#      define _size_fx   _WIDE( PRIx64 )
-#      define _size_fX   _WIDE( PRIX64 )
-#      define _size_fs   _WIDE( PRId64 )
+#      define _size_f     PRIu64
+#      define _size_fx    PRIx64
+#      define _size_fX    PRIX64
+#      define _size_fs    PRId64
 #      define c_size_f    PRIu64
 #      define c_size_fx   PRIx64
 #      define c_size_fX   PRIX64
 #      define c_size_fs   PRId64
 #    else
-#      define _size_f    WIDE( "zu" )
-#      define _size_fx   WIDE( "zx" )
-#      define _size_fX   WIDE( "zX" )
-#      define _size_fs   WIDE( "zd" )
+#      define _size_f    "zu"
+#      define _size_fx   "zx"
+#      define _size_fX   "zX"
+#      define _size_fs   "zd"
 #      define c_size_f    "zu"
 #      define c_size_fx   "zx"
 #      define c_size_fX   "zX"
 #      define c_size_fs   "zd"
 #    endif
-#    define _PTRSZVALfs _WIDE( PRIuPTR )
-#    define _PTRSZVALfx _WIDE( PRIxPTR )
+#    define _PTRSZVALfs  PRIuPTR
+#    define _PTRSZVALfx  PRIxPTR
 #    define cPTRSZVALfs PRIuPTR
 #    define cPTRSZVALfx PRIxPTR
 #  else
@@ -8317,17 +8188,17 @@ SACK_NAMESPACE
 #      define c_size_fX  c_64fX
 #      define c_size_fs  c_64fs
 #    else
-#      define _size_f    WIDE( "zu" )
-#      define _size_fx   WIDE( "zx" )
-#      define _size_fX   WIDE( "zX" )
-#      define _size_fs   WIDE( "zd" )
+#      define _size_f    "zu"
+#      define _size_fx   "zx"
+#      define _size_fX   "zX"
+#      define _size_fs   "zd"
 #      define c_size_f    "zu"
 #      define c_size_fx   "zx"
 #      define c_size_fX   "zX"
 #      define c_size_fs   "zd"
 #    endif
-#    define _PTRSZVALfs _WIDE( PRIuPTR )
-#    define _PTRSZVALfx _WIDE( PRIxPTR )
+#    define _PTRSZVALfs  PRIuPTR
+#    define _PTRSZVALfx  PRIxPTR
 #    define cPTRSZVALfs PRIuPTR
 #    define cPTRSZVALfx PRIxPTR
 #  endif
@@ -8335,26 +8206,26 @@ SACK_NAMESPACE
 #  if defined( __STDC_FORMAT_MACROS )
       // this HAS been fixed in UCRT - 2015!  but it'll take 5 years before everyone has that...
 #    if !defined( __GNUC__ ) || defined( _WIN32 )
-#      define _size_f    _WIDE( PRIu32 )
-#      define _size_fx   _WIDE( PRIx32 )
-#      define _size_fX   _WIDE( PRIX32 )
-#      define _size_fs   _WIDE( PRId32 )
+#      define _size_f     PRIu32
+#      define _size_fx    PRIx32
+#      define _size_fX    PRIX32
+#      define _size_fs    PRId32
 #      define c_size_f    PRIu32
 #      define c_size_fx   PRIx32
 #      define c_size_fX   PRIX32
 #      define c_size_fs   PRId32
 #    else
-#      define _size_f    WIDE( "zu" )
-#      define _size_fx   WIDE( "zx" )
-#      define _size_fX   WIDE( "zX" )
-#      define _size_fs   WIDE( "zd" )
+#      define _size_f    "zu"
+#      define _size_fx   "zx"
+#      define _size_fX   "zX"
+#      define _size_fs   "zd"
 #      define c_size_f    "zu"
 #      define c_size_fx   "zx"
 #      define c_size_fX   "zX"
 #      define c_size_fs   "zd"
 #    endif
-#    define _PTRSZVALfs _WIDE( PRIuPTR )
-#    define _PTRSZVALfx _WIDE( PRIxPTR )
+#    define _PTRSZVALfs  PRIuPTR
+#    define _PTRSZVALfx  PRIxPTR
 #    define cPTRSZVALfs PRIuPTR
 #    define cPTRSZVALfx PRIxPTR
 #  else
@@ -8369,36 +8240,36 @@ SACK_NAMESPACE
 #      define c_size_fX   c_32fX
 #      define c_size_fs   c_32fs
 #    else
-#      define _size_f    WIDE( "zu" )
-#      define _size_fx   WIDE( "zx" )
-#      define _size_fX   WIDE( "zX" )
-#      define _size_fs   WIDE( "zd" )
+#      define _size_f    "zu"
+#      define _size_fx   "zx"
+#      define _size_fX   "zX"
+#      define _size_fs   "zd"
 #      define c_size_f    "zu"
 #      define c_size_fx   "zx"
 #      define c_size_fX   "zX"
 #      define c_size_fs   "zd"
 #    endif
-#    define _PTRSZVALfs _WIDE( PRIuPTR )
-#    define _PTRSZVALfx _WIDE( PRIxPTR )
+#    define _PTRSZVALfs  PRIuPTR
+#    define _PTRSZVALfx  PRIxPTR
 #    define cPTRSZVALfs PRIuPTR
 #    define cPTRSZVALfx PRIxPTR
 #  endif
 #endif
-#define PTRSZVALf WIDE("p" )
-#define _PTRSZVALf WIDE("p" )
+#define PTRSZVALf "p"
+#define _PTRSZVALf "p"
 #if defined( _MSC_VER ) && ( _MSC_VER < 1900 )
 /* 64 bit unsigned decimal output printf format specifier. This would
    otherwise be defined in \<inttypes.h\> as PRIu64              */
-#define _64f    WIDE("llu")
+#define _64f    "llu"
 /* 64 bit hex output printf format specifier. This would
    otherwise be defined in \<inttypes.h\> as PRIxFAST64                */
-#define _64fx   WIDE("llx")
+#define _64fx   "llx"
 /* 64 bit HEX output printf format specifier. This would
    otherwise be defined in \<inttypes.h\> as PRIxFAST64                */
-#define _64fX   WIDE("llX")
+#define _64fX   "llX"
 /* 64 bit signed decimal output printf format specifier. This
    would otherwise be defined in \<inttypes.h\> as PRIdFAST64               */
-#define _64fs   WIDE("lld")
+#define _64fs   "lld"
 #endif
 // This should be for several years a
 // sufficiently large type to represent
@@ -8482,7 +8353,7 @@ typedef uint64_t THREAD_ID;
 //      'someNode' is removed from its existing list, and added to the 'rootUsed' list.
 //
 // For Declaring the link structure members for lists
-#define DeclareLink( type )  type *next;type **me
+#define DeclareLink( type )  type *next; type **me
 /* Link a new node into the list.
    Example
    struct mynode
@@ -8594,11 +8465,11 @@ typedef uint64_t THREAD_ID;
    n :  the count of masks to fit.       */
 #define MASKSETSIZE(t,n) (MASKTYPE_INDEX(t,(n+1)))
 // declare a set of flags...
-#define MASK_TOP_MASK_VAL(length,val) ((val)&( (0xFFFFFFFFUL) >> (32-(length)) ))
+#define MASK_TOP_MASK_VAL(length,val) ((val)&( ((MASKSET_READTYPE)-1) >> ((sizeof(MASKSET_READTYPE) * CHAR_BIT)-(length)) ))
 /* the mask in the dword resulting from shift-right.   (gets a mask of X bits in length) */
-#define MASK_TOP_MASK(length) ( (0xFFFFFFFFUL) >> (32-(length)) )
+#define MASK_TOP_MASK(length) ( ((MASKSET_READTYPE)-1) >> ((sizeof(MASKSET_READTYPE) * CHAR_BIT)-(length)) )
 /* the mast in the dword shifted to the left to overlap the field in the word */
-#define MASK_MASK(n,length)   (MASK_TOP_MASK(length) << (((n)*(length))&0x7) )
+#define MASK_MASK(n,length)   (MASK_TOP_MASK(length) << (((n)*(length)) & (sizeof(MASKSET_READTYPE) - 1) ) )
 // masks value with the mask size, then applies that mask back to the correct word indexing
 #define MASK_MASK_VAL(n,length,val)   (MASK_TOP_MASK_VAL(length,val) << (((n)*(length))&0x7) )
 /* declare a mask set.
@@ -8622,7 +8493,7 @@ typedef uint64_t THREAD_ID;
 /* This type stores data, it has a self-contained length in
    bytes of the data stored.  Length is in characters       */
 _CONTAINER_NAMESPACE
-/* This is a slab array of pointers, each pointer may be
+/* LIST is a slab array of pointers, each pointer may be
    assigned to point to any user data.
    Remarks
    When the list is filled to the capacity of Cnt elements, the
@@ -10302,24 +10173,10 @@ TYPELIB_PROC  int TYPELIB_CALLTYPE  TextSimilar  ( PTEXT pText, CTEXTSTR text );
 #  include <strings.h>
 /* windows went with stricmp() and strnicmp(), whereas linux
  went with strcasecmp() and strncasecmp()                  */
-#  ifdef UNICODE
-#    ifndef NO_UNICODE_C
-#      define strnicmp strncasecmp
+#  define strnicmp strncasecmp
 /* windows went with stricmp() and strnicmp(), whereas linux
    went with strcasecmp() and strncasecmp()                  */
-#      define stricmp strcasecmp
-#    else
-#      define strnicmp wcsncasecmp
-/* windows went with stricmp() and strnicmp(), whereas linux
-   went with strcasecmp() and strncasecmp()                  */
-#      define stricmp wcscasecmp
-#    endif
-#  else
-#    define strnicmp strncasecmp
-/* windows went with stricmp() and strnicmp(), whereas linux
-   went with strcasecmp() and strncasecmp()                  */
-#     define stricmp strcasecmp
-#  endif
+#  define stricmp strcasecmp
 #endif
 /* Copy segment formatting to another segment... */
 TYPELIB_PROC  void TYPELIB_CALLTYPE  SegCopyFormat( PTEXT to_this, PTEXT copy_this );
@@ -10339,7 +10196,7 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromTextEx( CTEXTSTR text DBG_PAS
 /* Creates a PTEXT segment from a string.
    Example
    <code lang="c++">
-   PTEXT line = SegCreateFromText( WIDE("Around the world in a day.") );
+   PTEXT line = SegCreateFromText( "Around the world in a day." );
    </code>                                                         */
 #define SegCreateFromText(t) SegCreateFromTextEx(t DBG_SRC)
 /* \ \
@@ -10751,7 +10608,7 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  BuildLineExx( PTEXT pt, LOGICAL bSingle, P
 // text parse - more generic flavor of burst.
 //
 //static CTEXTSTR normal_punctuation=WIDE("\'\"\\({[<>]}):@%/,;!?=*&$^~#`");
-// filter_to_space WIDE(" \t")
+// filter_to_space " \t"
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  TextParse ( PTEXT input, CTEXTSTR punctuation, CTEXTSTR filter_tospace, int bTabs, int bSpaces  DBG_PASS );
 /* normal_punctuation=WIDE("'"\\({[\<\>]}):@%/,;!?=*&amp;$^~#`");
    Process a line of PTEXT into another line of PTEXT, but with
@@ -11793,12 +11650,12 @@ SYSLOG_PROC  void SYSLOG_API  SetSystemLoggingLevel ( uint32_t nLevel );
 // int result is useless... but allows this to be
 // within expressions, which with this method should be easy.
 typedef INDEX (CPROC*RealVLogFunction)(CTEXTSTR format, va_list args )
-//#if defined( __GNUC__ ) && !defined( _UNICODE )
+//#if defined( __GNUC__ )
 //	__attribute__ ((__format__ (__vprintf__, 1, 2)))
 //#endif
 	;
 typedef INDEX (CPROC*RealLogFunction)(CTEXTSTR format,...)
-#if defined( __GNUC__ ) && !defined( _UNICODE )
+#if defined( __GNUC__ )
 	__attribute__ ((__format__ (__printf__, 1, 2)))
 #endif
 	;
@@ -12199,7 +12056,7 @@ SYSTEM_PROC( void, DeAttachThreadToLibraries )( LOGICAL attach );
 #define LoadFunction(l,f) LoadFunctionEx(l,f DBG_SRC )
 SYSTEM_PROC( generic_function, LoadPrivateFunctionEx )( CTEXTSTR libname, CTEXTSTR funcname DBG_PASS );
 #define LoadPrivateFunction(l,f) LoadPrivateFunctionEx(l,f DBG_SRC )
-#define OnLibraryLoad(name)	  DefineRegistryMethod(WIDE("SACK"),_OnLibraryLoad,WIDE("system/library"),WIDE("load_event"),name WIDE("_LoadEvent"),void,(void), __LINE__)
+#define OnLibraryLoad(name)	  DefineRegistryMethod("SACK",_OnLibraryLoad,"system/library","load_event",name "_LoadEvent",void,(void), __LINE__)
 // the callback passed will be called during LoadLibrary to allow an external
 // handler to download or extract the library; the resulting library should also
 // be loaded by the callback using the standard 'LoadFunction' methods
@@ -12281,13 +12138,8 @@ typedef struct addrinfoW {
     struct addrinfoW    *ai_next;
 } ADDRINFOW;
 typedef ADDRINFOW   *PADDRINFOW;
-#ifdef UNICODE
-typedef ADDRINFOW   ADDRINFOT;
-typedef ADDRINFOW   *PADDRINFOT;
-#else
 typedef ADDRINFOA   ADDRINFOT;
 typedef ADDRINFOA   *PADDRINFOT;
-#endif
 typedef ADDRINFOA   ADDRINFO;
 typedef ADDRINFOA   *LPADDRINFO;
 #endif
@@ -12567,7 +12419,7 @@ namespace memory {
 typedef struct memory_block_tag* PMEM;
 // what is an abstract name for the memory mapping handle...
 // where is a filename for the filebacking of the shared memory
-// DigSpace( WIDE(TEXT( "Picture Memory" )), WIDE(TEXT( "Picture.mem" )), 100000 );
+// DigSpace( "Picture Memory", "Picture.mem", 100000 );
 /* <combinewith sack::memory::OpenSpaceExx@CTEXTSTR@CTEXTSTR@uintptr_t@uintptr_t *@uint32_t*>
    \ \                                                                                 */
 MEM_PROC  POINTER MEM_API  OpenSpace ( CTEXTSTR pWhat, CTEXTSTR pWhere, uintptr_t *dwSize );
@@ -13212,7 +13064,7 @@ MEM_PROC  int MEM_API  StrCmpEx ( CTEXTSTR s1, CTEXTSTR s2, INDEX maxlen );
    The beginning of the string in s1 that matches s2.
    Example
    <code lang="c++">
-   TEXTCHAR const *found = StrStr( WIDE( "look in this string" ), WIDE( "in" ) );
+   TEXTCHAR const *found = StrStr( "look in this string", "in" );
                                                ^returns a pointer to here.
    </code>                                                                        */
 MEM_PROC  CTEXTSTR MEM_API  StrStr ( CTEXTSTR s1, CTEXTSTR s2 );
@@ -13228,8 +13080,8 @@ MEM_PROC  CTEXTSTR MEM_API  StrStr ( CTEXTSTR s1, CTEXTSTR s2 );
    The beginning of the string in s1 that matches s2.
    Example
    <code>
-   TEXTCHAR *writable_string = StrDup( WIDE( "look in this string" ) );
-   TEXTCHAR *found = StrStr( writable_string, WIDE( "in" ) );
+   TEXTCHAR *writable_string = StrDup( "look in this string" );
+   TEXTCHAR *found = StrStr( writable_string, "in" );
    // returns a pointer to 'in' in the writable string, which can then be modified.
    </code>                                                                          */
 MEM_PROC  TEXTSTR MEM_API  StrStr ( TEXTSTR s1, CTEXTSTR s2 );
@@ -13839,44 +13691,22 @@ using namespace sack::timers;
 // sometimes PATH_MAX is what's used, well it's should be MAXPATH which is MAX_PATH
 # define PATH_MAX MAXPATH
 #endif
-#ifdef _UNICODE
-#  ifdef _WIN32
-#    ifdef CONSOLE_SHELL
-    // in order to get wide characters from the commandline we have to use the GetCommandLineW function, convert it to utf8 for internal usage.
-#      define SaneWinMain(a,b) int main( int a, char **argv_real ) { char *tmp; TEXTCHAR **b; ParseIntoArgs( GetCommandLineW(), &a, &b ); Deallocate( char*, tmp ); {
-	//int n; TEXTCHAR **b; b = NewArray( TEXTSTR, a + 1 ); for( n = 0; n < a; n++ ) b[n] = DupCharToText( argv_real[n] ); b[n] = NULL; {
-#      define EndSaneWinMain() } }
-#    else
-#      define SaneWinMain(a,b) int APIENTRY WinMain( HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmdLine, int nCmdShow ) { char *tmp; int a; TEXTCHAR **b; ParseIntoArgs( tmp = WcharConvert( GetCommandLineW() ), &a, &b ); Deallocate( char*, tmp ); {
-#      define EndSaneWinMain() } }
-#    endif
+#ifdef _WIN32
+#  ifdef CONSOLE_SHELL
+ // in order to get wide characters from the commandline we have to use the GetCommandLineW function, convert it to utf8 for internal usage.
+#    define SaneWinMain(a,b) int main( int a, char **argv_real ) { char *tmp; TEXTCHAR **b; ParseIntoArgs( tmp = WcharConvert( GetCommandLineW() ), &a, &b ); Deallocate( char*, tmp ); {
+#    define EndSaneWinMain() } }
 #  else
-#    if defined( __ANDROID__ ) && !defined( ANDROID_CONSOLE_UTIL )
-#      define SaneWinMain(a,b) int SACK_Main( int a, char **b )
-#      define EndSaneWinMain()
-#    else
-#      define SaneWinMain(a,b) int main( int a, char **argv_real ) { int n; TEXTCHAR **b; b = NewArray( TEXTSTR, a + 1 ); for( n = 0; n < a; n++ ) b[n] = DupCharToText( argv_real[n] ); b[n] = NULL; {
-#      define EndSaneWinMain() } }
-#    endif
+#    define SaneWinMain(a,b) int APIENTRY WinMain( HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmdLine, int nCmdShow ) { int a; char *tmp; TEXTCHAR **b; ParseIntoArgs( tmp = WcharConvert( GetCommandLineW() ), &a, &b ); {
+#    define EndSaneWinMain() } }
 #  endif
 #else
-#  ifdef _WIN32
-#    ifdef CONSOLE_SHELL
-// in order to get wide characters from the commandline we have to use the GetCommandLineW function, convert it to utf8 for internal usage.
-#      define SaneWinMain(a,b) int main( int a, char **argv_real ) { char *tmp; TEXTCHAR **b; ParseIntoArgs( tmp = WcharConvert( GetCommandLineW() ), &a, &b ); Deallocate( char*, tmp ); {
-#      define EndSaneWinMain() } }
-#    else
-#      define SaneWinMain(a,b) int APIENTRY WinMain( HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmdLine, int nCmdShow ) { int a; char *tmp; TEXTCHAR **b; ParseIntoArgs( tmp = WcharConvert( GetCommandLineW() ), &a, &b ); {
-#      define EndSaneWinMain() } }
-#    endif
+#  if defined( __ANDROID__ ) && !defined( ANDROID_CONSOLE_UTIL )
+#    define SaneWinMain(a,b) int SACK_Main( int a, char **b )
+#    define EndSaneWinMain()
 #  else
-#    if defined( __ANDROID__ ) && !defined( ANDROID_CONSOLE_UTIL )
-#      define SaneWinMain(a,b) int SACK_Main( int a, char **b )
-#      define EndSaneWinMain()
-#    else
-#      define SaneWinMain(a,b) int main( int a, char **b ) { char **argv_real = b; {
-#      define EndSaneWinMain() } }
-#    endif
+#    define SaneWinMain(a,b) int main( int a, char **b ) { char **argv_real = b; {
+#    define EndSaneWinMain() } }
 #  endif
 #endif
 //  these are rude defines overloading otherwise very practical types
@@ -14368,7 +14198,6 @@ parse_message
  ***************************************************************/
 #ifndef JSOX_PARSER_HEADER_INCLUDED
 #define JSOX_PARSER_HEADER_INCLUDED
-#define JSON_EMITTER_HEADER_INCLUDED
 // include types to get namespace, and, well PDATALIST types
 #ifdef __cplusplus
 SACK_NAMESPACE namespace network {

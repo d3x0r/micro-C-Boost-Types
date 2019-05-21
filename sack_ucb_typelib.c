@@ -20,7 +20,7 @@
    Includes the MOST stuff here ( a full windows.h parse is many
    many lines of code.)                                          */
 /* A macro to build a wide character string of __FILE__ */
-#define _WIDE__FILE__(n) WIDE(n)
+#define _WIDE__FILE__(n) n
 #define WIDE__FILE__ _WIDE__FILE__(__FILE__)
 #if _XOPEN_SOURCE < 500
 #  undef _XOPEN_SOURCE
@@ -172,7 +172,7 @@ __declspec(dllimport) DWORD WINAPI timeGetTime(void);
 #  ifdef __cplusplus_cli
 #    include <vcclr.h>
  /*lprintf( */
-#    define DebugBreak() System::Console::WriteLine(gcnew System::String( WIDE__FILE__ WIDE("(") STRSYM(__LINE__) WIDE(") Would DebugBreak here...") ) );
+#    define DebugBreak() System::Console::WriteLine(gcnew System::String( WIDE__FILE__ "(" STRSYM(__LINE__) ") Would DebugBreak here..." ) );
 //typedef unsigned int HANDLE;
 //typedef unsigned int HMODULE;
 //typedef unsigned int HWND;
@@ -721,12 +721,12 @@ SACK_NAMESPACE
 #define WINPROC(type,name)   type WINAPI name
 #define CALLBACKPROC(type,name) type CALLBACK name
 #if defined( __WATCOMC__ )
-#define LIBMAIN()   static int __LibMain( HINSTANCE ); PRELOAD( LibraryInitializer ) {	 __LibMain( GetModuleHandle(_WIDE(TARGETNAME)) );   }	 static int __LibMain( HINSTANCE hInstance ) {
+#define LIBMAIN()   static int __LibMain( HINSTANCE ); PRELOAD( LibraryInitializer ) {	 __LibMain( GetModuleHandle(TARGETNAME) );   }	 static int __LibMain( HINSTANCE hInstance ) {
 #define LIBEXIT() } static int LibExit( void ); ATEXIT( LiraryUninitializer ) { LibExit(); } int LibExit(void) {
 #define LIBMAIN_END() }
 #else
 #ifdef TARGETNAME
-#define LIBMAIN()   static int __LibMain( HINSTANCE ); PRELOAD( LibraryInitializer ) {	 __LibMain( GetModuleHandle(_WIDE(TARGETNAME)) );   }	 static int __LibMain( HINSTANCE hInstance ) {
+#define LIBMAIN()   static int __LibMain( HINSTANCE ); PRELOAD( LibraryInitializer ) {	 __LibMain( GetModuleHandle(TARGETNAME) );   }	 static int __LibMain( HINSTANCE hInstance ) {
 #else
 #define LIBMAIN()   TARGETNAME_NOT_DEFINED
 #endif
@@ -789,13 +789,13 @@ SACK_NAMESPACE
 #define STDCALL _stdcall
 #define PUBLIC(type,name)        type STDPROC name
 #ifdef __STATIC__
-			/*Log( WIDE("Library Enter" ) );*/
+			/*Log( "Library Enter" );*/
 #define LIBMAIN() static WINPROC(int, LibMain)(HINSTANCE hInstance, DWORD dwReason, void *unused )		 { if( dwReason == DLL_PROCESS_ATTACH ) {
  /* end if */
 #define LIBEXIT() } if( dwReason == DLL_PROCESS_DETACH ) {
 #define LIBMAIN_END()  } return 1; }
 #else
-			/*Log( WIDE("Library Enter" ) );*/
+			/*Log( "Library Enter" );*/
 #define LIBMAIN() WINPROC(int, LibMain)(HINSTANCE hInstance, DWORD dwReason, void *unused )		 { if( dwReason == DLL_PROCESS_ATTACH ) {
  /* end if */
 #define LIBEXIT() } if( dwReason == DLL_PROCESS_DETACH ) {
@@ -807,13 +807,13 @@ SACK_NAMESPACE
 #define PACKED
 #endif
 #define TOCHR(n) #n[0]
-#define TOSTR(n) WIDE(#n)
+#define TOSTR(n) #n
 #define STRSYM(n) TOSTR(n)
-#define _WIDE__FILE__(n) WIDE(n)
+#define _WIDE__FILE__(n) n
 #define WIDE__FILE__ _WIDE__FILE__(__FILE__)
 /* a constant text string that represents the current source
    filename and line... fourmated as "source.c(11) :"        */
-#define FILELINE  TEXT(__FILE__) WIDE("(" ) TEXT(STRSYM(__LINE__))WIDE(" : " ))
+#define FILELINE  TEXT(__FILE__) "(" TEXT(STRSYM(__LINE__))" : ")
 #if defined( _MSC_VER ) || defined( __PPCCPP__ )
 /* try and define a way to emit comipler messages... but like no compilers support standard ways to do this accross the board.*/
 #define pragnote(msg) message( FILELINE msg )
@@ -826,10 +826,10 @@ SACK_NAMESPACE
 #define pragnoteonly(msg) msg
 #endif
 /* specify a consistant macro to pass current file and line information.   This are appended parameters, and common usage is to only use these with _DEBUG set. */
-#define FILELINE_SRC         , (CTEXTSTR)_WIDE(__FILE__), __LINE__
+#define FILELINE_SRC         , __FILE__, __LINE__
 /* specify a consistant macro to pass current file and line information, to functions which void param lists.   This are appended parameters, and common usage is to only use these with _DEBUG set. */
-#define FILELINE_VOIDSRC     (CTEXTSTR)_WIDE(__FILE__), __LINE__
-//#define FILELINE_LEADSRC     (CTEXTSTR)_WIDE(__FILE__), __LINE__,
+#define FILELINE_VOIDSRC     __FILE__, __LINE__
+//#define FILELINE_LEADSRC     __FILE__, __LINE__,
 /* specify a consistant macro to define file and line parameters, to functions with otherwise void param lists.  This are appended parameters, and common usage is to only use these with _DEBUG set. */
 #define FILELINE_VOIDPASS    CTEXTSTR pFile, uint32_t nLine
 //#define FILELINE_LEADPASS    CTEXTSTR pFile, uint32_t nLine,
@@ -842,15 +842,15 @@ SACK_NAMESPACE
 /* specify a consistant macro to forward file and line parameters, to functions which have void parameter lists without this information.  This are appended parameters, and common usage is to only use these with _DEBUG set. */
 #define FILELINE_VOIDRELAY   pFile, nLine
 /* specify a consistant macro to format file and line information for printf formated strings. */
-#define FILELINE_FILELINEFMT WIDE("%s(%") _32f WIDE("): ")
-#define FILELINE_FILELINEFMT_MIN WIDE("%s(%") _32f WIDE(")")
+#define FILELINE_FILELINEFMT "%s(%" _32f "): "
+#define FILELINE_FILELINEFMT_MIN "%s(%" _32f ")"
 #define FILELINE_NULL        , NULL, 0
 #define FILELINE_VOIDNULL    NULL, 0
 /* define static parameters which are the declaration's current file and line, for stubbing in where debugging is being stripped.
   usage
     FILELINE_VARSRC: // declare pFile and nLine variables.
 	*/
-#define FILELINE_VARSRC       CTEXTSTR pFile = _WIDE(__FILE__); uint32_t nLine = __LINE__
+#define FILELINE_VARSRC       CTEXTSTR pFile = __FILE__; uint32_t nLine = __LINE__
 // this is for passing FILE, LINE information to allocate
 // useful during DEBUG phases only...
 // drop out these debug relay paramters for managed code...
@@ -1114,43 +1114,6 @@ typedef volatile uintptr_t        *PVPTRSZVAL;
 typedef size_t         INDEX;
 /* An index which is not valid; equates to 0xFFFFFFFFUL or negative one cast as an INDEX... ((INDEX)-1). */
 #define INVALID_INDEX ((INDEX)-1)
-#ifdef __CYGWIN__
-typedef unsigned short wchar_t;
-#endif
-// may consider changing this to uint16_t* for unicode...
-typedef wchar_t X_16;
-/* This is a pointer to wchar_t. A 16 bit value that is
-   character data, and is not signed or unsigned.       */
-typedef wchar_t *PX_16;
-#if defined( UNICODE ) || defined( SACK_COM_OBJECT )
-//should also consider revisiting code that was updated for TEXTCHAR to char conversion methods...
-#  ifdef _MSC_VER
-#    ifdef UNDER_CE
-#      define NULTERM
-#    else
-#      define NULTERM __nullterminated
-#    endif
-#  else
-#    define NULTERM
-#  endif
-#define WIDE(s)  L##s
-#define _WIDE(s)  WIDE(s)
-#define cWIDE(s)  s
-#define _cWIDE(s)  cWIDE(s)
- // constant text string content
-typedef NULTERM          const X_16      *CTEXTSTR;
- // pointer to constant text string content
-typedef NULTERM          CTEXTSTR        *PCTEXTSTR;
-typedef NULTERM          X_16            *TEXTSTR;
-/* a text 16 bit character  */
-typedef X_16             TEXTCHAR;
-#else
-#define WIDE(s)   s
-#define _WIDE(s)  s
-#define cWIDE(s)   s
-/* Modified WIDE wrapper that actually forces non-unicode
-   string.                                                */
-#define _cWIDE(s)  s
 // constant text string content
 typedef const char     *CTEXTSTR;
 /* A non constant array of TEXTCHAR. A pointer to TEXTCHAR. A
@@ -1166,7 +1129,6 @@ typedef CTEXTSTR const *PCTEXTSTR;
 #endif
 /* a text 8 bit character  */
 typedef char            TEXTCHAR;
-#endif
 /* a character rune.  Strings should be interpreted as UTF-8 or 16 depending on UNICODE compile option.
    GetUtfChar() from strings.  */
 typedef uint32_t             TEXTRUNE;
@@ -1200,41 +1162,41 @@ SACK_NAMESPACE_END
 SACK_NAMESPACE
 /* 16 bit unsigned decimal output printf format specifier. This would
    otherwise be defined in \<inttypes.h\>                */
-#define _16f   WIDE("u" )
+#define _16f   "u"
 /* 16 bit hex output printf format specifier. This would
    otherwise be defined in \<inttypes.h\>                */
-#define _16fx   WIDE("x" )
+#define _16fx   "x"
 /* 16 bit HEX output printf format specifier. This would
    otherwise be defined in \<inttypes.h\>                */
-#define _16fX   WIDE("X" )
+#define _16fX   "X"
 /* 16 bit signed decimal output printf format specifier. This
    would otherwise be defined in \<inttypes.h\>               */
-#define _16fs   WIDE("d" )
+#define _16fs   "d"
 /* 8 bit unsigned decimal output printf format specifier. This would
    otherwise be defined in \<inttypes.h\>                */
-#define _8f   WIDE("u" )
+#define _8f   "u"
 /* 8 bit hex output printf format specifier. This would
    otherwise be defined in \<inttypes.h\>                */
-#define _8fx   WIDE("x" )
+#define _8fx   "x"
 /* 8 bit HEX output printf format specifier. This would
    otherwise be defined in \<inttypes.h\>                */
-#define _8fX   WIDE("X" )
+#define _8fX   "X"
 /* 8 bit signed decimal output printf format specifier. This
    would otherwise be defined in \<inttypes.h\>               */
-#define _8fs   WIDE("d" )
+#define _8fs   "d"
 #if defined( __STDC_FORMAT_MACROS )
-#  define _32f   _WIDE( PRIu32 )
-#  define _32fx   _WIDE( PRIx32 )
-#  define _32fX   _WIDE( PRIX32 )
-#  define _32fs   _WIDE( PRId32 )
-#  define _64f    _WIDE(PRIu64)
-#  define _64fx   _WIDE(PRIx64)
-#  define _64fX   _WIDE(PRIX64)
-#  define _64fs   _WIDE(PRId64)
-#  define _64f    _WIDE(PRIu64)
-#  define _64fx   _WIDE(PRIx64)
-#  define _64fX   _WIDE(PRIX64)
-#  define _64fs   _WIDE(PRId64)
+#  define _32f   PRIu32
+#  define _32fx    PRIx32
+#  define _32fX    PRIX32
+#  define _32fs    PRId32
+#  define _64f    PRIu64
+#  define _64fx   PRIx64
+#  define _64fX   PRIX64
+#  define _64fs   PRId64
+#  define _64f    PRIu64
+#  define _64fx   PRIx64
+#  define _64fX   PRIX64
+#  define _64fs   PRId64
 // non-unicode strings
 #  define c_32f    PRIu32
 #  define c_32fx   PRIx32
@@ -1245,10 +1207,10 @@ SACK_NAMESPACE
 #  define c_64fX   PRIX64
 #  define c_64fs   PRId64
 #else
-#  define _32f   WIDE("u" )
-#  define _32fx   WIDE("x" )
-#  define _32fX   WIDE("X" )
-#  define _32fs   WIDE("d" )
+#  define _32f   "u"
+#  define _32fx   "x"
+#  define _32fX   "X"
+#  define _32fs   "d"
 #  define c_32f   "u"
 #  define c_32fx  "x"
 #  define c_32fX  "X"
@@ -1258,38 +1220,32 @@ SACK_NAMESPACE
 #  define c_64fX   "llX"
 #  define c_64fs   "lld"
 #endif
-#if defined( UNICODE )
-#  define _cstring_f WIDE("s")
-#  define _string_f WIDE("S")
-#  define _ustring_f WIDE("S")
-#else
-#  define _cstring_f WIDE("s")
-#  define _string_f WIDE("s")
-#  define _ustring_f WIDE("S")
-#endif
+#  define _cstring_f "s"
+#  define _string_f "s"
+#  define _ustring_f "S"
 #if defined( __64__ )
 #  if defined( __STDC_FORMAT_MACROS )
 #    if !defined( __GNUC__ ) || defined( _WIN32 )
-#      define _size_f    _WIDE( PRIu64 )
-#      define _size_fx   _WIDE( PRIx64 )
-#      define _size_fX   _WIDE( PRIX64 )
-#      define _size_fs   _WIDE( PRId64 )
+#      define _size_f     PRIu64
+#      define _size_fx    PRIx64
+#      define _size_fX    PRIX64
+#      define _size_fs    PRId64
 #      define c_size_f    PRIu64
 #      define c_size_fx   PRIx64
 #      define c_size_fX   PRIX64
 #      define c_size_fs   PRId64
 #    else
-#      define _size_f    WIDE( "zu" )
-#      define _size_fx   WIDE( "zx" )
-#      define _size_fX   WIDE( "zX" )
-#      define _size_fs   WIDE( "zd" )
+#      define _size_f    "zu"
+#      define _size_fx   "zx"
+#      define _size_fX   "zX"
+#      define _size_fs   "zd"
 #      define c_size_f    "zu"
 #      define c_size_fx   "zx"
 #      define c_size_fX   "zX"
 #      define c_size_fs   "zd"
 #    endif
-#    define _PTRSZVALfs _WIDE( PRIuPTR )
-#    define _PTRSZVALfx _WIDE( PRIxPTR )
+#    define _PTRSZVALfs  PRIuPTR
+#    define _PTRSZVALfx  PRIxPTR
 #    define cPTRSZVALfs PRIuPTR
 #    define cPTRSZVALfx PRIxPTR
 #  else
@@ -1303,17 +1259,17 @@ SACK_NAMESPACE
 #      define c_size_fX  c_64fX
 #      define c_size_fs  c_64fs
 #    else
-#      define _size_f    WIDE( "zu" )
-#      define _size_fx   WIDE( "zx" )
-#      define _size_fX   WIDE( "zX" )
-#      define _size_fs   WIDE( "zd" )
+#      define _size_f    "zu"
+#      define _size_fx   "zx"
+#      define _size_fX   "zX"
+#      define _size_fs   "zd"
 #      define c_size_f    "zu"
 #      define c_size_fx   "zx"
 #      define c_size_fX   "zX"
 #      define c_size_fs   "zd"
 #    endif
-#    define _PTRSZVALfs _WIDE( PRIuPTR )
-#    define _PTRSZVALfx _WIDE( PRIxPTR )
+#    define _PTRSZVALfs  PRIuPTR
+#    define _PTRSZVALfx  PRIxPTR
 #    define cPTRSZVALfs PRIuPTR
 #    define cPTRSZVALfx PRIxPTR
 #  endif
@@ -1321,26 +1277,26 @@ SACK_NAMESPACE
 #  if defined( __STDC_FORMAT_MACROS )
       // this HAS been fixed in UCRT - 2015!  but it'll take 5 years before everyone has that...
 #    if !defined( __GNUC__ ) || defined( _WIN32 )
-#      define _size_f    _WIDE( PRIu32 )
-#      define _size_fx   _WIDE( PRIx32 )
-#      define _size_fX   _WIDE( PRIX32 )
-#      define _size_fs   _WIDE( PRId32 )
+#      define _size_f     PRIu32
+#      define _size_fx    PRIx32
+#      define _size_fX    PRIX32
+#      define _size_fs    PRId32
 #      define c_size_f    PRIu32
 #      define c_size_fx   PRIx32
 #      define c_size_fX   PRIX32
 #      define c_size_fs   PRId32
 #    else
-#      define _size_f    WIDE( "zu" )
-#      define _size_fx   WIDE( "zx" )
-#      define _size_fX   WIDE( "zX" )
-#      define _size_fs   WIDE( "zd" )
+#      define _size_f    "zu"
+#      define _size_fx   "zx"
+#      define _size_fX   "zX"
+#      define _size_fs   "zd"
 #      define c_size_f    "zu"
 #      define c_size_fx   "zx"
 #      define c_size_fX   "zX"
 #      define c_size_fs   "zd"
 #    endif
-#    define _PTRSZVALfs _WIDE( PRIuPTR )
-#    define _PTRSZVALfx _WIDE( PRIxPTR )
+#    define _PTRSZVALfs  PRIuPTR
+#    define _PTRSZVALfx  PRIxPTR
 #    define cPTRSZVALfs PRIuPTR
 #    define cPTRSZVALfx PRIxPTR
 #  else
@@ -1355,36 +1311,36 @@ SACK_NAMESPACE
 #      define c_size_fX   c_32fX
 #      define c_size_fs   c_32fs
 #    else
-#      define _size_f    WIDE( "zu" )
-#      define _size_fx   WIDE( "zx" )
-#      define _size_fX   WIDE( "zX" )
-#      define _size_fs   WIDE( "zd" )
+#      define _size_f    "zu"
+#      define _size_fx   "zx"
+#      define _size_fX   "zX"
+#      define _size_fs   "zd"
 #      define c_size_f    "zu"
 #      define c_size_fx   "zx"
 #      define c_size_fX   "zX"
 #      define c_size_fs   "zd"
 #    endif
-#    define _PTRSZVALfs _WIDE( PRIuPTR )
-#    define _PTRSZVALfx _WIDE( PRIxPTR )
+#    define _PTRSZVALfs  PRIuPTR
+#    define _PTRSZVALfx  PRIxPTR
 #    define cPTRSZVALfs PRIuPTR
 #    define cPTRSZVALfx PRIxPTR
 #  endif
 #endif
-#define PTRSZVALf WIDE("p" )
-#define _PTRSZVALf WIDE("p" )
+#define PTRSZVALf "p"
+#define _PTRSZVALf "p"
 #if defined( _MSC_VER ) && ( _MSC_VER < 1900 )
 /* 64 bit unsigned decimal output printf format specifier. This would
    otherwise be defined in \<inttypes.h\> as PRIu64              */
-#define _64f    WIDE("llu")
+#define _64f    "llu"
 /* 64 bit hex output printf format specifier. This would
    otherwise be defined in \<inttypes.h\> as PRIxFAST64                */
-#define _64fx   WIDE("llx")
+#define _64fx   "llx"
 /* 64 bit HEX output printf format specifier. This would
    otherwise be defined in \<inttypes.h\> as PRIxFAST64                */
-#define _64fX   WIDE("llX")
+#define _64fX   "llX"
 /* 64 bit signed decimal output printf format specifier. This
    would otherwise be defined in \<inttypes.h\> as PRIdFAST64               */
-#define _64fs   WIDE("lld")
+#define _64fs   "lld"
 #endif
 // This should be for several years a
 // sufficiently large type to represent
@@ -1468,7 +1424,7 @@ typedef uint64_t THREAD_ID;
 //      'someNode' is removed from its existing list, and added to the 'rootUsed' list.
 //
 // For Declaring the link structure members for lists
-#define DeclareLink( type )  type *next;type **me
+#define DeclareLink( type )  type *next; type **me
 /* Link a new node into the list.
    Example
    struct mynode
@@ -1580,11 +1536,11 @@ typedef uint64_t THREAD_ID;
    n :  the count of masks to fit.       */
 #define MASKSETSIZE(t,n) (MASKTYPE_INDEX(t,(n+1)))
 // declare a set of flags...
-#define MASK_TOP_MASK_VAL(length,val) ((val)&( (0xFFFFFFFFUL) >> (32-(length)) ))
+#define MASK_TOP_MASK_VAL(length,val) ((val)&( ((MASKSET_READTYPE)-1) >> ((sizeof(MASKSET_READTYPE) * CHAR_BIT)-(length)) ))
 /* the mask in the dword resulting from shift-right.   (gets a mask of X bits in length) */
-#define MASK_TOP_MASK(length) ( (0xFFFFFFFFUL) >> (32-(length)) )
+#define MASK_TOP_MASK(length) ( ((MASKSET_READTYPE)-1) >> ((sizeof(MASKSET_READTYPE) * CHAR_BIT)-(length)) )
 /* the mast in the dword shifted to the left to overlap the field in the word */
-#define MASK_MASK(n,length)   (MASK_TOP_MASK(length) << (((n)*(length))&0x7) )
+#define MASK_MASK(n,length)   (MASK_TOP_MASK(length) << (((n)*(length)) & (sizeof(MASKSET_READTYPE) - 1) ) )
 // masks value with the mask size, then applies that mask back to the correct word indexing
 #define MASK_MASK_VAL(n,length,val)   (MASK_TOP_MASK_VAL(length,val) << (((n)*(length))&0x7) )
 /* declare a mask set.
@@ -1608,7 +1564,7 @@ typedef uint64_t THREAD_ID;
 /* This type stores data, it has a self-contained length in
    bytes of the data stored.  Length is in characters       */
 _CONTAINER_NAMESPACE
-/* This is a slab array of pointers, each pointer may be
+/* LIST is a slab array of pointers, each pointer may be
    assigned to point to any user data.
    Remarks
    When the list is filled to the capacity of Cnt elements, the
@@ -3288,24 +3244,10 @@ TYPELIB_PROC  int TYPELIB_CALLTYPE  TextSimilar  ( PTEXT pText, CTEXTSTR text );
 #  include <strings.h>
 /* windows went with stricmp() and strnicmp(), whereas linux
  went with strcasecmp() and strncasecmp()                  */
-#  ifdef UNICODE
-#    ifndef NO_UNICODE_C
-#      define strnicmp strncasecmp
+#  define strnicmp strncasecmp
 /* windows went with stricmp() and strnicmp(), whereas linux
    went with strcasecmp() and strncasecmp()                  */
-#      define stricmp strcasecmp
-#    else
-#      define strnicmp wcsncasecmp
-/* windows went with stricmp() and strnicmp(), whereas linux
-   went with strcasecmp() and strncasecmp()                  */
-#      define stricmp wcscasecmp
-#    endif
-#  else
-#    define strnicmp strncasecmp
-/* windows went with stricmp() and strnicmp(), whereas linux
-   went with strcasecmp() and strncasecmp()                  */
-#     define stricmp strcasecmp
-#  endif
+#  define stricmp strcasecmp
 #endif
 /* Copy segment formatting to another segment... */
 TYPELIB_PROC  void TYPELIB_CALLTYPE  SegCopyFormat( PTEXT to_this, PTEXT copy_this );
@@ -3325,7 +3267,7 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromTextEx( CTEXTSTR text DBG_PAS
 /* Creates a PTEXT segment from a string.
    Example
    <code lang="c++">
-   PTEXT line = SegCreateFromText( WIDE("Around the world in a day.") );
+   PTEXT line = SegCreateFromText( "Around the world in a day." );
    </code>                                                         */
 #define SegCreateFromText(t) SegCreateFromTextEx(t DBG_SRC)
 /* \ \
@@ -3737,7 +3679,7 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  BuildLineExx( PTEXT pt, LOGICAL bSingle, P
 // text parse - more generic flavor of burst.
 //
 //static CTEXTSTR normal_punctuation=WIDE("\'\"\\({[<>]}):@%/,;!?=*&$^~#`");
-// filter_to_space WIDE(" \t")
+// filter_to_space " \t"
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  TextParse ( PTEXT input, CTEXTSTR punctuation, CTEXTSTR filter_tospace, int bTabs, int bSpaces  DBG_PASS );
 /* normal_punctuation=WIDE("'"\\({[\<\>]}):@%/,;!?=*&amp;$^~#`");
    Process a line of PTEXT into another line of PTEXT, but with
@@ -4779,12 +4721,12 @@ SYSLOG_PROC  void SYSLOG_API  SetSystemLoggingLevel ( uint32_t nLevel );
 // int result is useless... but allows this to be
 // within expressions, which with this method should be easy.
 typedef INDEX (CPROC*RealVLogFunction)(CTEXTSTR format, va_list args )
-//#if defined( __GNUC__ ) && !defined( _UNICODE )
+//#if defined( __GNUC__ )
 //	__attribute__ ((__format__ (__vprintf__, 1, 2)))
 //#endif
 	;
 typedef INDEX (CPROC*RealLogFunction)(CTEXTSTR format,...)
-#if defined( __GNUC__ ) && !defined( _UNICODE )
+#if defined( __GNUC__ )
 	__attribute__ ((__format__ (__printf__, 1, 2)))
 #endif
 	;
@@ -5185,7 +5127,7 @@ SYSTEM_PROC( void, DeAttachThreadToLibraries )( LOGICAL attach );
 #define LoadFunction(l,f) LoadFunctionEx(l,f DBG_SRC )
 SYSTEM_PROC( generic_function, LoadPrivateFunctionEx )( CTEXTSTR libname, CTEXTSTR funcname DBG_PASS );
 #define LoadPrivateFunction(l,f) LoadPrivateFunctionEx(l,f DBG_SRC )
-#define OnLibraryLoad(name)	  DefineRegistryMethod(WIDE("SACK"),_OnLibraryLoad,WIDE("system/library"),WIDE("load_event"),name WIDE("_LoadEvent"),void,(void), __LINE__)
+#define OnLibraryLoad(name)	  DefineRegistryMethod("SACK",_OnLibraryLoad,"system/library","load_event",name "_LoadEvent",void,(void), __LINE__)
 // the callback passed will be called during LoadLibrary to allow an external
 // handler to download or extract the library; the resulting library should also
 // be loaded by the callback using the standard 'LoadFunction' methods
@@ -5267,13 +5209,8 @@ typedef struct addrinfoW {
     struct addrinfoW    *ai_next;
 } ADDRINFOW;
 typedef ADDRINFOW   *PADDRINFOW;
-#ifdef UNICODE
-typedef ADDRINFOW   ADDRINFOT;
-typedef ADDRINFOW   *PADDRINFOT;
-#else
 typedef ADDRINFOA   ADDRINFOT;
 typedef ADDRINFOA   *PADDRINFOT;
-#endif
 typedef ADDRINFOA   ADDRINFO;
 typedef ADDRINFOA   *LPADDRINFO;
 #endif
@@ -5553,7 +5490,7 @@ namespace memory {
 typedef struct memory_block_tag* PMEM;
 // what is an abstract name for the memory mapping handle...
 // where is a filename for the filebacking of the shared memory
-// DigSpace( WIDE(TEXT( "Picture Memory" )), WIDE(TEXT( "Picture.mem" )), 100000 );
+// DigSpace( "Picture Memory", "Picture.mem", 100000 );
 /* <combinewith sack::memory::OpenSpaceExx@CTEXTSTR@CTEXTSTR@uintptr_t@uintptr_t *@uint32_t*>
    \ \                                                                                 */
 MEM_PROC  POINTER MEM_API  OpenSpace ( CTEXTSTR pWhat, CTEXTSTR pWhere, uintptr_t *dwSize );
@@ -6198,7 +6135,7 @@ MEM_PROC  int MEM_API  StrCmpEx ( CTEXTSTR s1, CTEXTSTR s2, INDEX maxlen );
    The beginning of the string in s1 that matches s2.
    Example
    <code lang="c++">
-   TEXTCHAR const *found = StrStr( WIDE( "look in this string" ), WIDE( "in" ) );
+   TEXTCHAR const *found = StrStr( "look in this string", "in" );
                                                ^returns a pointer to here.
    </code>                                                                        */
 MEM_PROC  CTEXTSTR MEM_API  StrStr ( CTEXTSTR s1, CTEXTSTR s2 );
@@ -6214,8 +6151,8 @@ MEM_PROC  CTEXTSTR MEM_API  StrStr ( CTEXTSTR s1, CTEXTSTR s2 );
    The beginning of the string in s1 that matches s2.
    Example
    <code>
-   TEXTCHAR *writable_string = StrDup( WIDE( "look in this string" ) );
-   TEXTCHAR *found = StrStr( writable_string, WIDE( "in" ) );
+   TEXTCHAR *writable_string = StrDup( "look in this string" );
+   TEXTCHAR *found = StrStr( writable_string, "in" );
    // returns a pointer to 'in' in the writable string, which can then be modified.
    </code>                                                                          */
 MEM_PROC  TEXTSTR MEM_API  StrStr ( TEXTSTR s1, CTEXTSTR s2 );
@@ -6825,44 +6762,22 @@ using namespace sack::timers;
 // sometimes PATH_MAX is what's used, well it's should be MAXPATH which is MAX_PATH
 # define PATH_MAX MAXPATH
 #endif
-#ifdef _UNICODE
-#  ifdef _WIN32
-#    ifdef CONSOLE_SHELL
-    // in order to get wide characters from the commandline we have to use the GetCommandLineW function, convert it to utf8 for internal usage.
-#      define SaneWinMain(a,b) int main( int a, char **argv_real ) { char *tmp; TEXTCHAR **b; ParseIntoArgs( GetCommandLineW(), &a, &b ); Deallocate( char*, tmp ); {
-	//int n; TEXTCHAR **b; b = NewArray( TEXTSTR, a + 1 ); for( n = 0; n < a; n++ ) b[n] = DupCharToText( argv_real[n] ); b[n] = NULL; {
-#      define EndSaneWinMain() } }
-#    else
-#      define SaneWinMain(a,b) int APIENTRY WinMain( HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmdLine, int nCmdShow ) { char *tmp; int a; TEXTCHAR **b; ParseIntoArgs( tmp = WcharConvert( GetCommandLineW() ), &a, &b ); Deallocate( char*, tmp ); {
-#      define EndSaneWinMain() } }
-#    endif
+#ifdef _WIN32
+#  ifdef CONSOLE_SHELL
+ // in order to get wide characters from the commandline we have to use the GetCommandLineW function, convert it to utf8 for internal usage.
+#    define SaneWinMain(a,b) int main( int a, char **argv_real ) { char *tmp; TEXTCHAR **b; ParseIntoArgs( tmp = WcharConvert( GetCommandLineW() ), &a, &b ); Deallocate( char*, tmp ); {
+#    define EndSaneWinMain() } }
 #  else
-#    if defined( __ANDROID__ ) && !defined( ANDROID_CONSOLE_UTIL )
-#      define SaneWinMain(a,b) int SACK_Main( int a, char **b )
-#      define EndSaneWinMain()
-#    else
-#      define SaneWinMain(a,b) int main( int a, char **argv_real ) { int n; TEXTCHAR **b; b = NewArray( TEXTSTR, a + 1 ); for( n = 0; n < a; n++ ) b[n] = DupCharToText( argv_real[n] ); b[n] = NULL; {
-#      define EndSaneWinMain() } }
-#    endif
+#    define SaneWinMain(a,b) int APIENTRY WinMain( HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmdLine, int nCmdShow ) { int a; char *tmp; TEXTCHAR **b; ParseIntoArgs( tmp = WcharConvert( GetCommandLineW() ), &a, &b ); {
+#    define EndSaneWinMain() } }
 #  endif
 #else
-#  ifdef _WIN32
-#    ifdef CONSOLE_SHELL
-// in order to get wide characters from the commandline we have to use the GetCommandLineW function, convert it to utf8 for internal usage.
-#      define SaneWinMain(a,b) int main( int a, char **argv_real ) { char *tmp; TEXTCHAR **b; ParseIntoArgs( tmp = WcharConvert( GetCommandLineW() ), &a, &b ); Deallocate( char*, tmp ); {
-#      define EndSaneWinMain() } }
-#    else
-#      define SaneWinMain(a,b) int APIENTRY WinMain( HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmdLine, int nCmdShow ) { int a; char *tmp; TEXTCHAR **b; ParseIntoArgs( tmp = WcharConvert( GetCommandLineW() ), &a, &b ); {
-#      define EndSaneWinMain() } }
-#    endif
+#  if defined( __ANDROID__ ) && !defined( ANDROID_CONSOLE_UTIL )
+#    define SaneWinMain(a,b) int SACK_Main( int a, char **b )
+#    define EndSaneWinMain()
 #  else
-#    if defined( __ANDROID__ ) && !defined( ANDROID_CONSOLE_UTIL )
-#      define SaneWinMain(a,b) int SACK_Main( int a, char **b )
-#      define EndSaneWinMain()
-#    else
-#      define SaneWinMain(a,b) int main( int a, char **b ) { char **argv_real = b; {
-#      define EndSaneWinMain() } }
-#    endif
+#    define SaneWinMain(a,b) int main( int a, char **b ) { char **argv_real = b; {
+#    define EndSaneWinMain() } }
 #  endif
 #endif
 //  these are rude defines overloading otherwise very practical types
@@ -7066,7 +6981,7 @@ namespace sack {
    Includes the MOST stuff here ( a full windows.h parse is many
    many lines of code.)                                          */
 /* A macro to build a wide character string of __FILE__ */
-#define _WIDE__FILE__(n) WIDE(n)
+#define _WIDE__FILE__(n) n
 #define WIDE__FILE__ _WIDE__FILE__(__FILE__)
 #if _XOPEN_SOURCE < 500
 #  undef _XOPEN_SOURCE
@@ -7218,7 +7133,7 @@ __declspec(dllimport) DWORD WINAPI timeGetTime(void);
 #  ifdef __cplusplus_cli
 #    include <vcclr.h>
  /*lprintf( */
-#    define DebugBreak() System::Console::WriteLine(gcnew System::String( WIDE__FILE__ WIDE("(") STRSYM(__LINE__) WIDE(") Would DebugBreak here...") ) );
+#    define DebugBreak() System::Console::WriteLine(gcnew System::String( WIDE__FILE__ "(" STRSYM(__LINE__) ") Would DebugBreak here..." ) );
 //typedef unsigned int HANDLE;
 //typedef unsigned int HMODULE;
 //typedef unsigned int HWND;
@@ -7768,12 +7683,12 @@ SACK_NAMESPACE
 #define WINPROC(type,name)   type WINAPI name
 #define CALLBACKPROC(type,name) type CALLBACK name
 #if defined( __WATCOMC__ )
-#define LIBMAIN()   static int __LibMain( HINSTANCE ); PRELOAD( LibraryInitializer ) {	 __LibMain( GetModuleHandle(_WIDE(TARGETNAME)) );   }	 static int __LibMain( HINSTANCE hInstance ) {
+#define LIBMAIN()   static int __LibMain( HINSTANCE ); PRELOAD( LibraryInitializer ) {	 __LibMain( GetModuleHandle(TARGETNAME) );   }	 static int __LibMain( HINSTANCE hInstance ) {
 #define LIBEXIT() } static int LibExit( void ); ATEXIT( LiraryUninitializer ) { LibExit(); } int LibExit(void) {
 #define LIBMAIN_END() }
 #else
 #ifdef TARGETNAME
-#define LIBMAIN()   static int __LibMain( HINSTANCE ); PRELOAD( LibraryInitializer ) {	 __LibMain( GetModuleHandle(_WIDE(TARGETNAME)) );   }	 static int __LibMain( HINSTANCE hInstance ) {
+#define LIBMAIN()   static int __LibMain( HINSTANCE ); PRELOAD( LibraryInitializer ) {	 __LibMain( GetModuleHandle(TARGETNAME) );   }	 static int __LibMain( HINSTANCE hInstance ) {
 #else
 #define LIBMAIN()   TARGETNAME_NOT_DEFINED
 #endif
@@ -7836,13 +7751,13 @@ SACK_NAMESPACE
 #define STDCALL _stdcall
 #define PUBLIC(type,name)        type STDPROC name
 #ifdef __STATIC__
-			/*Log( WIDE("Library Enter" ) );*/
+			/*Log( "Library Enter" );*/
 #define LIBMAIN() static WINPROC(int, LibMain)(HINSTANCE hInstance, DWORD dwReason, void *unused )		 { if( dwReason == DLL_PROCESS_ATTACH ) {
  /* end if */
 #define LIBEXIT() } if( dwReason == DLL_PROCESS_DETACH ) {
 #define LIBMAIN_END()  } return 1; }
 #else
-			/*Log( WIDE("Library Enter" ) );*/
+			/*Log( "Library Enter" );*/
 #define LIBMAIN() WINPROC(int, LibMain)(HINSTANCE hInstance, DWORD dwReason, void *unused )		 { if( dwReason == DLL_PROCESS_ATTACH ) {
  /* end if */
 #define LIBEXIT() } if( dwReason == DLL_PROCESS_DETACH ) {
@@ -7854,13 +7769,13 @@ SACK_NAMESPACE
 #define PACKED
 #endif
 #define TOCHR(n) #n[0]
-#define TOSTR(n) WIDE(#n)
+#define TOSTR(n) #n
 #define STRSYM(n) TOSTR(n)
-#define _WIDE__FILE__(n) WIDE(n)
+#define _WIDE__FILE__(n) n
 #define WIDE__FILE__ _WIDE__FILE__(__FILE__)
 /* a constant text string that represents the current source
    filename and line... fourmated as "source.c(11) :"        */
-#define FILELINE  TEXT(__FILE__) WIDE("(" ) TEXT(STRSYM(__LINE__))WIDE(" : " ))
+#define FILELINE  TEXT(__FILE__) "(" TEXT(STRSYM(__LINE__))" : ")
 #if defined( _MSC_VER ) || defined( __PPCCPP__ )
 /* try and define a way to emit comipler messages... but like no compilers support standard ways to do this accross the board.*/
 #define pragnote(msg) message( FILELINE msg )
@@ -7873,10 +7788,10 @@ SACK_NAMESPACE
 #define pragnoteonly(msg) msg
 #endif
 /* specify a consistant macro to pass current file and line information.   This are appended parameters, and common usage is to only use these with _DEBUG set. */
-#define FILELINE_SRC         , (CTEXTSTR)_WIDE(__FILE__), __LINE__
+#define FILELINE_SRC         , __FILE__, __LINE__
 /* specify a consistant macro to pass current file and line information, to functions which void param lists.   This are appended parameters, and common usage is to only use these with _DEBUG set. */
-#define FILELINE_VOIDSRC     (CTEXTSTR)_WIDE(__FILE__), __LINE__
-//#define FILELINE_LEADSRC     (CTEXTSTR)_WIDE(__FILE__), __LINE__,
+#define FILELINE_VOIDSRC     __FILE__, __LINE__
+//#define FILELINE_LEADSRC     __FILE__, __LINE__,
 /* specify a consistant macro to define file and line parameters, to functions with otherwise void param lists.  This are appended parameters, and common usage is to only use these with _DEBUG set. */
 #define FILELINE_VOIDPASS    CTEXTSTR pFile, uint32_t nLine
 //#define FILELINE_LEADPASS    CTEXTSTR pFile, uint32_t nLine,
@@ -7889,15 +7804,15 @@ SACK_NAMESPACE
 /* specify a consistant macro to forward file and line parameters, to functions which have void parameter lists without this information.  This are appended parameters, and common usage is to only use these with _DEBUG set. */
 #define FILELINE_VOIDRELAY   pFile, nLine
 /* specify a consistant macro to format file and line information for printf formated strings. */
-#define FILELINE_FILELINEFMT WIDE("%s(%") _32f WIDE("): ")
-#define FILELINE_FILELINEFMT_MIN WIDE("%s(%") _32f WIDE(")")
+#define FILELINE_FILELINEFMT "%s(%" _32f "): "
+#define FILELINE_FILELINEFMT_MIN "%s(%" _32f ")"
 #define FILELINE_NULL        , NULL, 0
 #define FILELINE_VOIDNULL    NULL, 0
 /* define static parameters which are the declaration's current file and line, for stubbing in where debugging is being stripped.
   usage
     FILELINE_VARSRC: // declare pFile and nLine variables.
 	*/
-#define FILELINE_VARSRC       CTEXTSTR pFile = _WIDE(__FILE__); uint32_t nLine = __LINE__
+#define FILELINE_VARSRC       CTEXTSTR pFile = __FILE__; uint32_t nLine = __LINE__
 // this is for passing FILE, LINE information to allocate
 // useful during DEBUG phases only...
 // drop out these debug relay paramters for managed code...
@@ -8161,43 +8076,6 @@ typedef volatile uintptr_t        *PVPTRSZVAL;
 typedef size_t         INDEX;
 /* An index which is not valid; equates to 0xFFFFFFFFUL or negative one cast as an INDEX... ((INDEX)-1). */
 #define INVALID_INDEX ((INDEX)-1)
-#ifdef __CYGWIN__
-typedef unsigned short wchar_t;
-#endif
-// may consider changing this to uint16_t* for unicode...
-typedef wchar_t X_16;
-/* This is a pointer to wchar_t. A 16 bit value that is
-   character data, and is not signed or unsigned.       */
-typedef wchar_t *PX_16;
-#if defined( UNICODE ) || defined( SACK_COM_OBJECT )
-//should also consider revisiting code that was updated for TEXTCHAR to char conversion methods...
-#  ifdef _MSC_VER
-#    ifdef UNDER_CE
-#      define NULTERM
-#    else
-#      define NULTERM __nullterminated
-#    endif
-#  else
-#    define NULTERM
-#  endif
-#define WIDE(s)  L##s
-#define _WIDE(s)  WIDE(s)
-#define cWIDE(s)  s
-#define _cWIDE(s)  cWIDE(s)
- // constant text string content
-typedef NULTERM          const X_16      *CTEXTSTR;
- // pointer to constant text string content
-typedef NULTERM          CTEXTSTR        *PCTEXTSTR;
-typedef NULTERM          X_16            *TEXTSTR;
-/* a text 16 bit character  */
-typedef X_16             TEXTCHAR;
-#else
-#define WIDE(s)   s
-#define _WIDE(s)  s
-#define cWIDE(s)   s
-/* Modified WIDE wrapper that actually forces non-unicode
-   string.                                                */
-#define _cWIDE(s)  s
 // constant text string content
 typedef const char     *CTEXTSTR;
 /* A non constant array of TEXTCHAR. A pointer to TEXTCHAR. A
@@ -8213,7 +8091,6 @@ typedef CTEXTSTR const *PCTEXTSTR;
 #endif
 /* a text 8 bit character  */
 typedef char            TEXTCHAR;
-#endif
 /* a character rune.  Strings should be interpreted as UTF-8 or 16 depending on UNICODE compile option.
    GetUtfChar() from strings.  */
 typedef uint32_t             TEXTRUNE;
@@ -8247,41 +8124,41 @@ SACK_NAMESPACE_END
 SACK_NAMESPACE
 /* 16 bit unsigned decimal output printf format specifier. This would
    otherwise be defined in \<inttypes.h\>                */
-#define _16f   WIDE("u" )
+#define _16f   "u"
 /* 16 bit hex output printf format specifier. This would
    otherwise be defined in \<inttypes.h\>                */
-#define _16fx   WIDE("x" )
+#define _16fx   "x"
 /* 16 bit HEX output printf format specifier. This would
    otherwise be defined in \<inttypes.h\>                */
-#define _16fX   WIDE("X" )
+#define _16fX   "X"
 /* 16 bit signed decimal output printf format specifier. This
    would otherwise be defined in \<inttypes.h\>               */
-#define _16fs   WIDE("d" )
+#define _16fs   "d"
 /* 8 bit unsigned decimal output printf format specifier. This would
    otherwise be defined in \<inttypes.h\>                */
-#define _8f   WIDE("u" )
+#define _8f   "u"
 /* 8 bit hex output printf format specifier. This would
    otherwise be defined in \<inttypes.h\>                */
-#define _8fx   WIDE("x" )
+#define _8fx   "x"
 /* 8 bit HEX output printf format specifier. This would
    otherwise be defined in \<inttypes.h\>                */
-#define _8fX   WIDE("X" )
+#define _8fX   "X"
 /* 8 bit signed decimal output printf format specifier. This
    would otherwise be defined in \<inttypes.h\>               */
-#define _8fs   WIDE("d" )
+#define _8fs   "d"
 #if defined( __STDC_FORMAT_MACROS )
-#  define _32f   _WIDE( PRIu32 )
-#  define _32fx   _WIDE( PRIx32 )
-#  define _32fX   _WIDE( PRIX32 )
-#  define _32fs   _WIDE( PRId32 )
-#  define _64f    _WIDE(PRIu64)
-#  define _64fx   _WIDE(PRIx64)
-#  define _64fX   _WIDE(PRIX64)
-#  define _64fs   _WIDE(PRId64)
-#  define _64f    _WIDE(PRIu64)
-#  define _64fx   _WIDE(PRIx64)
-#  define _64fX   _WIDE(PRIX64)
-#  define _64fs   _WIDE(PRId64)
+#  define _32f   PRIu32
+#  define _32fx    PRIx32
+#  define _32fX    PRIX32
+#  define _32fs    PRId32
+#  define _64f    PRIu64
+#  define _64fx   PRIx64
+#  define _64fX   PRIX64
+#  define _64fs   PRId64
+#  define _64f    PRIu64
+#  define _64fx   PRIx64
+#  define _64fX   PRIX64
+#  define _64fs   PRId64
 // non-unicode strings
 #  define c_32f    PRIu32
 #  define c_32fx   PRIx32
@@ -8292,10 +8169,10 @@ SACK_NAMESPACE
 #  define c_64fX   PRIX64
 #  define c_64fs   PRId64
 #else
-#  define _32f   WIDE("u" )
-#  define _32fx   WIDE("x" )
-#  define _32fX   WIDE("X" )
-#  define _32fs   WIDE("d" )
+#  define _32f   "u"
+#  define _32fx   "x"
+#  define _32fX   "X"
+#  define _32fs   "d"
 #  define c_32f   "u"
 #  define c_32fx  "x"
 #  define c_32fX  "X"
@@ -8305,38 +8182,32 @@ SACK_NAMESPACE
 #  define c_64fX   "llX"
 #  define c_64fs   "lld"
 #endif
-#if defined( UNICODE )
-#  define _cstring_f WIDE("s")
-#  define _string_f WIDE("S")
-#  define _ustring_f WIDE("S")
-#else
-#  define _cstring_f WIDE("s")
-#  define _string_f WIDE("s")
-#  define _ustring_f WIDE("S")
-#endif
+#  define _cstring_f "s"
+#  define _string_f "s"
+#  define _ustring_f "S"
 #if defined( __64__ )
 #  if defined( __STDC_FORMAT_MACROS )
 #    if !defined( __GNUC__ ) || defined( _WIN32 )
-#      define _size_f    _WIDE( PRIu64 )
-#      define _size_fx   _WIDE( PRIx64 )
-#      define _size_fX   _WIDE( PRIX64 )
-#      define _size_fs   _WIDE( PRId64 )
+#      define _size_f     PRIu64
+#      define _size_fx    PRIx64
+#      define _size_fX    PRIX64
+#      define _size_fs    PRId64
 #      define c_size_f    PRIu64
 #      define c_size_fx   PRIx64
 #      define c_size_fX   PRIX64
 #      define c_size_fs   PRId64
 #    else
-#      define _size_f    WIDE( "zu" )
-#      define _size_fx   WIDE( "zx" )
-#      define _size_fX   WIDE( "zX" )
-#      define _size_fs   WIDE( "zd" )
+#      define _size_f    "zu"
+#      define _size_fx   "zx"
+#      define _size_fX   "zX"
+#      define _size_fs   "zd"
 #      define c_size_f    "zu"
 #      define c_size_fx   "zx"
 #      define c_size_fX   "zX"
 #      define c_size_fs   "zd"
 #    endif
-#    define _PTRSZVALfs _WIDE( PRIuPTR )
-#    define _PTRSZVALfx _WIDE( PRIxPTR )
+#    define _PTRSZVALfs  PRIuPTR
+#    define _PTRSZVALfx  PRIxPTR
 #    define cPTRSZVALfs PRIuPTR
 #    define cPTRSZVALfx PRIxPTR
 #  else
@@ -8350,17 +8221,17 @@ SACK_NAMESPACE
 #      define c_size_fX  c_64fX
 #      define c_size_fs  c_64fs
 #    else
-#      define _size_f    WIDE( "zu" )
-#      define _size_fx   WIDE( "zx" )
-#      define _size_fX   WIDE( "zX" )
-#      define _size_fs   WIDE( "zd" )
+#      define _size_f    "zu"
+#      define _size_fx   "zx"
+#      define _size_fX   "zX"
+#      define _size_fs   "zd"
 #      define c_size_f    "zu"
 #      define c_size_fx   "zx"
 #      define c_size_fX   "zX"
 #      define c_size_fs   "zd"
 #    endif
-#    define _PTRSZVALfs _WIDE( PRIuPTR )
-#    define _PTRSZVALfx _WIDE( PRIxPTR )
+#    define _PTRSZVALfs  PRIuPTR
+#    define _PTRSZVALfx  PRIxPTR
 #    define cPTRSZVALfs PRIuPTR
 #    define cPTRSZVALfx PRIxPTR
 #  endif
@@ -8368,26 +8239,26 @@ SACK_NAMESPACE
 #  if defined( __STDC_FORMAT_MACROS )
       // this HAS been fixed in UCRT - 2015!  but it'll take 5 years before everyone has that...
 #    if !defined( __GNUC__ ) || defined( _WIN32 )
-#      define _size_f    _WIDE( PRIu32 )
-#      define _size_fx   _WIDE( PRIx32 )
-#      define _size_fX   _WIDE( PRIX32 )
-#      define _size_fs   _WIDE( PRId32 )
+#      define _size_f     PRIu32
+#      define _size_fx    PRIx32
+#      define _size_fX    PRIX32
+#      define _size_fs    PRId32
 #      define c_size_f    PRIu32
 #      define c_size_fx   PRIx32
 #      define c_size_fX   PRIX32
 #      define c_size_fs   PRId32
 #    else
-#      define _size_f    WIDE( "zu" )
-#      define _size_fx   WIDE( "zx" )
-#      define _size_fX   WIDE( "zX" )
-#      define _size_fs   WIDE( "zd" )
+#      define _size_f    "zu"
+#      define _size_fx   "zx"
+#      define _size_fX   "zX"
+#      define _size_fs   "zd"
 #      define c_size_f    "zu"
 #      define c_size_fx   "zx"
 #      define c_size_fX   "zX"
 #      define c_size_fs   "zd"
 #    endif
-#    define _PTRSZVALfs _WIDE( PRIuPTR )
-#    define _PTRSZVALfx _WIDE( PRIxPTR )
+#    define _PTRSZVALfs  PRIuPTR
+#    define _PTRSZVALfx  PRIxPTR
 #    define cPTRSZVALfs PRIuPTR
 #    define cPTRSZVALfx PRIxPTR
 #  else
@@ -8402,36 +8273,36 @@ SACK_NAMESPACE
 #      define c_size_fX   c_32fX
 #      define c_size_fs   c_32fs
 #    else
-#      define _size_f    WIDE( "zu" )
-#      define _size_fx   WIDE( "zx" )
-#      define _size_fX   WIDE( "zX" )
-#      define _size_fs   WIDE( "zd" )
+#      define _size_f    "zu"
+#      define _size_fx   "zx"
+#      define _size_fX   "zX"
+#      define _size_fs   "zd"
 #      define c_size_f    "zu"
 #      define c_size_fx   "zx"
 #      define c_size_fX   "zX"
 #      define c_size_fs   "zd"
 #    endif
-#    define _PTRSZVALfs _WIDE( PRIuPTR )
-#    define _PTRSZVALfx _WIDE( PRIxPTR )
+#    define _PTRSZVALfs  PRIuPTR
+#    define _PTRSZVALfx  PRIxPTR
 #    define cPTRSZVALfs PRIuPTR
 #    define cPTRSZVALfx PRIxPTR
 #  endif
 #endif
-#define PTRSZVALf WIDE("p" )
-#define _PTRSZVALf WIDE("p" )
+#define PTRSZVALf "p"
+#define _PTRSZVALf "p"
 #if defined( _MSC_VER ) && ( _MSC_VER < 1900 )
 /* 64 bit unsigned decimal output printf format specifier. This would
    otherwise be defined in \<inttypes.h\> as PRIu64              */
-#define _64f    WIDE("llu")
+#define _64f    "llu"
 /* 64 bit hex output printf format specifier. This would
    otherwise be defined in \<inttypes.h\> as PRIxFAST64                */
-#define _64fx   WIDE("llx")
+#define _64fx   "llx"
 /* 64 bit HEX output printf format specifier. This would
    otherwise be defined in \<inttypes.h\> as PRIxFAST64                */
-#define _64fX   WIDE("llX")
+#define _64fX   "llX"
 /* 64 bit signed decimal output printf format specifier. This
    would otherwise be defined in \<inttypes.h\> as PRIdFAST64               */
-#define _64fs   WIDE("lld")
+#define _64fs   "lld"
 #endif
 // This should be for several years a
 // sufficiently large type to represent
@@ -8515,7 +8386,7 @@ typedef uint64_t THREAD_ID;
 //      'someNode' is removed from its existing list, and added to the 'rootUsed' list.
 //
 // For Declaring the link structure members for lists
-#define DeclareLink( type )  type *next;type **me
+#define DeclareLink( type )  type *next; type **me
 /* Link a new node into the list.
    Example
    struct mynode
@@ -8627,11 +8498,11 @@ typedef uint64_t THREAD_ID;
    n :  the count of masks to fit.       */
 #define MASKSETSIZE(t,n) (MASKTYPE_INDEX(t,(n+1)))
 // declare a set of flags...
-#define MASK_TOP_MASK_VAL(length,val) ((val)&( (0xFFFFFFFFUL) >> (32-(length)) ))
+#define MASK_TOP_MASK_VAL(length,val) ((val)&( ((MASKSET_READTYPE)-1) >> ((sizeof(MASKSET_READTYPE) * CHAR_BIT)-(length)) ))
 /* the mask in the dword resulting from shift-right.   (gets a mask of X bits in length) */
-#define MASK_TOP_MASK(length) ( (0xFFFFFFFFUL) >> (32-(length)) )
+#define MASK_TOP_MASK(length) ( ((MASKSET_READTYPE)-1) >> ((sizeof(MASKSET_READTYPE) * CHAR_BIT)-(length)) )
 /* the mast in the dword shifted to the left to overlap the field in the word */
-#define MASK_MASK(n,length)   (MASK_TOP_MASK(length) << (((n)*(length))&0x7) )
+#define MASK_MASK(n,length)   (MASK_TOP_MASK(length) << (((n)*(length)) & (sizeof(MASKSET_READTYPE) - 1) ) )
 // masks value with the mask size, then applies that mask back to the correct word indexing
 #define MASK_MASK_VAL(n,length,val)   (MASK_TOP_MASK_VAL(length,val) << (((n)*(length))&0x7) )
 /* declare a mask set.
@@ -8655,7 +8526,7 @@ typedef uint64_t THREAD_ID;
 /* This type stores data, it has a self-contained length in
    bytes of the data stored.  Length is in characters       */
 _CONTAINER_NAMESPACE
-/* This is a slab array of pointers, each pointer may be
+/* LIST is a slab array of pointers, each pointer may be
    assigned to point to any user data.
    Remarks
    When the list is filled to the capacity of Cnt elements, the
@@ -10335,24 +10206,10 @@ TYPELIB_PROC  int TYPELIB_CALLTYPE  TextSimilar  ( PTEXT pText, CTEXTSTR text );
 #  include <strings.h>
 /* windows went with stricmp() and strnicmp(), whereas linux
  went with strcasecmp() and strncasecmp()                  */
-#  ifdef UNICODE
-#    ifndef NO_UNICODE_C
-#      define strnicmp strncasecmp
+#  define strnicmp strncasecmp
 /* windows went with stricmp() and strnicmp(), whereas linux
    went with strcasecmp() and strncasecmp()                  */
-#      define stricmp strcasecmp
-#    else
-#      define strnicmp wcsncasecmp
-/* windows went with stricmp() and strnicmp(), whereas linux
-   went with strcasecmp() and strncasecmp()                  */
-#      define stricmp wcscasecmp
-#    endif
-#  else
-#    define strnicmp strncasecmp
-/* windows went with stricmp() and strnicmp(), whereas linux
-   went with strcasecmp() and strncasecmp()                  */
-#     define stricmp strcasecmp
-#  endif
+#  define stricmp strcasecmp
 #endif
 /* Copy segment formatting to another segment... */
 TYPELIB_PROC  void TYPELIB_CALLTYPE  SegCopyFormat( PTEXT to_this, PTEXT copy_this );
@@ -10372,7 +10229,7 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromTextEx( CTEXTSTR text DBG_PAS
 /* Creates a PTEXT segment from a string.
    Example
    <code lang="c++">
-   PTEXT line = SegCreateFromText( WIDE("Around the world in a day.") );
+   PTEXT line = SegCreateFromText( "Around the world in a day." );
    </code>                                                         */
 #define SegCreateFromText(t) SegCreateFromTextEx(t DBG_SRC)
 /* \ \
@@ -10784,7 +10641,7 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  BuildLineExx( PTEXT pt, LOGICAL bSingle, P
 // text parse - more generic flavor of burst.
 //
 //static CTEXTSTR normal_punctuation=WIDE("\'\"\\({[<>]}):@%/,;!?=*&$^~#`");
-// filter_to_space WIDE(" \t")
+// filter_to_space " \t"
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  TextParse ( PTEXT input, CTEXTSTR punctuation, CTEXTSTR filter_tospace, int bTabs, int bSpaces  DBG_PASS );
 /* normal_punctuation=WIDE("'"\\({[\<\>]}):@%/,;!?=*&amp;$^~#`");
    Process a line of PTEXT into another line of PTEXT, but with
@@ -11826,12 +11683,12 @@ SYSLOG_PROC  void SYSLOG_API  SetSystemLoggingLevel ( uint32_t nLevel );
 // int result is useless... but allows this to be
 // within expressions, which with this method should be easy.
 typedef INDEX (CPROC*RealVLogFunction)(CTEXTSTR format, va_list args )
-//#if defined( __GNUC__ ) && !defined( _UNICODE )
+//#if defined( __GNUC__ )
 //	__attribute__ ((__format__ (__vprintf__, 1, 2)))
 //#endif
 	;
 typedef INDEX (CPROC*RealLogFunction)(CTEXTSTR format,...)
-#if defined( __GNUC__ ) && !defined( _UNICODE )
+#if defined( __GNUC__ )
 	__attribute__ ((__format__ (__printf__, 1, 2)))
 #endif
 	;
@@ -12232,7 +12089,7 @@ SYSTEM_PROC( void, DeAttachThreadToLibraries )( LOGICAL attach );
 #define LoadFunction(l,f) LoadFunctionEx(l,f DBG_SRC )
 SYSTEM_PROC( generic_function, LoadPrivateFunctionEx )( CTEXTSTR libname, CTEXTSTR funcname DBG_PASS );
 #define LoadPrivateFunction(l,f) LoadPrivateFunctionEx(l,f DBG_SRC )
-#define OnLibraryLoad(name)	  DefineRegistryMethod(WIDE("SACK"),_OnLibraryLoad,WIDE("system/library"),WIDE("load_event"),name WIDE("_LoadEvent"),void,(void), __LINE__)
+#define OnLibraryLoad(name)	  DefineRegistryMethod("SACK",_OnLibraryLoad,"system/library","load_event",name "_LoadEvent",void,(void), __LINE__)
 // the callback passed will be called during LoadLibrary to allow an external
 // handler to download or extract the library; the resulting library should also
 // be loaded by the callback using the standard 'LoadFunction' methods
@@ -12314,13 +12171,8 @@ typedef struct addrinfoW {
     struct addrinfoW    *ai_next;
 } ADDRINFOW;
 typedef ADDRINFOW   *PADDRINFOW;
-#ifdef UNICODE
-typedef ADDRINFOW   ADDRINFOT;
-typedef ADDRINFOW   *PADDRINFOT;
-#else
 typedef ADDRINFOA   ADDRINFOT;
 typedef ADDRINFOA   *PADDRINFOT;
-#endif
 typedef ADDRINFOA   ADDRINFO;
 typedef ADDRINFOA   *LPADDRINFO;
 #endif
@@ -12600,7 +12452,7 @@ namespace memory {
 typedef struct memory_block_tag* PMEM;
 // what is an abstract name for the memory mapping handle...
 // where is a filename for the filebacking of the shared memory
-// DigSpace( WIDE(TEXT( "Picture Memory" )), WIDE(TEXT( "Picture.mem" )), 100000 );
+// DigSpace( "Picture Memory", "Picture.mem", 100000 );
 /* <combinewith sack::memory::OpenSpaceExx@CTEXTSTR@CTEXTSTR@uintptr_t@uintptr_t *@uint32_t*>
    \ \                                                                                 */
 MEM_PROC  POINTER MEM_API  OpenSpace ( CTEXTSTR pWhat, CTEXTSTR pWhere, uintptr_t *dwSize );
@@ -13245,7 +13097,7 @@ MEM_PROC  int MEM_API  StrCmpEx ( CTEXTSTR s1, CTEXTSTR s2, INDEX maxlen );
    The beginning of the string in s1 that matches s2.
    Example
    <code lang="c++">
-   TEXTCHAR const *found = StrStr( WIDE( "look in this string" ), WIDE( "in" ) );
+   TEXTCHAR const *found = StrStr( "look in this string", "in" );
                                                ^returns a pointer to here.
    </code>                                                                        */
 MEM_PROC  CTEXTSTR MEM_API  StrStr ( CTEXTSTR s1, CTEXTSTR s2 );
@@ -13261,8 +13113,8 @@ MEM_PROC  CTEXTSTR MEM_API  StrStr ( CTEXTSTR s1, CTEXTSTR s2 );
    The beginning of the string in s1 that matches s2.
    Example
    <code>
-   TEXTCHAR *writable_string = StrDup( WIDE( "look in this string" ) );
-   TEXTCHAR *found = StrStr( writable_string, WIDE( "in" ) );
+   TEXTCHAR *writable_string = StrDup( "look in this string" );
+   TEXTCHAR *found = StrStr( writable_string, "in" );
    // returns a pointer to 'in' in the writable string, which can then be modified.
    </code>                                                                          */
 MEM_PROC  TEXTSTR MEM_API  StrStr ( TEXTSTR s1, CTEXTSTR s2 );
@@ -13872,44 +13724,22 @@ using namespace sack::timers;
 // sometimes PATH_MAX is what's used, well it's should be MAXPATH which is MAX_PATH
 # define PATH_MAX MAXPATH
 #endif
-#ifdef _UNICODE
-#  ifdef _WIN32
-#    ifdef CONSOLE_SHELL
-    // in order to get wide characters from the commandline we have to use the GetCommandLineW function, convert it to utf8 for internal usage.
-#      define SaneWinMain(a,b) int main( int a, char **argv_real ) { char *tmp; TEXTCHAR **b; ParseIntoArgs( GetCommandLineW(), &a, &b ); Deallocate( char*, tmp ); {
-	//int n; TEXTCHAR **b; b = NewArray( TEXTSTR, a + 1 ); for( n = 0; n < a; n++ ) b[n] = DupCharToText( argv_real[n] ); b[n] = NULL; {
-#      define EndSaneWinMain() } }
-#    else
-#      define SaneWinMain(a,b) int APIENTRY WinMain( HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmdLine, int nCmdShow ) { char *tmp; int a; TEXTCHAR **b; ParseIntoArgs( tmp = WcharConvert( GetCommandLineW() ), &a, &b ); Deallocate( char*, tmp ); {
-#      define EndSaneWinMain() } }
-#    endif
+#ifdef _WIN32
+#  ifdef CONSOLE_SHELL
+ // in order to get wide characters from the commandline we have to use the GetCommandLineW function, convert it to utf8 for internal usage.
+#    define SaneWinMain(a,b) int main( int a, char **argv_real ) { char *tmp; TEXTCHAR **b; ParseIntoArgs( tmp = WcharConvert( GetCommandLineW() ), &a, &b ); Deallocate( char*, tmp ); {
+#    define EndSaneWinMain() } }
 #  else
-#    if defined( __ANDROID__ ) && !defined( ANDROID_CONSOLE_UTIL )
-#      define SaneWinMain(a,b) int SACK_Main( int a, char **b )
-#      define EndSaneWinMain()
-#    else
-#      define SaneWinMain(a,b) int main( int a, char **argv_real ) { int n; TEXTCHAR **b; b = NewArray( TEXTSTR, a + 1 ); for( n = 0; n < a; n++ ) b[n] = DupCharToText( argv_real[n] ); b[n] = NULL; {
-#      define EndSaneWinMain() } }
-#    endif
+#    define SaneWinMain(a,b) int APIENTRY WinMain( HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmdLine, int nCmdShow ) { int a; char *tmp; TEXTCHAR **b; ParseIntoArgs( tmp = WcharConvert( GetCommandLineW() ), &a, &b ); {
+#    define EndSaneWinMain() } }
 #  endif
 #else
-#  ifdef _WIN32
-#    ifdef CONSOLE_SHELL
-// in order to get wide characters from the commandline we have to use the GetCommandLineW function, convert it to utf8 for internal usage.
-#      define SaneWinMain(a,b) int main( int a, char **argv_real ) { char *tmp; TEXTCHAR **b; ParseIntoArgs( tmp = WcharConvert( GetCommandLineW() ), &a, &b ); Deallocate( char*, tmp ); {
-#      define EndSaneWinMain() } }
-#    else
-#      define SaneWinMain(a,b) int APIENTRY WinMain( HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmdLine, int nCmdShow ) { int a; char *tmp; TEXTCHAR **b; ParseIntoArgs( tmp = WcharConvert( GetCommandLineW() ), &a, &b ); {
-#      define EndSaneWinMain() } }
-#    endif
+#  if defined( __ANDROID__ ) && !defined( ANDROID_CONSOLE_UTIL )
+#    define SaneWinMain(a,b) int SACK_Main( int a, char **b )
+#    define EndSaneWinMain()
 #  else
-#    if defined( __ANDROID__ ) && !defined( ANDROID_CONSOLE_UTIL )
-#      define SaneWinMain(a,b) int SACK_Main( int a, char **b )
-#      define EndSaneWinMain()
-#    else
-#      define SaneWinMain(a,b) int main( int a, char **b ) { char **argv_real = b; {
-#      define EndSaneWinMain() } }
-#    endif
+#    define SaneWinMain(a,b) int main( int a, char **b ) { char **argv_real = b; {
+#    define EndSaneWinMain() } }
 #  endif
 #endif
 //  these are rude defines overloading otherwise very practical types
@@ -14550,7 +14380,7 @@ struct rt_init
 #define RTINIT_STATIC static
 #endif
 typedef void(*atexit_priority_proc)(void (*)(void),CTEXTSTR,int DBG_PASS);
-#define ATEXIT_PRIORITY(name,priority) static void name(void); static void atexit##name(void) __attribute__((constructor));	  void atexit_failed##name(void(*f)(void),int i,CTEXTSTR s1,CTEXTSTR s2,int n) { lprintf( WIDE("Failed to load atexit_priority registerar from core program.") );} void atexit##name(void)                                                  {	                                                                        static char myname[256];HMODULE mod;if(myname[0])return;myname[0]='a';GetModuleFileName( NULL, myname, sizeof( myname ) );	mod=LoadLibrary(myname);if(mod){   typedef void (*x)(void);void(*rsp)( x,const CTEXTSTR,int,const CTEXTSTR,int);	 if((rsp=((void(*)(void(*)(void),const CTEXTSTR,int,const CTEXTSTR,int))(GetProcAddress( mod, WIDE("RegisterPriorityShutdownProc"))))))	 {rsp( name,TOSTR(name),priority DBG_SRC);}	 else atexit_failed##name(name,priority,TOSTR(name) DBG_SRC);	        }     FreeLibrary( mod);	 }             void name( void)
+#define ATEXIT_PRIORITY(name,priority) static void name(void); static void atexit##name(void) __attribute__((constructor));	  void atexit_failed##name(void(*f)(void),int i,CTEXTSTR s1,CTEXTSTR s2,int n) { lprintf( "Failed to load atexit_priority registerar from core program." );} void atexit##name(void)                                                  {	                                                                        static char myname[256];HMODULE mod;if(myname[0])return;myname[0]='a';GetModuleFileName( NULL, myname, sizeof( myname ) );	mod=LoadLibrary(myname);if(mod){   typedef void (*x)(void);void(*rsp)( x,const CTEXTSTR,int,const CTEXTSTR,int);	 if((rsp=((void(*)(void(*)(void),const CTEXTSTR,int,const CTEXTSTR,int))(GetProcAddress( mod, "RegisterPriorityShutdownProc")))))	 {rsp( name,TOSTR(name),priority DBG_SRC);}	 else atexit_failed##name(name,priority,TOSTR(name) DBG_SRC);	        }     FreeLibrary( mod);	 }             void name( void)
 #ifdef _DEBUG
 #  define PASS_FILENAME ,WIDE__FILE__
 #else
@@ -14599,7 +14429,7 @@ typedef void(*atexit_priority_proc)(void (*)(void),int,CTEXTSTR DBG_PASS);
 #define ATEXIT_PRIORITY(name,priority) PRIORITY_ATEXIT(name,priority)
 #endif
 #ifdef __cplusplus_cli
-#define InvokeDeadstart() do {	                                              TEXTCHAR myname[256];HMODULE mod;	 mod=LoadLibrary("sack_bag.dll");if(mod){           void(*rsp)(void);	 if((rsp=((void(*)(void))(GetProcAddress( mod, "RunDeadstart"))))){rsp();}else{lprintf( WIDE("Hey failed to get proc %d"), GetLastError() );}	FreeLibrary( mod); }} while(0)
+#define InvokeDeadstart() do {	                                              TEXTCHAR myname[256];HMODULE mod;	 mod=LoadLibrary("sack_bag.dll");if(mod){           void(*rsp)(void);	 if((rsp=((void(*)(void))(GetProcAddress( mod, "RunDeadstart"))))){rsp();}else{lprintf( "Hey failed to get proc %d", GetLastError() );}	FreeLibrary( mod); }} while(0)
 #else
 #endif
 #define PRELOAD(name) PRIORITY_PRELOAD(name,DEFAULT_PRELOAD_PRIORITY)
@@ -14721,7 +14551,7 @@ SACK_NAMESPACE
       that's rarely the most useful thing... so
       name class is a tree of keys... /\<...\>
       psi/control/## might contain procs Init Destroy Move
-      RegAlias( WIDE("psi/control/3"), WIDE("psi/control/button")
+      RegAlias( "psi/control/3", "psi/control/button"
       ); psi/control/button and psi/control/3 might reference the
       same routines
       psi/frame Init Destroy Move memlib Alloc Free
@@ -14797,7 +14627,7 @@ PROCREG_PROC( PCLASSROOT, GetClassRootEx )( PCLASSROOT root, PCLASSROOT name_cla
 /* Fills a string with the path name to the specified node */
 PROCREG_PROC( int, GetClassPath )( TEXTSTR out, size_t len, PCLASSROOT root );
 PROCREG_PROC( void, SetInterfaceConfigFile )( TEXTCHAR *filename );
-/* Get[First/Next]RegisteredName( WIDE("classname"), &amp;data );
+/* Get[First/Next]RegisteredName( "classname", &amp;data );
    these operations are not threadsafe and multiple thread
    accesses will cause mis-stepping
    These functions as passed the address of a POINTER. this
@@ -14899,7 +14729,7 @@ PROCREG_PROC( int, RegisterProcedureExx )( PCLASSROOT root
  * Branches on the tree may be aliased together to form a single branch
  *
  */
-				// RegisterClassAlias( WIDE("psi/control/button"), WIDE("psi/control/3") );
+				// RegisterClassAlias( "psi/control/button", "psi/control/3" );
 				// then the same set of values can be referenced both ways with
 				// really only a single modified value.
 /* parameters to RegisterClassAliasEx are the original name, and the new alias name for the origianl branch*/
@@ -14912,7 +14742,7 @@ PROCREG_PROC( PROCEDURE, ReadRegisteredProcedureEx )( PCLASSROOT root
                                                     , CTEXTSTR returntype
 																	 , CTEXTSTR parms
 																  );
-#define ReadRegisteredProcedure( root,rt,a) ((rt(CPROC*)a)ReadRegisteredProcedureEx(root,WIDE(#rt),WIDE(#a)))
+#define ReadRegisteredProcedure( root,rt,a) ((rt(CPROC*)a)ReadRegisteredProcedureEx(root,#rt,#a))
 /* Gets a function that has been registered. */
 PROCREG_PROC( PROCEDURE, GetRegisteredProcedureExxx )( PCLASSROOT root
 																	 , PCLASSROOT name_class
@@ -14920,9 +14750,9 @@ PROCREG_PROC( PROCEDURE, GetRegisteredProcedureExxx )( PCLASSROOT root
 																	 , CTEXTSTR name
 																	 , CTEXTSTR parms
 																	 );
-#define GetRegisteredProcedureExx(root,nc,rt,n,a) ((rt (CPROC*)a)GetRegisteredProcedureExxx(root,nc,_WIDE(#rt),n,_WIDE(#a)))
-#define GetRegisteredProcedure2(nc,rtype,name,args) (rtype (CPROC*)args)GetRegisteredProcedureEx((nc),WIDE(#rtype), name, WIDE(#args) )
-#define GetRegisteredProcedureNonCPROC(nc,rtype,name,args) (rtype (*)args)GetRegisteredProcedureEx((nc),WIDE(#rtype), name, WIDE(#args) )
+#define GetRegisteredProcedureExx(root,nc,rt,n,a) ((rt (CPROC*)a)GetRegisteredProcedureExxx(root,nc,#rt,n,#a))
+#define GetRegisteredProcedure2(nc,rtype,name,args) (rtype (CPROC*)args)GetRegisteredProcedureEx((nc),#rtype, name, #args )
+#define GetRegisteredProcedureNonCPROC(nc,rtype,name,args) (rtype (*)args)GetRegisteredProcedureEx((nc),#rtype, name, #args )
 /* <combine sack::app::registry::GetRegisteredProcedureExxx@PCLASSROOT@PCLASSROOT@CTEXTSTR@CTEXTSTR@CTEXTSTR>
    \ \                                                                                                        */
 PROCREG_PROC( PROCEDURE, GetRegisteredProcedureEx )( PCLASSROOT name_class
@@ -14988,7 +14818,7 @@ PROCREG_PROC( LOGICAL, RegisterFunctionExx )( CTEXTSTR root
 #define RegisterFunctionEx( root,proc,rt,pn,a) RegisterFunctionExx( root,NULL,pn,rt,(PROCEDURE)(proc),a,NULL,NULL DBG_SRC )
 #define RegisterFunction( nc,proc,rt,pn,a) RegisterFunctionExx( (PCLASSROOT)NULL,nc,pn,rt,(PROCEDURE)(proc),a,TARGETNAME,NULL DBG_SRC )
 #define SimpleRegisterMethod(r,proc,rt,name,args) RegisterFunctionExx(r,NULL,name,rt,(PROCEDURE)proc,args,NULL,NULL DBG_SRC )
-#define GetRegisteredProcedure(nc,rtype,name,args) (rtype (CPROC*)args)GetRegisteredProcedureEx((nc),_WIDE(#rtype), _WIDE(#name), _WIDE(#args) )
+#define GetRegisteredProcedure(nc,rtype,name,args) (rtype (CPROC*)args)GetRegisteredProcedureEx((nc),#rtype, #name, #args )
 PROCREG_PROC( int, RegisterIntValueEx )( PCLASSROOT root, CTEXTSTR name_class, CTEXTSTR name, uintptr_t value );
 PROCREG_PROC( int, RegisterIntValue )( CTEXTSTR name_class, CTEXTSTR name, uintptr_t value );
 PROCREG_PROC( int, RegisterValueExx )( PCLASSROOT root, CTEXTSTR name_class, CTEXTSTR name, int bIntVal, CTEXTSTR value );
@@ -15042,9 +14872,9 @@ PROCREG_PROC( int, GetRegisteredIntValue )( CTEXTSTR name_class, CTEXTSTR name )
 PROCREG_PROC( int, GetRegisteredIntValue )( PCLASSROOT name_class, CTEXTSTR name );
 #endif
 typedef void (CPROC*OpenCloseNotification)( POINTER, uintptr_t );
-#define PUBLIC_DATA( public, struct, open, close )	    PRELOAD( Data_##open##_##close ) {	 RegisterDataType( WIDE("system/data/structs")	        , public, sizeof(struct)	    , (OpenCloseNotification)open, (OpenCloseNotification)close ); }
-#define PUBLIC_DATA_EX( public, struct, open, update, close )	    PRELOAD( Data_##open##_##close ) {	 RegisterDataTypeEx( WIDE("system/data/structs")	        , public, sizeof(struct)	    , (OpenCloseNotification)open, (OpenCloseNotification)update, (OpenCloseNotification)close ); }
-#define GET_PUBLIC_DATA( public, type, instname )    (type*)CreateRegisteredDataType( WIDE("system/data/structs"), public, instname )
+#define PUBLIC_DATA( public, struct, open, close )	    PRELOAD( Data_##open##_##close ) {	 RegisterDataType( "system/data/structs"	        , public, sizeof(struct)	    , (OpenCloseNotification)open, (OpenCloseNotification)close ); }
+#define PUBLIC_DATA_EX( public, struct, open, update, close )	    PRELOAD( Data_##open##_##close ) {	 RegisterDataTypeEx( "system/data/structs"	        , public, sizeof(struct)	    , (OpenCloseNotification)open, (OpenCloseNotification)update, (OpenCloseNotification)close ); }
+#define GET_PUBLIC_DATA( public, type, instname )    (type*)CreateRegisteredDataType( "system/data/structs", public, instname )
 PROCREG_PROC( uintptr_t, RegisterDataType )( CTEXTSTR classname
 												 , CTEXTSTR name
 												 , uintptr_t size
@@ -15123,27 +14953,27 @@ PROCREG_PROC( int, ReleaseRegisteredFunctionEx )( PCLASSROOT root
 													  );
 #define ReleaseRegisteredFunction(nc,pn) ReleaseRegisteredFunctionEx(NULL,nc,pn)
 /* This is a macro used to paste two symbols together. */
-#define paste_(a,b) _WIDE(a##b)
+#define paste_(a,b) a##b
 #define paste(a,b) paste_(a,b)
 #ifdef __cplusplus
 #define EXTRA_PRELOAD_SYMBOL _
 #else
 #define EXTRA_PRELOAD_SYMBOL
 #endif
-#define DefineRegistryMethod2_i(task,name,classtype,methodname,desc,returntype,argtypes,line)	   CPROC paste(name,line)argtypes;	       PRIORITY_PRELOAD( paste(paste(paste(paste(Register,name),Method),EXTRA_PRELOAD_SYMBOL),line), SQL_PRELOAD_PRIORITY ) {	  SimpleRegisterMethod( task WIDE("/") classtype, paste(name,line)	  , _WIDE(#returntype), methodname, _WIDE(#argtypes) );    RegisterValue( task WIDE("/") classtype WIDE("/") methodname, WIDE("Description"), desc ); }	                                                                          static returntype CPROC paste(name,line)
+#define DefineRegistryMethod2_i(task,name,classtype,methodname,desc,returntype,argtypes,line)	   CPROC paste(name,line)argtypes;	       PRIORITY_PRELOAD( paste(paste(paste(paste(Register,name),Method),EXTRA_PRELOAD_SYMBOL),line), SQL_PRELOAD_PRIORITY ) {	  SimpleRegisterMethod( task "/" classtype, paste(name,line)	  , #returntype, methodname, #argtypes );    RegisterValue( task "/" classtype "/" methodname, "Description", desc ); }	                                                                          static returntype CPROC paste(name,line)
 #define DefineRegistryMethod2(task,name,classtype,methodname,desc,returntype,argtypes,line)	   DefineRegistryMethod2_i(task,name,classtype,methodname,desc,returntype,argtypes,line)
 /* Dekware uses this macro.
      passes preload priority override.
 	 so it can register new internal commands before initial macros are run.
 */
-#define DefineRegistryMethod2P_i(priority,task,name,classtype,methodname,desc,returntype,argtypes,line)	   CPROC paste(name,line)argtypes;	       PRIORITY_PRELOAD( paste(paste(paste(paste(Register,name),Method),EXTRA_PRELOAD_SYMBOL),line), priority ) {	  SimpleRegisterMethod( task WIDE("/") classtype, paste(name,line)	  , _WIDE(#returntype), methodname, _WIDE(#argtypes) );    RegisterValue( task WIDE("/") classtype WIDE("/") methodname, WIDE("Description"), desc ); }	                                                                          static returntype CPROC paste(name,line)
-/* This macro indirection is to resolve inner macros like WIDE("") around text.  */
+#define DefineRegistryMethod2P_i(priority,task,name,classtype,methodname,desc,returntype,argtypes,line)	   CPROC paste(name,line)argtypes;	       PRIORITY_PRELOAD( paste(paste(paste(paste(Register,name),Method),EXTRA_PRELOAD_SYMBOL),line), priority ) {	  SimpleRegisterMethod( task "/" classtype, paste(name,line)	  , #returntype, methodname, #argtypes );    RegisterValue( task "/" classtype "/" methodname, "Description", desc ); }	                                                                          static returntype CPROC paste(name,line)
+/* This macro indirection is to resolve inner macros like "" around text.  */
 #define DefineRegistryMethod2P(priority,task,name,classtype,methodname,desc,returntype,argtypes,line)	   DefineRegistryMethod2P_i(priority,task,name,classtype,methodname,desc,returntype,argtypes,line)
 /*
     This method is used by PSI/Intershell.
 	no description
 */
-#define DefineRegistryMethod_i(task,name,classtype,classbase,methodname,returntype,argtypes,line)	   CPROC paste(name,line)argtypes;	       PRELOAD( paste(Register##name##Button##EXTRA_PRELOAD_SYMBOL,line) ) {	  SimpleRegisterMethod( task WIDE("/") classtype WIDE("/") classbase, paste(name,line)	  , _WIDE(#returntype), methodname, _WIDE(#argtypes) ); }	                                                                          static returntype CPROC paste(name,line)
+#define DefineRegistryMethod_i(task,name,classtype,classbase,methodname,returntype,argtypes,line)	   CPROC paste(name,line)argtypes;	       PRELOAD( paste(Register##name##Button##EXTRA_PRELOAD_SYMBOL,line) ) {	  SimpleRegisterMethod( task "/" classtype "/" classbase, paste(name,line)	  , #returntype, methodname, #argtypes ); }	                                                                          static returntype CPROC paste(name,line)
 #define DefineRegistryMethod(task,name,classtype,classbase,methodname,returntype,argtypes,line)	   DefineRegistryMethod_i(task,name,classtype,classbase,methodname,returntype,argtypes,line)
 /*
 #define _0_DefineRegistryMethod(task,name,classtype,classbase,methodname,returntype,argtypes,line)	   static returntype _1__DefineRegistryMethod(task,name,classtype,classbase,methodname,returntype,argtypes,line)
@@ -15152,7 +14982,7 @@ PROCREG_PROC( int, ReleaseRegisteredFunctionEx )( PCLASSROOT root
 // this macro is used for ___DefineRegistryMethodP. Because this is used with complex names
 // an extra define wrapper of priority_preload must be used to fully resolve paramters.
 /*
-#define DefineRegistryMethodP(priority,task,name,classtype,classbase,methodname,returntype,argtypes,line)	   CPROC paste(name,line)argtypes;	       PRIOR_PRELOAD( paste(Register##name##Button##EXTRA_PRELOAD_SYMBOL,line), priority ) {	  SimpleRegisterMethod( task WIDE("/") classtype WIDE("/") classbase, paste(name,line)	  , _WIDE(#returntype), methodname, _WIDE(#argtypes) ); }	                                                                          static returntype CPROC paste(name,line)
+#define DefineRegistryMethodP(priority,task,name,classtype,classbase,methodname,returntype,argtypes,line)	   CPROC paste(name,line)argtypes;	       PRIOR_PRELOAD( paste(Register##name##Button##EXTRA_PRELOAD_SYMBOL,line), priority ) {	  SimpleRegisterMethod( task "/" classtype "/" classbase, paste(name,line)	  , #returntype, methodname, #argtypes ); }	                                                                          static returntype CPROC paste(name,line)
 */
 /* <combine sack::app::registry::SimpleRegisterMethod>
    General form to build a registered procedure. Used by simple
@@ -15190,7 +15020,7 @@ PROCREG_PROC( int, ReleaseRegisteredFunctionEx )( PCLASSROOT root
 #define _0_DefineRegistryMethodP(priority,task,name,classtype,classbase,methodname,returntype,argtypes,line)	   _1__DefineRegistryMethodP(priority,task,name,classtype,classbase,methodname,returntype,argtypes,line)
 #define DefineRegistryMethodP(priority,task,name,classtype,classbase,methodname,returntype,argtypes)	  _0_DefineRegistryMethodP(priority,task,name,classtype,classbase,methodname,returntype,argtypes,__LINE__)
 */
-#define DefineRegistrySubMethod_i(task,name,classtype,classbase,methodname,subname,returntype,argtypes,line)	   CPROC paste(name,line)argtypes;	       PRELOAD( paste(Register##name##Button##EXTRA_PRELOAD_SYMBOL,line) ) {	  SimpleRegisterMethod( task WIDE("/") classtype WIDE("/") classbase WIDE("/") methodname, paste(name,line)	  , _WIDE(#returntype), subname, _WIDE(#argtypes) ); }	                                                                          static returntype CPROC paste(name,line)
+#define DefineRegistrySubMethod_i(task,name,classtype,classbase,methodname,subname,returntype,argtypes,line)	   CPROC paste(name,line)argtypes;	       PRELOAD( paste(Register##name##Button##EXTRA_PRELOAD_SYMBOL,line) ) {	  SimpleRegisterMethod( task "/" classtype "/" classbase "/" methodname, paste(name,line)	  , #returntype, subname, #argtypes ); }	                                                                          static returntype CPROC paste(name,line)
 #define DefineRegistrySubMethod(task,name,classtype,classbase,methodname,subname,returntype,argtypes)	  DefineRegistrySubMethod_i(task,name,classtype,classbase,methodname,subname,returntype,argtypes,__LINE__)
 /* attempts to use dynamic linking functions to resolve passed
    global name if that fails, then a type is registered for this
@@ -15220,7 +15050,7 @@ PROCREG_PROC( int, ReleaseRegisteredFunctionEx )( PCLASSROOT root
 PROCREG_PROC( void, RegisterAndCreateGlobal )( POINTER *ppGlobal, uintptr_t global_size, CTEXTSTR name );
 /* <combine sack::app::registry::RegisterAndCreateGlobal@POINTER *@uintptr_t@CTEXTSTR>
    \ \                                                                                   */
-#define SimpleRegisterAndCreateGlobal( name )	 RegisterAndCreateGlobal( (POINTER*)&name, sizeof( *name ), WIDE(#name) )
+#define SimpleRegisterAndCreateGlobal( name )	 RegisterAndCreateGlobal( (POINTER*)&name, sizeof( *name ), #name )
 /* Init routine is called, otherwise a 0 filled space is
    returned. Init routine is passed the pointer to the global
    and the size of the global block the global data block is
@@ -15256,7 +15086,7 @@ PROCREG_PROC( void, RegisterAndCreateGlobal )( POINTER *ppGlobal, uintptr_t glob
 PROCREG_PROC( void, RegisterAndCreateGlobalWithInit )( POINTER *ppGlobal, uintptr_t global_size, CTEXTSTR name, void (CPROC*Init)(POINTER,uintptr_t) );
 /* <combine sack::app::registry::RegisterAndCreateGlobalWithInit@POINTER *@uintptr_t@CTEXTSTR@void __cdecl*InitPOINTER\,uintptr_t>
    \ \                                                                                                                              */
-#define SimpleRegisterAndCreateGlobalWithInit( name,init )	 RegisterAndCreateGlobalWithInit( (POINTER*)&name, sizeof( *name ), WIDE(#name), init )
+#define SimpleRegisterAndCreateGlobalWithInit( name,init )	 RegisterAndCreateGlobalWithInit( (POINTER*)&name, sizeof( *name ), #name, init )
 /* a tree dump will result with dictionary names that may translate automatically. */
 /* This has been exported as a courtesy for StrDup.
  * this routine MAY result with a translated string.
@@ -16593,10 +16423,10 @@ void  EmptyDataQueue ( PDATAQUEUE *ppdq )
 PRIORITY_PRELOAD( InitLocals, NAMESPACE_PRELOAD_PRIORITY + 1 )
 {
 #  ifdef __cplusplus
-	RegisterAndCreateGlobal((POINTER*)&list::_list_local, sizeof( *list::_list_local ), WIDE("_list_local") );
-	RegisterAndCreateGlobal((POINTER*)&data_list::_data_list_local, sizeof( *data_list::_data_list_local ), WIDE("_data_list_local") );
-	RegisterAndCreateGlobal((POINTER*)&queue::_link_queue_local, sizeof( *queue::_link_queue_local ), WIDE("_link_queue_local") );
-	RegisterAndCreateGlobal((POINTER*)&data_queue::_data_queue_local, sizeof( *data_queue::_data_queue_local ), WIDE("_data_queue_local") );
+	RegisterAndCreateGlobal((POINTER*)&list::_list_local, sizeof( *list::_list_local ), "_list_local" );
+	RegisterAndCreateGlobal((POINTER*)&data_list::_data_list_local, sizeof( *data_list::_data_list_local ), "_data_list_local" );
+	RegisterAndCreateGlobal((POINTER*)&queue::_link_queue_local, sizeof( *queue::_link_queue_local ), "_link_queue_local" );
+	RegisterAndCreateGlobal((POINTER*)&data_queue::_data_queue_local, sizeof( *data_queue::_data_queue_local ), "_data_queue_local" );
 #  else
 	SimpleRegisterAndCreateGlobal( _list_local );
 	SimpleRegisterAndCreateGlobal( _data_list_local );
@@ -16801,10 +16631,11 @@ PRIORITY_PRELOAD( InitLocals, NAMESPACE_PRELOAD_PRIORITY + 1 )
  * see also - include/typelib.h
  *
  */
-#ifdef _UNICODE
-#define _INCLUDE_NLS
-#endif
 #define NO_UNICODE_C
+ // derefecing NULL pointers; the function wouldn't be called with a NULL.
+ // and partial expressions in lower precision
+// and NULL math because never NULL.
+#pragma warning( disable:6011 26451 28182)
 #ifdef __cplusplus
 namespace sack {
 namespace containers {
@@ -16813,6 +16644,7 @@ namespace text {
 	using namespace sack::logging;
 	using namespace sack::containers::queue;
 #endif
+#pragma warning( disable:26451 )
 typedef PTEXT (CPROC*GetTextOfProc)( uintptr_t, POINTER );
 typedef struct text_exension_tag {
 	uint32_t bits;
@@ -16832,14 +16664,14 @@ static PTEXT newline;
 static PTEXT blank;
 PRELOAD( AllocateDefaults )
 {
-	newline = (PTEXT)SegCreateFromText( WIDE("") );
-	blank = (PTEXT)SegCreateFromText( WIDE(" ") );
+	newline = (PTEXT)SegCreateFromText( "" );
+	blank = (PTEXT)SegCreateFromText( " " );
 }
 //#define newline (*newline)
 //#define blank	(*blank)
 //#else
-//__declspec( dllexport ) TEXT newline = { TF_STATIC, NULL, NULL, {1,1},{0,WIDE("")}};
-//__declspec( dllexport ) TEXT blank = { TF_STATIC, NULL, NULL, {1,1},{1,WIDE(" ")}};
+//__declspec( dllexport ) TEXT newline = { TF_STATIC, NULL, NULL, {1,1},{0,""}};
+//__declspec( dllexport ) TEXT blank = { TF_STATIC, NULL, NULL, {1,1},{1," "}};
 //#endif
 static PLIST pTextExtensions;
 //---------------------------------------------------------------------------
@@ -17049,16 +16881,8 @@ PTEXT SegCreateFromCharLenEx( const char *text, size_t len DBG_PASS )
 	PTEXT pTemp;
 	if( text )
 	{
-#ifdef _UNICODE
-		TEXTSTR text_string = CharWConvertLen( text, len );
-		pTemp = SegCreateEx( len DBG_RELAY );
-		// include nul on copy
-		MemCpy( pTemp->data.data, text_string, sizeof( TEXTCHAR ) * ( len + 1 ) );
-		Deallocate( TEXTSTR, text_string );
-#else
 		pTemp = SegCreateEx( len DBG_RELAY );
 		MemCpy( pTemp->data.data, text, sizeof( TEXTCHAR ) * ( len + 1 ) );
-#endif
 		return pTemp;
 	}
 	return NULL;
@@ -17074,11 +16898,6 @@ PTEXT SegCreateFromWideLenEx( const wchar_t *text, size_t nSize DBG_PASS )
 	PTEXT pTemp;
 	if( text )
 	{
-#ifdef _UNICODE
-		pTemp = SegCreateEx( nSize DBG_RELAY );
-		// include nul on copy
-		MemCpy( pTemp->data.data, text, sizeof( TEXTCHAR ) * ( nSize + 1 ) );
-#else
 		TEXTSTR text_string = WcharConvertLen( text, nSize );
 		int outlen;
 		for( outlen = 0; text_string[outlen]; outlen++ );
@@ -17086,7 +16905,6 @@ PTEXT SegCreateFromWideLenEx( const wchar_t *text, size_t nSize DBG_PASS )
 		// include nul on copy
 		MemCpy( pTemp->data.data, text_string, sizeof( TEXTCHAR ) * ( outlen + 1 ) );
 		Deallocate( TEXTSTR, text_string );
-#endif
 		return pTemp;
 	}
 	return NULL;
@@ -17101,12 +16919,8 @@ PTEXT SegCreateFromIntEx( int value DBG_PASS )
 {
 	PTEXT pResult;
 	pResult = SegCreateEx( 12 DBG_RELAY);
-#ifdef _UNICODE
-	pResult->data.size = swprintf( pResult->data.data, 12, WIDE("%d"), value );
-#else
  //-V512
-	pResult->data.size = snprintf( pResult->data.data, 12, WIDE("%d"), value );
-#endif
+	pResult->data.size = snprintf( pResult->data.data, 12, "%d", value );
 	pResult->data.data[11] = 0;
 	return pResult;
 }
@@ -17115,12 +16929,8 @@ PTEXT SegCreateFrom_64Ex( int64_t value DBG_PASS )
 {
 	PTEXT pResult;
 	pResult = SegCreateEx( 32 DBG_RELAY);
-#ifdef _UNICODE
-	pResult->data.size = swprintf( pResult->data.data, 32, WIDE("%")_64f, value );
-#else
  //-V512
-	pResult->data.size = snprintf( pResult->data.data, 32, WIDE("%")_64f, value );
-#endif
+	pResult->data.size = snprintf( pResult->data.data, 32, "%" _64f, value );
 pResult->data.data[31] = 0;
 	return pResult;
 }
@@ -17129,12 +16939,8 @@ PTEXT SegCreateFromFloatEx( float value DBG_PASS )
 {
 	PTEXT pResult;
 	pResult = SegCreateEx( 32 DBG_RELAY);
-#ifdef _UNICODE
-	pResult->data.size = swprintf( pResult->data.data, 32, WIDE("%f"), value );
-#else
  //-V512
-	pResult->data.size = snprintf( pResult->data.data, 32, WIDE("%f"), value );
-#endif
+	pResult->data.size = snprintf( pResult->data.data, 32, "%f", value );
 	pResult->data.data[31] = 0;
 	return pResult;
 }
@@ -17177,11 +16983,11 @@ INDEX  GetSegmentSpaceEx ( PTEXT segment, size_t position, int nTabs, INDEX *tab
 					total += tabs[n]-position;
 					position = tabs[n];
 				}
-			lprintf( WIDE("Adding %d spaces"), segment->format.position.offset.spaces );
+			//lprintf( "Adding %d spaces", segment->format.position.offset.spaces );
 			total += segment->format.position.offset.spaces;
 		}
 	}
-	while( (segment->flags & TF_INDIRECT) && ( segment = GetIndirect( segment ) ) );
+	while( segment && (segment->flags & TF_INDIRECT) && ( segment = GetIndirect( segment ) ) );
 	return total;
 }
 //---------------------------------------------------------------------------
@@ -17251,7 +17057,7 @@ void SegReleaseEx( PTEXT seg DBG_PASS)
 PTEXT SegExpandEx(PTEXT source, INDEX nSize DBG_PASS)
 {
 	PTEXT temp;
-	//Log1( WIDE("SegExpand...%d"), nSize );
+	//Log1( "SegExpand...%d", nSize );
 	temp = SegCreateEx( GetTextSize( source ) + nSize  DBG_RELAY );
 	if( source )
 	{
@@ -17433,7 +17239,7 @@ TEXTCHAR NextCharEx( PTEXT input, size_t idx )
 // so this simply is text stream in, text stream out.
 // these are just shortcuts - these bits of code were used repeatedly....
 #define SET_SPACES() do {		word->format.position.offset.spaces = (uint16_t)spaces;		 word->format.position.offset.tabs = (uint16_t)tabs;		                             spaces = 0;		                                                         tabs = 0; } while(0)
-//static CTEXTSTR normal_punctuation=WIDE("\'\"\\({[<>]}):@%/,;!?=*&$^~#`");
+//static CTEXTSTR normal_punctuation="\'\"\\({[<>]}):@%/,;!?=*&$^~#`";
 //static CTEXTSTR not_punctuation;
 PTEXT TextParse( PTEXT input, CTEXTSTR punctuation, CTEXTSTR filter_space, int bTabs, int bSpaces  DBG_PASS )
 // returns a TEXT list of parsed data
@@ -17486,7 +17292,7 @@ PTEXT TextParse( PTEXT input, CTEXTSTR punctuation, CTEXTSTR filter_space, int b
 		}
 		spaces += input->format.position.offset.spaces;
 		tabs += input->format.position.offset.tabs;
-		//Log1( WIDE("Assuming %d spaces... "), spaces );
+		//Log1( "Assuming %d spaces... ", spaces );
 		for (index=0;(character = tempText[index]),
  // while not at the
                    (index < size); index++)
@@ -17503,7 +17309,7 @@ PTEXT TextParse( PTEXT input, CTEXTSTR punctuation, CTEXTSTR filter_space, int b
 						outdata = SegAppend( outdata, word );
 					}
 					//else
-					//	Log( WIDE("VarTextGet Failed to result.") );
+					//	Log( "VarTextGet Failed to result." );
 				}
 				elipses = FALSE;
 			}
@@ -17570,7 +17376,7 @@ PTEXT TextParse( PTEXT input, CTEXTSTR punctuation, CTEXTSTR filter_space, int b
 						}
 						if( spaces )
 						{
-						//lprintf( WIDE("Input stream has mangled spaces and tabs.") );
+						//lprintf( "Input stream has mangled spaces and tabs." );
  // assume that the tab takes care of appropriate spacing
 							spaces = 0;
 						}
@@ -17749,7 +17555,7 @@ PTEXT burstEx( PTEXT input DBG_PASS )
 		}
 		spaces += input->format.position.offset.spaces;
 		tabs += input->format.position.offset.tabs;
-		//Log1( WIDE("Assuming %d spaces... "), spaces );
+		//Log1( "Assuming %d spaces... ", spaces );
 		for (index=0;(character = tempText[index]),
  // while not at the
 		             (index < size); index++)
@@ -17766,7 +17572,7 @@ PTEXT burstEx( PTEXT input DBG_PASS )
 						outdata = SegAppend( outdata, word );
 					}
 					//else
-					//	Log( WIDE("VarTextGet Failed to result.") );
+					//	Log( "VarTextGet Failed to result." );
 				}
 				elipses = FALSE;
 			}
@@ -17803,7 +17609,7 @@ PTEXT burstEx( PTEXT input DBG_PASS )
 				}
 				if( spaces )
 				{
-				//lprintf( WIDE("Input stream has mangled spaces and tabs.") );
+				//lprintf( "Input stream has mangled spaces and tabs." );
 					spaces = 0;
 				}
 				tabs++;
@@ -18091,19 +17897,19 @@ PTEXT BuildLineExEx( PTEXT pt, LOGICAL bSingle, int nTabsize, PTEXT pEOL DBG_PAS
 			{
 				PTEXT pSplit;
 				// ofs is the next valid character position....
-				//Log( WIDE("Changing segment's color...") );
+				//Log( "Changing segment's color..." );
 				if( ofs )
 				{
 					pSplit = SegSplitEx( &pOut, ofs DBG_RELAY );
 					if( !pSplit )
 					{
-						lprintf( WIDE("Line was shorter than offset: %") _size_f WIDE(" vs %") _PTRSZVALfs WIDE(""), GetTextSize( pOut ), ofs );
+						lprintf( "Line was shorter than offset: %" _size_f " vs %" _PTRSZVALfs "", GetTextSize( pOut ), ofs );
 					}
 					pOut = NEXTLINE( pSplit );
 					// new segments takes on the new attributes...
 					pOut->format.flags.foreground = pt->format.flags.foreground;
 					pOut->format.flags.background = pt->format.flags.background;
-						//Log2( WIDE("Split at %d result %d"), ofs, GetTextSize( pOut ) );
+						//Log2( "Split at %d result %d", ofs, GetTextSize( pOut ) );
 						buf = GetText( pOut );
 					ofs = 0;
 				}
@@ -18615,7 +18421,7 @@ int IsSegAnyNumberEx( PTEXT *ppText, double *fNumber, int64_t *iNumber, int *bIn
 		// at this point... is this really valid?
 		if( pText->flags & TF_INDIRECT )
 		{
-			lprintf( WIDE("Encountered indirect segment gathering number, stopping.") );
+			lprintf( "Encountered indirect segment gathering number, stopping." );
 			break;
 		}
 		if( !begin &&
@@ -18706,7 +18512,7 @@ void VarTextInitEx( PVARTEXT pvt DBG_PASS )
 	pvt->collect = SegCreateEx( COLLECT_LEN DBG_RELAY );
 	pvt->collect_text = GetText( pvt->collect );
 #ifdef VERBOSE_DEBUG_VARTEXT
-	Log( WIDE("Resetting collect_used (init)") );
+	Log( "Resetting collect_used (init)" );
 #endif
 	pvt->collect_used = 0;
 	pvt->collect_avail = COLLECT_LEN;
@@ -18758,7 +18564,7 @@ void VarTextAddCharacterEx( PVARTEXT pvt, TEXTCHAR c DBG_PASS )
 	if( !pvt->collect )
 		VarTextInitEx( pvt DBG_RELAY );
 #ifdef VERBOSE_DEBUG_VARTEXT
-	Log1( WIDE("Adding character %c"), c );
+	Log1( "Adding character %c", c );
 #endif
 	if( c == '\b' )
 	{
@@ -18773,7 +18579,7 @@ void VarTextAddCharacterEx( PVARTEXT pvt, TEXTCHAR c DBG_PASS )
 		pvt->collect_text[pvt->collect_used++] = c;
 		if( pvt->collect_used >= pvt->collect_avail )
 		{
-			//lprintf( WIDE("Expanding segment to make sure we have room to extend...(old %d)"), pvt->collect->data.size );
+			//lprintf( "Expanding segment to make sure we have room to extend...(old %d)", pvt->collect->data.size );
 			pvt->collect = SegExpandEx( pvt->collect, pvt->collect_avail * 2 DBG_RELAY );
 			pvt->collect_avail = pvt->collect->data.size;
 			pvt->collect_text = GetText( pvt->collect );
@@ -18784,13 +18590,8 @@ void VarTextAddRuneEx( PVARTEXT pvt, TEXTRUNE c, LOGICAL overlong DBG_PASS )
 {
 	int chars;
 	int n;
-#ifdef _UNICODE
-	wchar_t output[3];
-	chars = ConvertToUTF16( output, c );
-#else
 	char output[6];
 	chars = ConvertToUTF8Ex( output, c, overlong );
-#endif
 	for( n = 0; n < chars; n++ )
 		VarTextAddCharacterEx( pvt, output[n] DBG_RELAY );
 }
@@ -18800,7 +18601,7 @@ void VarTextAddDataEx( PVARTEXT pvt, CTEXTSTR block, size_t length DBG_PASS )
 	if( !pvt->collect )
 		VarTextInitEx( pvt DBG_RELAY );
 #ifdef VERBOSE_DEBUG_VARTEXT
-	Log1( WIDE("Adding character %c"), c );
+	Log1( "Adding character %c", c );
 #endif
 	{
 		uint32_t n;
@@ -18811,7 +18612,7 @@ void VarTextAddDataEx( PVARTEXT pvt, CTEXTSTR block, size_t length DBG_PASS )
 			pvt->collect_text[pvt->collect_used++] = block[n];
 			if( pvt->collect_used >= pvt->collect_avail )
 			{
-				//lprintf( WIDE("Expanding segment to make sure we have room to extend...(old %d)"), pvt->collect->data.size );
+				//lprintf( "Expanding segment to make sure we have room to extend...(old %d)", pvt->collect->data.size );
 				pvt->collect = SegExpandEx( pvt->collect, pvt->collect_avail * 2 + COLLECT_LEN DBG_RELAY );
 				pvt->collect_avail = pvt->collect->data.size;
 				pvt->collect_text = GetText( pvt->collect );
@@ -18826,12 +18627,12 @@ LOGICAL VarTextEndEx( PVARTEXT pvt DBG_PASS )
 	if( pvt && pvt->collect_used )
 	{
 		PTEXT segs= SegSplitEx( &pvt->collect, pvt->collect_used DBG_RELAY );
-		//lprintf( WIDE("End collect at %d %d"), pvt->collect_used, segs?segs->data.size:pvt->collect->data.size );
+		//lprintf( "End collect at %d %d", pvt->collect_used, segs?segs->data.size:pvt->collect->data.size );
 		if( !segs )
 		{
 			segs = pvt->collect;
 		}
-		//Log1( WIDE("Breaking collection adding... %s"), GetText( segs ) );
+		//Log1( "Breaking collection adding... %s", GetText( segs ) );
 		// so now the remaining buffer( if any )
 		// is assigned to collect into.
 		// This results in...
@@ -18840,17 +18641,17 @@ LOGICAL VarTextEndEx( PVARTEXT pvt DBG_PASS )
 		if( !pvt->collect )
 		{
 #ifdef VERBOSE_DEBUG_VARTEXT
-			Log( WIDE("Starting with new buffers ") );
+			Log( "Starting with new buffers " );
 #endif
 			VarTextInitEx( pvt DBG_RELAY );
 		}
 		else
 		{
-			 //Log1( WIDE("Remaining buffer is %d"), GetTextSize( pvt->collect ) );
+			 //Log1( "Remaining buffer is %d", GetTextSize( pvt->collect ) );
 			SegBreak( pvt->collect );
 			pvt->collect_text = GetText( pvt->collect );
 #ifdef VERBOSE_DEBUG_VARTEXT
-			Log( WIDE("resetting collect_used after split") );
+			Log( "resetting collect_used after split" );
 #endif
 			pvt->collect_avail -= pvt->collect_used;
 			pvt->collect_used = 0;
@@ -18907,7 +18708,7 @@ void VarTextExpandEx( PVARTEXT pvt, INDEX size DBG_PASS)
 //---------------------------------------------------------------------------
 INDEX VarTextLength( PVARTEXT pvt )
 {
-	//Log1( WIDE("Length is : %d"), pvt->collect_used );
+	//Log1( "Length is : %d", pvt->collect_used );
 	if( pvt )
 		return pvt->collect_used;
 	return 0;
@@ -18922,9 +18723,6 @@ INDEX vvtprintf( PVARTEXT pvt, CTEXTSTR format, va_list args )
 	{
 		va_list tmp_args;
 		va_copy( tmp_args, args );
-#    ifdef _UNICODE
-#       define vsnprintf vswprintf
-#    endif
 		// len returns number of characters (not NUL)
 		len = vsnprintf( NULL, 0, format
 							, args
@@ -18940,7 +18738,7 @@ INDEX vvtprintf( PVARTEXT pvt, CTEXTSTR format, va_list args )
 			VarTextExpand( pvt, ((len+1)<pvt->expand_by)?pvt->expand_by:(len+1+pvt->expand_by)  );
 		}
 #ifdef VERBOSE_DEBUG_VARTEXT
-		Log3( WIDE("Print Length: %d into %d after %s"), len, pvt->collect_used, pvt->collect_text );
+		Log3( "Print Length: %d into %d after %s", len, pvt->collect_used, pvt->collect_text );
 #endif
 		// include NUL in the limit of characters able to print...
 		vsnprintf( pvt->collect_text + pvt->collect_used, len+1, format, args );
@@ -18963,7 +18761,7 @@ INDEX vvtprintf( PVARTEXT pvt, CTEXTSTR format, va_list args )
 			tries++;
 			if( tries == 100 )
 			{
-				lprintf( WIDE( "Single buffer expanded more then %d" ), tries * ( (pvt->expand_by)?pvt->expand_by:(16384+pvt->expand_by) ) );
+				lprintf( "Single buffer expanded more then %d", tries * ( (pvt->expand_by)?pvt->expand_by:(16384+pvt->expand_by) ) );
  // didn't add any
 				return 0;
 			}
@@ -18980,9 +18778,6 @@ INDEX vvtprintf( PVARTEXT pvt, CTEXTSTR format, va_list args )
 	{
 		va_list tmp_args;
 		va_copy( tmp_args, args );
-#    ifdef _UNICODE
-#      define vsnprintf vswprintf
-#    endif
 		// len returns number of characters (not NUL)
 		len = vsnprintf( NULL, 0, format
 #  ifdef __GNUC__
@@ -19004,7 +18799,7 @@ INDEX vvtprintf( PVARTEXT pvt, CTEXTSTR format, va_list args )
 			VarTextExpand( pvt, ((len+1)<pvt->expand_by)?pvt->expand_by:(len+1+pvt->expand_by)  );
 		}
 #  ifdef VERBOSE_DEBUG_VARTEXT
-		Log3( WIDE("Print Length: %d into %d after %s"), len, pvt->collect_used, pvt->collect_text );
+		Log3( "Print Length: %d into %d after %s", len, pvt->collect_used, pvt->collect_text );
 #  endif
 		// include NUL in the limit of characters able to print...
 		vsnprintf( pvt->collect_text + pvt->collect_used, len+1, format, args );
@@ -19016,15 +18811,12 @@ INDEX vvtprintf( PVARTEXT pvt, CTEXTSTR format, va_list args )
 		_args[0] = args[0];
 		do {
 #  ifdef VERBOSE_DEBUG_VARTEXT
-			Log2( WIDE("Print Length: ofs %d after %s")
+			Log2( "Print Length: ofs %d after %s"
 				 , pvt->collect_used
 				 , pvt->collect_text );
 #  endif
 			args[0] = _args[0];
 			//va_start( args, format );
-#  ifdef _UNICODE
-#    define vsnprintf _vsnwprintf
-#  endif
 			len = vsnprintf( pvt->collect_text + pvt->collect_used
 								, destlen = pvt->collect_avail - pvt->collect_used
 								, format, args );
@@ -19032,7 +18824,7 @@ INDEX vvtprintf( PVARTEXT pvt, CTEXTSTR format, va_list args )
 			if( !len )
 				return 0;
 #  ifdef VERBOSE_DEBUG_VARTEXT
-			lprintf( WIDE("result of vsnprintf: %d(%d) \'%s\' (%s)")
+			lprintf( "result of vsnprintf: %d(%d) \'%s\' (%s)"
 					 , len, destlen
 					 , pvt->collect_text
 					 , format );
@@ -19058,11 +18850,11 @@ INDEX vvtprintf( PVARTEXT pvt, CTEXTSTR format, va_list args )
 				VarTextExpand( pvt, pvt->expand_by?pvt->expand_by:4096 );
 			//					 VarTextExpandEx( pvt, 32 DBG_SRC );
 		} while( len < 0 );
-		//Log1( WIDE("Print Length: %d"), len );
+		//Log1( "Print Length: %d", len );
 	}
 #endif
 #ifdef VERBOSE_DEBUG_VARTEXT
-	Log2( WIDE("used: %d plus %d"), pvt->collect_used , len );
+	Log2( "used: %d plus %d", pvt->collect_used , len );
 #endif
 	pvt->collect_used += len;
 	return len;
@@ -19083,104 +18875,104 @@ INDEX vtprintfEx( PVARTEXT pvt , CTEXTSTR format, ... )
 //---------------------------------------------------------------------------
 //---------------------------------------------------------------------------
 static CTEXTSTR Ops[] = {
-	WIDE("FORMAT_OP_CLEAR_END_OF_LINE"),
-	WIDE("FORMAT_OP_CLEAR_START_OF_LINE"),
-	WIDE("FORMAT_OP_CLEAR_LINE "),
-	WIDE("FORMAT_OP_CLEAR_END_OF_PAGE"),
-	WIDE("FORMAT_OP_CLEAR_START_OF_PAGE"),
-	WIDE("FORMAT_OP_CLEAR_PAGE"),
-	WIDE("FORMAT_OP_CONCEAL")
+	"FORMAT_OP_CLEAR_END_OF_LINE",
+	"FORMAT_OP_CLEAR_START_OF_LINE",
+	"FORMAT_OP_CLEAR_LINE ",
+	"FORMAT_OP_CLEAR_END_OF_PAGE",
+	"FORMAT_OP_CLEAR_START_OF_PAGE",
+	"FORMAT_OP_CLEAR_PAGE",
+	"FORMAT_OP_CONCEAL"
  // background is how many to delete.
-	  , WIDE("FORMAT_OP_DELETE_CHARS")
+	  , "FORMAT_OP_DELETE_CHARS"
  // format.x, y are start/end of region -1,-1 clears.
-	  , WIDE("FORMAT_OP_SET_SCROLL_REGION")
+	  , "FORMAT_OP_SET_SCROLL_REGION"
  // this works as a transaction...
-	  , WIDE("FORMAT_OP_GET_CURSOR")
+	  , "FORMAT_OP_GET_CURSOR"
  // responce to getcursor...
-	  , WIDE("FORMAT_OP_SET_CURSOR")
+	  , "FORMAT_OP_SET_CURSOR"
  // clear page, home page... result in page break...
-	  , WIDE("FORMAT_OP_PAGE_BREAK")
+	  , "FORMAT_OP_PAGE_BREAK"
  // break between paragraphs - kinda same as lines...
-	  , WIDE("FORMAT_OP_PARAGRAPH_BREAK")
+	  , "FORMAT_OP_PARAGRAPH_BREAK"
 };
 //---------------------------------------------------------------------------
 static void BuildTextFlags( PVARTEXT vt, PTEXT pSeg )
 {
-	vtprintf( vt, WIDE( "Text Flags: " ));
+	vtprintf( vt, "Text Flags: ");
 	if( pSeg->flags & TF_STATIC )
-		vtprintf( vt, WIDE( "static " ) );
+		vtprintf( vt, "static " );
 	if( pSeg->flags & TF_QUOTE )
-		vtprintf( vt, WIDE( "\"\" " ) );
+		vtprintf( vt, "\"\" " );
 	if( pSeg->flags & TF_SQUOTE )
-		vtprintf( vt, WIDE( "\'\' " ) );
+		vtprintf( vt, "\'\' " );
 	if( pSeg->flags & TF_BRACKET )
-		vtprintf( vt, WIDE( "[] " ) );
+		vtprintf( vt, "[] " );
 	if( pSeg->flags & TF_BRACE )
-		vtprintf( vt, WIDE( "{} " ) );
+		vtprintf( vt, "{} " );
 	if( pSeg->flags & TF_PAREN )
-		vtprintf( vt, WIDE( "() " ) );
+		vtprintf( vt, "() " );
 	if( pSeg->flags & TF_TAG )
-		vtprintf( vt, WIDE( "<> " ) );
+		vtprintf( vt, "<> " );
 	if( pSeg->flags & TF_INDIRECT )
-		vtprintf( vt, WIDE( "Indirect " ) );
+		vtprintf( vt, "Indirect " );
 	/*
 	if( pSeg->flags & TF_SINGLE )
-	vtprintf( vt, WIDE( "single " ) );
+	vtprintf( vt, "single " );
 	*/
 	if( pSeg->flags & TF_FORMATREL )
-		vtprintf( vt, WIDE( "format x,y(REL) " ) );
+		vtprintf( vt, "format x,y(REL) " );
 	if( pSeg->flags & TF_FORMATABS )
-		vtprintf( vt, WIDE( "format x,y " ) );
+		vtprintf( vt, "format x,y " );
 	else
-		vtprintf( vt, WIDE( "format spaces " ) );
+		vtprintf( vt, "format spaces " );
 	if( pSeg->flags & TF_COMPLETE )
-		vtprintf( vt, WIDE( "complete " ) );
+		vtprintf( vt, "complete " );
 	if( pSeg->flags & TF_BINARY )
-		vtprintf( vt, WIDE( "binary " ) );
+		vtprintf( vt, "binary " );
 	if( pSeg->flags & TF_DEEP )
-		vtprintf( vt, WIDE( "deep " ) );
+		vtprintf( vt, "deep " );
 #ifdef DEKWARE_APP_FLAGS
 	if( pSeg->flags & TF_ENTITY )
-		vtprintf( vt, WIDE( "entity " ) );
+		vtprintf( vt, "entity " );
 	if( pSeg->flags & TF_SENTIENT )
-		vtprintf( vt, WIDE( "sentient " ) );
+		vtprintf( vt, "sentient " );
 #endif
 	if( pSeg->flags & TF_NORETURN )
-		vtprintf( vt, WIDE( "NoReturn " ) );
+		vtprintf( vt, "NoReturn " );
 	if( pSeg->flags & TF_LOWER )
-		vtprintf( vt, WIDE( "Lower " ) );
+		vtprintf( vt, "Lower " );
 	if( pSeg->flags & TF_UPPER )
-		vtprintf( vt, WIDE( "Upper " ) );
+		vtprintf( vt, "Upper " );
 	if( pSeg->flags & TF_EQUAL )
-		vtprintf( vt, WIDE( "Equal " ) );
+		vtprintf( vt, "Equal " );
 	if( pSeg->flags & TF_TEMP )
-		vtprintf( vt, WIDE( "Temp " ) );
+		vtprintf( vt, "Temp " );
 #ifdef DEKWARE_APP_FLAGS
 	if( pSeg->flags & TF_PROMPT )
-		vtprintf( vt, WIDE( "Prompt " ) );
+		vtprintf( vt, "Prompt " );
 	if( pSeg->flags & TF_PLUGIN )
-		vtprintf( vt, WIDE( "Plugin=%02x " ), (uint8_t)(( pSeg->flags >> 26 ) & 0x3f ) );
+		vtprintf( vt, "Plugin=%02x ", (uint8_t)(( pSeg->flags >> 26 ) & 0x3f ) );
 #endif
 	if( (pSeg->flags & TF_FORMATABS ) )
-		vtprintf( vt, WIDE( "Pos:%d,%d " )
+		vtprintf( vt, "Pos:%d,%d "
 				, pSeg->format.position.coords.x
 				, pSeg->format.position.coords.y  );
 	else if( (pSeg->flags & TF_FORMATREL ) )
-		vtprintf( vt, WIDE( "Rel:%d,%d " )
+		vtprintf( vt, "Rel:%d,%d "
 				, pSeg->format.position.coords.x
 				, pSeg->format.position.coords.y  );
 	else
-		vtprintf( vt, WIDE( "%d tabs %d spaces" )
+		vtprintf( vt, "%d tabs %d spaces"
 				  , pSeg->format.position.offset.tabs
 				  , pSeg->format.position.offset.spaces
 				  );
 	if( pSeg->flags & TF_FORMATEX )
-		vtprintf( vt, WIDE( "format extended(%s) length:%d" )
+		vtprintf( vt, "format extended(%s) length:%d"
 					  , Ops[ pSeg->format.flags.format_op
 							 - FORMAT_OP_CLEAR_END_OF_LINE ]
 					  , GetTextSize( pSeg ) );
 	else
-		vtprintf( vt, WIDE( "Fore:%d Back:%d length:%d" )
+		vtprintf( vt, "Fore:%d Back:%d length:%d"
 					, pSeg->format.flags.foreground
 					, pSeg->format.flags.background
 					, GetTextSize( pSeg ) );
@@ -19194,7 +18986,7 @@ PTEXT DumpText( PTEXT text )
 		while( text )
 		{
 			BuildTextFlags( pvt, text );
-			vtprintf( pvt, WIDE( "\n->%s\n" ), GetText( text ) );
+			vtprintf( pvt, "\n->%s\n", GetText( text ) );
 			text = NEXTLINE( text );
 		}
 		textsave = VarTextGet( pvt );
@@ -19273,10 +19065,10 @@ TEXTSTR ConvertEbcdicAscii( TEXTSTR text, INDEX length )
 static TEXTCHAR reserved_uri[] = {'!','*','\'','(',')',';',':','@','&','=','+','$',',','/','?','#','[',']'
 												  ,'<','>','~','.','"','{','}','|','\\','-','`','_','^','%',' '
 												  , 0 };
-static const TEXTCHAR *translated[] = { WIDE( "%21" ),WIDE( "%2A" ),WIDE( "%27" ),WIDE( "%28" ),WIDE( "%29" ),WIDE( "%3B" ),WIDE( "%3A" )
-												,WIDE( "%40" ),WIDE( "%26" ),WIDE( "%3D" ),WIDE( "%2B" ),WIDE( "%24" ),WIDE( "%2C" ),WIDE( "%2F" )
-												 ,WIDE( "%3F" ),WIDE( "%23" ),WIDE( "%5B" ),WIDE( "%5D" )
-												 ,WIDE( "%3C" ),WIDE( "%3E" ),WIDE( "%7E" ),WIDE( "%2E" ),WIDE( "%22" ),WIDE( "%7B" ),WIDE( "%7D" ),WIDE( "%7C" ),WIDE( "%5C" ),WIDE( "%2D" ),WIDE( "%60" ),WIDE( "%5F" ),WIDE( "%5E" ),WIDE( "%25" ),WIDE( "%20" )
+static const TEXTCHAR *translated[] = { "%21","%2A","%27","%28","%29","%3B","%3A"
+												,"%40","%26","%3D","%2B","%24","%2C","%2F"
+												 ,"%3F","%23","%5B","%5D"
+												 ,"%3C","%3E","%7E","%2E","%22","%7B","%7D","%7C","%5C","%2D","%60","%5F","%5E","%25","%20"
 };
 static int MeasureTextURI( CTEXTSTR text, INDEX length, int skip_slash )
 {
@@ -20057,9 +19849,9 @@ static int Step( CTEXTSTR *pc, size_t *nLen )
 	_pc = (*pc);
 	if( ch )
 	{
-		while( ch == WIDE('\x9F') )
+		while( ch == '\x9F' )
 		{
-			while( ch && ( ch != WIDE( '\x9C' ) ) )
+			while( ch && ( ch != '\x9C' ) )
 			{
 				ch = GetUtfChar( pc );
 				if( nLen )
@@ -20152,18 +19944,8 @@ LOGICAL ParseIntVector( CTEXTSTR data, int **pData, int *nData )
 		end = data;
 		do
 		{
-#ifndef _MSC_VER
-#if defined( _UNICODE )
-#   define sscanf     swscanf
-#endif
-#else
-#if defined( _UNICODE )
-#   undef sscanf
-#   define sscanf     swscanf_s
-#endif
-#endif
 			start = end;
-			sscanf( start, WIDE("%d"), (*pData) + count );
+			(void)sscanf( start, "%d", (*pData) + count );
 			count++;
 			end = StrChr( start, ',' );
 			if( end )
@@ -20287,7 +20069,8 @@ TEXTCHAR *EncodeBase64Ex( const uint8_t* buf, size_t length, size_t *outsize, co
 				blocklen = 3;
 			encodeblock( ((uint8_t*)buf) + n * 3, real_output + n*4, blocklen, base64 );
 		}
-		(*outsize) = n*4 + 1;
+ // don't include the NUL.
+		(*outsize) = n*4;
 		real_output[n*4] = 0;
 	}
 	return real_output;
@@ -20397,6 +20180,7 @@ uint8_t *DecodeBase64Ex( const char* buf, size_t length, size_t *outsize, const 
  * see also - include/typelib.h
  *
  */
+#pragma warning( disable : 28182)
  // make true to recurse parse expressions
 #define PARSE_DEEP 0
 #define Collapse(towhere) SegConcat(towhere,begin,beginoffset,total)
@@ -20886,7 +20670,7 @@ void RecallUserInput( PUSER_INPUT_BUFFER pci, int bUp )
 	}
 	else if( temp )
 	{
-		lprintf( WIDE("Losing data... there was \n in the command buffer, and data after it also!") );
+		lprintf( "Losing data... there was \n in the command buffer, and data after it also!" );
 	}
 }
 //----------------------------------------------------------------------------
@@ -21370,7 +21154,7 @@ typedef struct odbc_handle_tag ODBC;
 #define MAX_PREVIOUS_FIELD_NAMES 4
 /* <combine sack::sql::required_field_tag>
    <code lang="c++">
-     FIELD fields[] = { { "ID", WIDE("int") }, ... };
+     FIELD fields[] = { { "ID", "int" }, ... };
    </code>                                            */
 typedef struct required_field_tag
 {
@@ -21668,7 +21452,7 @@ PSSQL_PROC( void, SQLCommit )( PODBC odbc );
    Parameters
    odbc :  connection to database to start a transaction        */
 PSSQL_PROC( void, SQLBeginTransact )( PODBC odbc );
-// parameters to this are pairs of "name", type, WIDE("value")
+// parameters to this are pairs of "name", type, "value"
 //  type == 0 - value is text, do not quote
 //  type == 1 - value is text, add quotes appropriate for database
 //  type == 2 - value is an integer, do not quote
@@ -21852,7 +21636,7 @@ PSSQL_PROC( INDEX, ReadNameTableExEx)( CTEXTSTR name, CTEXTSTR table, CTEXTSTR c
 PSSQL_PROC( INDEX, ReadNameTableEx)( CTEXTSTR name, CTEXTSTR table, CTEXTSTR col DBG_PASS );
 /* <combine sack::sql::ReadNameTableExEx@CTEXTSTR@CTEXTSTR@CTEXTSTR@CTEXTSTR@int bCreate>
    \ \                                                                                    */
-#define ReadNameTable(n,t,c) ReadNameTableExEx( n,t,c, WIDE("name"),TRUE DBG_SRC )
+#define ReadNameTable(n,t,c) ReadNameTableExEx( n,t,c, "name",TRUE DBG_SRC )
 /* <combine sack::sql::ReadFromNameTableExEx@INDEX@CTEXTSTR@CTEXTSTR@CTEXTSTR@CTEXTSTR *result>
    \ \                                                                                          */
 PSSQL_PROC( int, ReadFromNameTableEx )( INDEX id, CTEXTSTR table, CTEXTSTR id_colname, CTEXTSTR name_colname, CTEXTSTR *result DBG_PASS);
@@ -21871,7 +21655,7 @@ PSSQL_PROC( int, ReadFromNameTableExEx )( INDEX id, CTEXTSTR table, CTEXTSTR id_
 #define ReadFromNameTableExx(id,t,ic,nc,r) ReadFromNameTableExEx(id,t,ic,nc,r DBG_SRC )
 /* <combine sack::sql::ReadFromNameTableEx@INDEX@CTEXTSTR@CTEXTSTR@CTEXTSTR@CTEXTSTR *result>
    \ \                                                                                        */
-#define ReadFromNameTable(id,t,c,r) ReadFromNameTableEx(id,t,c,WIDE("name"),r DBG_SRC )
+#define ReadFromNameTable(id,t,c,r) ReadFromNameTableEx(id,t,c,"name",r DBG_SRC )
 /* This is a better name resolution function. It will also
    create a table that contains the required columns, but the
    column names may be more intelligent than 'ID' and 'name'.
@@ -21901,7 +21685,7 @@ PSSQL_PROC( INDEX, SQLReadNameTableExEx)( PODBC odbc, CTEXTSTR name, CTEXTSTR ta
 #define SQLReadNameTableExx( odbc,name,table,col,namecol,bCreate) SQLReadNameTableExEx( odbc,name,table,col,namecol,bCreate DBG_SRC )
 /* <combine sack::sql::SQLReadNameTableExEx@PODBC@CTEXTSTR@CTEXTSTR@CTEXTSTR@CTEXTSTR@int bCreate>
    \ \                                                                                             */
-#define SQLReadNameTable(o,n,t,c) SQLReadNameTableExEx( o,n,t,c,WIDE( "name" ),TRUE DBG_SRC )
+#define SQLReadNameTable(o,n,t,c) SQLReadNameTableExEx( o,n,t,c,"name",TRUE DBG_SRC )
 /* Reads a table that's assumed to be a primary key ID and a
    name sort of dictionary table. This also maintains an
    \internal cache of names queried, since it is assumed words
@@ -21929,7 +21713,7 @@ PSSQL_PROC( INDEX, GetNameIndexExx)( PODBC odbc, CTEXTSTR name, CTEXTSTR table, 
 #define GetNameIndexEx( odbc,name,table,col,namecol,bCreate) GetNameIndexExx( odbc,name,table,col,namecol,bCreate DBG_SRC )
 /* <combine sack::sql::GetNameIndexExx@PODBC@CTEXTSTR@CTEXTSTR@CTEXTSTR@CTEXTSTR@int bCreate>
    \ \                                                                                        */
-#define GetNameIndex(o,n,t,c) GetNameIndexExx( o,n,t,c,WIDE( "name" ),TRUE DBG_SRC )
+#define GetNameIndex(o,n,t,c) GetNameIndexExx( o,n,t,c,"name",TRUE DBG_SRC )
 // table and col are not used if a MySQL backend is used...
 // they are needed to get the last ID from a postgresql backend.
 PSSQL_PROC( INDEX, GetLastInsertIDEx)( CTEXTSTR table, CTEXTSTR col DBG_PASS );
@@ -22598,7 +22382,7 @@ struct guid_binary {
 };
 // snprintf( buf, 256, guid_format, guid_param_pass(&guid_binary) )
 // snprintf( buf, 256, guid_format, guid_param_pass(binary_buffer_result) )
-#define guid_format WIDE("%08")_32fx WIDE("-%04")_16fx WIDE("-%04")_16fx WIDE("-%04")_16fx WIDE("-%012")_64fx
+#define guid_format "%08"_32fx "-%04"_16fx "-%04"_16fx "-%04"_16fx "-%012"_64fx
 #define guid_param_pass(n) ((struct guid_binary*)(n))->u.d.l1,((struct guid_binary*)(n))->u.d.w1,((struct guid_binary*)(n))->u.d.w2,((struct guid_binary*)(n))->u.d.w3,((struct guid_binary*)(n))->u.d.ll1
 /* some internal stub-proxy linkage for generating remote
    responders..
@@ -22821,7 +22605,7 @@ typedef struct option_interface_tag
 	METHOD_PTR( LOGICAL, WriteProfileStringEx )( CTEXTSTR pSection, CTEXTSTR pName, CTEXTSTR pValue, CTEXTSTR pINIFile, LOGICAL flush );
 	METHOD_PTR( LOGICAL, WritePrivateProfileStringEx )( CTEXTSTR pSection, CTEXTSTR pName, CTEXTSTR pValue, CTEXTSTR pINIFile, LOGICAL commit );
 } *POPTION_INTERFACE;
-#define GetOptionInterface() ((POPTION_INTERFACE)GetInterface( WIDE("options") ))
+#define GetOptionInterface() ((POPTION_INTERFACE)GetInterface( "options" ))
 //POPTION_INTERFACE GetOptionInterface( void );
 //void DropOptionInterface( POPTION_INTERFACE );
 #ifndef DEFAULT_OPTION_INTERFACE
@@ -23039,7 +22823,7 @@ namespace sack {
 #ifndef __NO_OPTIONS__
 PRELOAD( InitSetLogging )
 {
-	bLog = SACK_GetProfileIntEx( WIDE( "SACK" ), WIDE( "type library/sets/Enable Logging" ), 0, TRUE );
+	bLog = SACK_GetProfileIntEx( "SACK", "type library/sets/Enable Logging", 0, TRUE );
 }
 #endif
 void DeleteSet( GENERICSET **ppSet )
@@ -23048,7 +22832,7 @@ void DeleteSet( GENERICSET **ppSet )
 	 if( !ppSet )
 		 return;
 	 pSet = *ppSet;
-	if( bLog ) lprintf( WIDE( "Deleted set %p" ), pSet );
+	if( bLog ) lprintf( "Deleted set %p", pSet );
 	while( pSet )
 	{
 		GENERICSET *next;
@@ -23081,7 +22865,7 @@ PGENERICSET GetFromSetPoolEx( GENERICSET **pSetSet, int setsetsizea, int setunit
 		{
 			set = (PGENERICSET)AllocateEx( setsizea DBG_RELAY );
 			set->nBias = 0;
-			//Log4( WIDE("Allocating a Set for %d elements sized %d total %d %08x"), maxcnt, unitsize, setsize, set );
+			//Log4( "Allocating a Set for %d elements sized %d total %d %08x", maxcnt, unitsize, setsize, set );
 			MemSet( set, 0, setsizea );
 		}
 		*pSet = set;
@@ -23105,7 +22889,7 @@ ExtendSet:
 				else
 				{
 					newset = (PGENERICSET)AllocateEx( setsizea DBG_RELAY );
-					//Log4( WIDE("Allocating a Set for %d elements sized %d total %d %08x"), maxcnt, unitsize, setsize, set );
+					//Log4( "Allocating a Set for %d elements sized %d total %d %08x", maxcnt, unitsize, setsize, set );
 					MemSet( newset, 0, setsizea );
 					if( set->nBias > maxbias )
 						maxbias = set->nBias;
@@ -23170,7 +22954,7 @@ ExtendSet:
 			}
 		}
 #ifdef Z_DEBUG
-		if( bLog ) _lprintf( DBG_RELAY )( WIDE( "Unit result: %p from %p %d %d %d %d" ), unit, set, unitsize, maxcnt, n, ( ( (maxcnt +31) / 32 ) * 4 )  );
+		if( bLog ) _lprintf( DBG_RELAY )( "Unit result: %p from %p %d %d %d %d", unit, set, unitsize, maxcnt, n, ( ( (maxcnt +31) / 32 ) * 4 )  );
 #endif
 	}
 	return (PGENERICSET)unit;
@@ -23193,7 +22977,7 @@ static POINTER GetSetMemberExx( GENERICSET **pSet, INDEX nMember, int setsize, i
 	if( !(*pSet) )
 	{
 		set = (PGENERICSET)AllocateEx( setsize DBG_RELAY );
-		//Log4( WIDE("Allocating a Set for %d elements sized %d total %d %08x"), maxcnt, unitsize, setsize, set );
+		//Log4( "Allocating a Set for %d elements sized %d total %d %08x", maxcnt, unitsize, setsize, set );
 		MemSet( set, 0, setsize );
 		set->nBias = 0;
 		*pSet = set;
@@ -23211,7 +22995,7 @@ static POINTER GetSetMemberExx( GENERICSET **pSet, INDEX nMember, int setsize, i
 		if( !set->next )
 		{
 			PGENERICSET newset = (PGENERICSET)AllocateEx( setsize DBG_RELAY );
-			//Log4( WIDE("Allocating a Set for %d elements sized %d total %d %08x"), maxcnt, unitsize, setsize, set );
+			//Log4( "Allocating a Set for %d elements sized %d total %d %08x", maxcnt, unitsize, setsize, set );
 			MemSet( newset, 0, setsize );
 			if( set->nBias > maxbias )
 				maxbias = set->nBias;
@@ -23231,7 +23015,7 @@ static POINTER GetSetMemberExx( GENERICSET **pSet, INDEX nMember, int setsize, i
 		(*bUsed) = 0;
 	else
 		(*bUsed) = 1;
-	if( bLog ) _lprintf(DBG_RELAY)( WIDE( "Resulting unit %" ) _PTRSZVALfs,  ((uintptr_t)(set->bUsed))
+	if( bLog ) _lprintf(DBG_RELAY)( "Resulting unit %" _PTRSZVALfs,  ((uintptr_t)(set->bUsed))
  // skip over the bUsed bitbuffer
 						+ ( ( (maxcnt +31) / 32 ) * 4 )
 						+ nMember * unitsize );
@@ -23281,7 +23065,7 @@ INDEX GetMemberIndex(GENERICSET **ppSet, POINTER unit, int unitsize, int max )
 			uintptr_t n = nUnit - ( ((uintptr_t)(pSet->bUsed)) + ofs );
 			if( n % unitsize )
 			{
-				lprintf( WIDE("Error in set member alignment! %") _PTRSZVALfs WIDE(" of %d"), n % unitsize, unitsize );
+				lprintf( "Error in set member alignment! %" _PTRSZVALfs " of %d", n % unitsize, unitsize );
 				DebugBreak();
 				return INVALID_INDEX;
 			}
@@ -23307,7 +23091,7 @@ int MemberValidInSet( GENERICSET *pSet, void *unit, int unitsize, int max )
 			uintptr_t n = nUnit - ( ((uintptr_t)(pSet->bUsed)) + ofs );
 			if( n % unitsize )
 			{
-				lprintf( WIDE("Error in set member alignment! %") _PTRSZVALfs WIDE(" of %d"), n % unitsize, unitsize );
+				lprintf( "Error in set member alignment! %" _PTRSZVALfs " of %d", n % unitsize, unitsize );
 				DebugBreak();
 				return FALSE;
 			}
@@ -23326,7 +23110,7 @@ void DeleteFromSetExx( GENERICSET *pSet, void *unit, int unitsize, int max DBG_P
 	uintptr_t base;
 	//if( bLog )
 	//if( pSet && ((pSet)->nBias > 1000) )
-	//	_lprintf(DBG_RELAY)( WIDE("Deleting from  %p of %p "), pSet, unit );
+	//	_lprintf(DBG_RELAY)( "Deleting from  %p of %p ", pSet, unit );
 	while( pSet )
 	{
 		base = ( (uintptr_t)( pSet->bUsed ) + ofs );
@@ -23337,7 +23121,7 @@ void DeleteFromSetExx( GENERICSET *pSet, void *unit, int unitsize, int max DBG_P
 #ifdef Z_DEBUG
 			if( n % unitsize )
 			{
-				lprintf( WIDE("Error in set member alignment! %p %p %p  %d %")_PTRSZVALfs WIDE(" %")_PTRSZVALfs WIDE(" of %d")
+				lprintf( "Error in set member alignment! %p %p %p  %d %"_PTRSZVALfs " %"_PTRSZVALfs " of %d"
 						 , unit
 						 , pSet
 						 , &pSet->bUsed
@@ -23355,13 +23139,13 @@ void DeleteFromSetExx( GENERICSET *pSet, void *unit, int unitsize, int max DBG_P
 	}
 #ifdef Z_DEBUG
 	if( !pSet )
-		Log( WIDE("Failed to find node in set!") );
+		Log( "Failed to find node in set!" );
 #endif
 }
 //----------------------------------------------------------------------------
 void DeleteSetMemberEx( GENERICSET *pSet, INDEX iMember, uintptr_t unitsize, INDEX max )
 {
-	//Log2( WIDE("Deleting from  %08x of %08x "), pSet, iMember );
+	//Log2( "Deleting from  %08x of %08x ", pSet, iMember );
 	while( pSet )
 	{
 		if( iMember >= max )
@@ -23377,7 +23161,7 @@ void DeleteSetMemberEx( GENERICSET *pSet, INDEX iMember, uintptr_t unitsize, IND
 		if( !IsUsed( pSet, iMember ) )
 		{
 			DebugBreak();
-			lprintf( WIDE("Deleting set member which is already released? not decrementing used counter") );
+			lprintf( "Deleting set member which is already released? not decrementing used counter" );
 		}
 		else
 		{
@@ -23386,7 +23170,7 @@ void DeleteSetMemberEx( GENERICSET *pSet, INDEX iMember, uintptr_t unitsize, IND
 		}
 	}
 	else
-		Log( WIDE("Failed to find node in set!") );
+		Log( "Failed to find node in set!" );
 }
 #undef DeleteSetMember
 void DeleteSetMember( GENERICSET *pSet, INDEX iMember, int unitsize, int max )
@@ -23415,7 +23199,7 @@ void **GetLinearSetArrayEx( GENERICSET *pSet, int *pCount, int unitsize, int max
 	GENERICSET *pCur;
  // useless initialization.  nNewMin will be set if this is valid; and there was no error generated for using THAT uninitialized.
 	GENERICSET *pNewMin = NULL;
-	//Log2( WIDE("Building Array unit size: %d(%08x)"), unitsize, unitsize );
+	//Log2( "Building Array unit size: %d(%08x)", unitsize, unitsize );
 	items = CountUsedInSetEx( pSet, max );
 	if( pCount )
 		*pCount = items;
@@ -23489,7 +23273,7 @@ int FindInArray( void **pArray, int nArraySize, void *unit )
 //----------------------------------------------------------------------------
 uintptr_t _ForAllInSet( GENERICSET *pSet, int unitsize, int max, FAISCallback f, uintptr_t psv )
 {
-	//Log2( WIDE("Doing all in set - size: %d setsize: %d"), unitsize, max );
+	//Log2( "Doing all in set - size: %d setsize: %d", unitsize, max );
 	if( f )
 	{
 		int ofs, n;
@@ -23505,7 +23289,7 @@ uintptr_t _ForAllInSet( GENERICSET *pSet, int unitsize, int max, FAISCallback f,
 											  + n * unitsize ), psv );
 					if( psvReturn )
 					{
-						//Log( WIDE("Return short? "));
+						//Log( "Return short? ");
 						return psvReturn;
 					}
 				}
@@ -23518,7 +23302,7 @@ uintptr_t _ForAllInSet( GENERICSET *pSet, int unitsize, int max, FAISCallback f,
 #undef ForEachSetMember
 uintptr_t ForEachSetMember( GENERICSET *pSet, int unitsize, int max, FESMCallback f, uintptr_t psv )
 {
-	//Log2( WIDE("Doing all in set - size: %d setsize: %d"), unitsize, max );
+	//Log2( "Doing all in set - size: %d setsize: %d", unitsize, max );
 	if( f )
 	{
 		int total = 0;
@@ -23534,7 +23318,7 @@ uintptr_t ForEachSetMember( GENERICSET *pSet, int unitsize, int max, FESMCallbac
 					psvReturn = f( total+n, psv );
 					if( psvReturn )
 					{
-						//Log( WIDE("Return short? "));
+						//Log( "Return short? ");
 						return psvReturn;
 					}
 				}
@@ -23757,7 +23541,7 @@ static int BalanceBinaryBranch( PTREENODE root )
 			{
 				//if( left > 2+((left+rightDepth)*55)/100 )
 				{
-					 //Log2( WIDE("rotateing to left (%d/%d)"), left, rightDepth );
+					 //Log2( "rotateing to left (%d/%d)", left, rightDepth );
 					root = RotateToLeft( check );
 					balances++;
 				}
@@ -23768,7 +23552,7 @@ static int BalanceBinaryBranch( PTREENODE root )
 			{
 				//if( rightDepth  > 2+((left+rightDepth)*55)/100 )
 				{
-					 //Log2( WIDE("rotateing to rightDepth (%d/%d)"), rightDepth, left );
+					 //Log2( "rotateing to rightDepth (%d/%d)", rightDepth, left );
 					root = RotateToRight( check );
 					balances++;
 				}
@@ -23778,13 +23562,13 @@ static int BalanceBinaryBranch( PTREENODE root )
 		 }
 		 else if( check->lesser && ( check->children >= 2 ) )
 		 {
-			 //Log1( WIDE("rotateing to left (%d)"), check->children );
+			 //Log1( "rotateing to left (%d)", check->children );
 			 root = RotateToLeft( check );
 			balances++;
 		 }
 		 else if( check->greater && ( check->children >= 2 )  )
 		 {
-			 //Log1( WIDE("rotateing to rightDepth (%d)"), check->children );
+			 //Log1( "rotateing to rightDepth (%d)", check->children );
 			 root = RotateToRight( check );
 			balances++;
 		 }
@@ -23809,7 +23593,7 @@ void BalanceBinaryTree( PTREEROOT root )
 	while( BalanceBinaryBranch( root->tree ) > 1 && 0);
 	root->lock = 0;
 #endif
-	//Log( WIDE("=========") );;
+	//Log( "=========" );;
 }
 //---------------------------------------------------------------------------
 //---------------------------------------------------------------------------
@@ -24104,28 +23888,106 @@ static void NativeRemoveBinaryNode( PTREEROOT root, PTREENODE node )
 {
 	if( root )
 	{
+		CPOINTER userdata;
+		uintptr_t userkey;
+		LOGICAL no_children = FALSE;
 		// lprintf( "Removing node from tree.. %p under %p", node, node->parent );
 		if( !node->parent->flags.bRoot
 			&& node->parent->lesser != node
 			&& node->parent->greater != node ) {
 			*(int*)0=0;
 		}
-		// lprintf( "%p should be removed!", node );
- // pull me out of the tree.
-		(*node->me) = NULL;
-		DecrementParentCounts( node->parent, node->children+1 );
-		// hang my right...
-		RehangBranch( root, node->greater );
-		// hang my left...
-		RehangBranch( root, node->lesser );
+		PTREENODE least = NULL;
+		PTREENODE backtrack;
+  // deepest node a change was made on.
+		PTREENODE bottom;
+		if( !node->lesser ) {
+			if( node->greater ) {
+				bottom = (*node->me) = node->greater;
+				bottom->parent = node->parent;
+			} else {
+				(*node->me) = NULL;
+				bottom = node;
+				no_children = TRUE;
+			}
+		} else if( !node->greater ) {
+			bottom = (*node->me) = node->lesser;
+			bottom->parent = node->parent;
+		} else {
+			// have a lesser and a greater.
+			if( node->lesser->depth > node->greater->depth ) {
+				least = node->lesser;
+				while( least->greater ) least = least->greater;
+				if( least->lesser ) {
+					(*(least->lesser->me =least->me)) = least->lesser;
+					least->lesser->parent  = least->parent;
+					bottom = least->lesser;
+					//least->parent->children--;
+					//least->parent->depth = (east->parent->greater->depth
+				} else {
+					(*(least->me)) = NULL;
+					bottom = least->parent;
+				}
+			} else {
+				least = node->greater;
+				while( least->lesser ) least = least->lesser;
+				if( least->greater ) {
+					(*(least->greater->me = least->me)) = least->greater;
+					least->greater->parent  = least->parent;
+					bottom = least->greater;
+					//least->parent->depth = (east->parent->greater->depth
+				} else {
+					(*(least->me)) = NULL;
+					bottom = least->parent;
+				}
+			}
+		}
+			{
+				int tmp1, tmp2;
+				backtrack = bottom;
+				lprintf( "Least: %p", least );
+				do {
+					while( backtrack->parent && ( no_children || backtrack != node ) ) {
+						backtrack = backtrack->parent;
+lprintf( "reduce parent's children from %d", backtrack->children );
+						backtrack->children--;
+						if( backtrack->lesser )
+							if( backtrack->greater )
+								if( (tmp1=backtrack->lesser->depth) > (tmp2=backtrack->greater->depth) )
+									backtrack->depth = tmp1 + 1;
+								else
+									backtrack->depth = tmp2 + 1;
+							else
+								backtrack->depth = backtrack->lesser->depth + 1;
+						else
+							if( backtrack->greater )
+								backtrack->depth = backtrack->greater->depth + 1;
+							else
+								backtrack->depth = 0;
+					}
+					if( least ) {
+						userdata = node->userdata;
+						userkey = node->key;
+						node->userdata = least->userdata;
+						node->key = least->key;
+						DeleteFromSet( TREENODE, TreeNodeSet, least );
+						node = NULL;
+						least = NULL;
+					}
+					if( backtrack )
+						backtrack = backtrack->parent;
+				} while( backtrack );
+			}
+		AVLbalancer( root, bottom );
 		if( root->Destroy )
-			root->Destroy( node->userdata, node->key );
-		MemSet( node, 0, sizeof( *node ) );
-		DeleteFromSet( TREENODE, TreeNodeSet, node );
+			root->Destroy( userdata, userkey );
+		//MemSet( node, 0, sizeof( *node ) );
+		if( node )
+			DeleteFromSet( TREENODE, TreeNodeSet, node );
 		//Release( node );
 		return;
 	}
-	lprintf( WIDE("Fatal RemoveBinaryNode could not find the root!") );
+	lprintf( "Fatal RemoveBinaryNode could not find the root!" );
 }
 //---------------------------------------------------------------------------
  void  RemoveBinaryNode ( PTREEROOT root, POINTER data, uintptr_t key )
@@ -24145,6 +24007,7 @@ static void NativeRemoveBinaryNode( PTREEROOT root, PTREENODE node )
 		{
 			if( node->userdata == data )
 			{
+lprintf( "REMOVE NODE %p", node );
 				NativeRemoveBinaryNode( root, node );
 				break;
 			}
@@ -24226,7 +24089,7 @@ void DumpNode( PTREENODE node, int level, int (*DumpMethod)( CPOINTER user, uint
 	//else
 	if( print ) {
 #ifdef SACK_BINARYLIST_USE_PRIMITIVE_LOGGING
-		snprintf( buf, 256, WIDE( "[%3d] %p Node has %3d depth  %3" )_32f WIDE( " children (%p %3" )_32f WIDE( ",%p %3" )_32f WIDE( "). %10" ) _PTRSZVALfs
+		snprintf( buf, 256, "[%3d] %p Node has %3d depth  %3" _32f " children (%p %3" _32f ",%p %3" _32f "). %10" _PTRSZVALfs
 			, level, node, node->depth, node->children
 			, node->lesser
 			, (node->lesser) ? (node->lesser->children + 1) : 0
@@ -24236,7 +24099,7 @@ void DumpNode( PTREENODE node, int level, int (*DumpMethod)( CPOINTER user, uint
 		);
 		puts( buf );
 #else
-		lprintf( WIDE( "[%3d] %p Node has %3d depth  %3" )_32f WIDE( " children (%p %3" )_32f WIDE( ",%p %3" )_32f WIDE( "). %10" ) _PTRSZVALfs
+		lprintf( "[%3d] %p Node has %3d depth  %3" _32f " children (%p %3" _32f ",%p %3" _32f "). %10" _PTRSZVALfs
 			, level, node, node->depth, node->children
 			, node->lesser
 			, (node->lesser) ? (node->lesser->children + 1) : 0
@@ -24265,24 +24128,90 @@ void DumpTree( PTREEROOT root
 	static char buf[256];
 	maxlevel = 0;
 	if( !Dump ) {
-		snprintf( buf, 256, WIDE( "Tree %p has %" )_32f WIDE( " nodes. %p is root" ), root, root->children, root->tree );
+		snprintf( buf, 256, "Tree %p has %" _32f " nodes. %p is root", root, root->children, root->tree );
 		puts( buf );
 	}
 	DumpNode( root->tree, 1, Dump );
 	if( !Dump ) {
-		snprintf( buf, 256, WIDE("Tree had %d levels."), maxlevel );
+		snprintf( buf, 256, "Tree had %d levels.", maxlevel );
 		puts( buf );
 	}
 	fflush( stdout );
 #else
 	maxlevel = 0;
 	if( !Dump ) {
-		lprintf(  WIDE( "Tree %p has %" )_32f WIDE( " nodes. %p is root" ), root, root->children, root->tree );
+		lprintf(  "Tree %p has %" _32f " nodes. %p is root", root, root->children, root->tree );
 	}
 	DumpNode( root->tree, 1, Dump );
 	if( !Dump ) {
-		lprintf( WIDE("Tree had %d levels."), maxlevel );
+		lprintf( "Tree had %d levels.", maxlevel );
 	}
+#endif
+}
+//---------------------------------------------------------------------------
+void DumpNodeInOrder( PLINKQUEUE *queue, PTREENODE node, int level, int (*DumpMethod)( CPOINTER user, uintptr_t key ) )
+{
+	while( node = DequeLink( queue ) )
+	{
+#ifdef SACK_BINARYLIST_USE_PRIMITIVE_LOGGING
+	static char buf[256];
+#endif
+	int print;
+	if( !node )
+		return;
+	if( node->lesser )
+		EnqueLink( queue, node->lesser );
+	if( node->greater )
+		EnqueLink( queue, node->greater );
+	if( DumpMethod )
+		print = DumpMethod( node->userdata, node->key );
+	else
+		print = TRUE;
+	//else
+	if( print ) {
+#ifdef SACK_BINARYLIST_USE_PRIMITIVE_LOGGING
+		snprintf( buf, 256, "[%3d] %p Node has %3d depth  %3" _32f " children (%p %3" _32f ",%p %3" _32f "). %10" _PTRSZVALfs
+			, level, node, node->depth, node->children
+			, node->lesser
+			, (node->lesser) ? (node->lesser->children + 1) : 0
+			, node->greater
+			, (node->greater) ? (node->greater->children + 1) : 0
+			, node->key
+		);
+		puts( buf );
+#else
+		lprintf( "[%3d] %p Node has %3d depth  %3" _32f " children (%p %3" _32f ",%p %3" _32f "). %10" _PTRSZVALfs
+			, level, node, node->depth, node->children
+			, node->lesser
+			, (node->lesser) ? (node->lesser->children + 1) : 0
+			, node->greater
+			, (node->greater) ? (node->greater->children + 1) : 0
+			, node->key
+		);
+#endif
+	}
+	}
+}
+//---------------------------------------------------------------------------
+void DumpInOrder( PTREEROOT root
+				 , int (*Dump)( CPOINTER user, uintptr_t key ) )
+{
+	PLINKQUEUE plq = CreateLinkQueue();
+	EnqueLink( &plq, root->tree );
+#ifdef SACK_BINARYLIST_USE_PRIMITIVE_LOGGING
+	static char buf[256];
+	if( !Dump ) {
+		snprintf( buf, 256, "Tree %p has %" _32f " nodes. %p is root", root, root->children, root->tree );
+		puts( buf );
+	}
+	DumpNodeInOrder( &plq, root->tree, 1, Dump );
+	fflush( stdout );
+#else
+	maxlevel = 0;
+	if( !Dump ) {
+		lprintf(  "Tree %p has %" _32f " nodes. %p is root", root, root->children, root->tree );
+	}
+	DumpNodeInOrder( &plq, root->tree, 1, Dump );
 #endif
 }
 //---------------------------------------------------------------------------
@@ -24706,7 +24635,7 @@ int GetNodeCount( PTREEROOT root )
 PTREEROOT ShadowBinaryTree( PTREEROOT Original )
 {
 	PTREEROOT root;
-	Log( WIDE("Use of binary tree shadows is fraught with danger!") );
+	Log( "Use of binary tree shadows is fraught with danger!" );
 	root = (PTREEROOT)Allocate( sizeof( TREEROOT ) );
 	MemSet( root, 0, sizeof( TREEROOT ) );
 	root->flags.bRoot = 1;
@@ -26153,12 +26082,12 @@ HTTP_EXPORT int HTTPAPI GetHttpResponseCode( HTTPState pHttpState );
 #define CreateHttpServer2(interface_address,site,default_handler,psv) CreateHttpServerEx( interface_address,NULL,site,default_handler,psv )
 // receives events for either GET if aspecific OnHttpRequest has not been defined for the specific resource
 // Return TRUE if processed, otherwise will attempt to match other Get Handlers
-#define OnHttpGet( site, resource )	 DefineRegistryMethod(WIDE( "SACK/Http/Methods" ),OnHttpGet,site,resource,WIDE( "Get" ),LOGICAL,(uintptr_t,PCLIENT,struct HttpState *,PTEXT),__LINE__)
+#define OnHttpGet( site, resource )	 DefineRegistryMethod("SACK/Http/Methods",OnHttpGet,site,resource,"Get",LOGICAL,(uintptr_t,PCLIENT,struct HttpState *,PTEXT),__LINE__)
 // receives events for either GET if aspecific OnHttpRequest has not been defined for the specific resource
 // Return TRUE if processed, otherwise will attempt to match other Get Handlers
-#define OnHttpPost( site, resource )	 DefineRegistryMethod(WIDE( "SACK/Http/Methods" ),OnHttpPost,site,resource,WIDE( "Post" ),LOGICAL,(uintptr_t,PCLIENT,struct HttpState *,PTEXT),__LINE__)
+#define OnHttpPost( site, resource )	 DefineRegistryMethod("SACK/Http/Methods",OnHttpPost,site,resource,"Post",LOGICAL,(uintptr_t,PCLIENT,struct HttpState *,PTEXT),__LINE__)
 // define a specific handler for a specific resource name on a host
-#define OnHttpRequest( site, resource )	 DefineRegistryMethod(WIDE( "SACK/Http/Methods" ),OnHttpRequest,WIDE( "something" ),site WIDE( "/" ) resource,WIDE( "Get" ),void,(uintptr_t,PCLIENT,struct HttpState *,PTEXT),__LINE__)
+#define OnHttpRequest( site, resource )	 DefineRegistryMethod("SACK/Http/Methods",OnHttpRequest,"something",site "/" resource,"Get",void,(uintptr_t,PCLIENT,struct HttpState *,PTEXT),__LINE__)
 //--------------------------------------------------------------
 //  URL.c  (url parsing utility)
 struct url_cgi_data
@@ -26199,14 +26128,14 @@ struct default_port
 	int number;
 };
 #define num_defaults (sizeof(default_ports)/sizeof(default_ports[0]))
-static struct default_port default_ports[] = { { WIDE("http"), 80 }
-															, { WIDE("ftp"), 21 }
-															, { WIDE("ssh"), 22 }
-															, { WIDE("telnet"), 23 }
-															, { WIDE("https"), 443 }
-															, { WIDE("ws"), 80 }
-															, { WIDE("wss"), 443 }
-															, { WIDE("file"), 0 }
+static struct default_port default_ports[] = { { "http", 80 }
+															, { "ftp", 21 }
+															, { "ssh", 22 }
+															, { "telnet", 23 }
+															, { "https", 443 }
+															, { "ws", 80 }
+															, { "wss", 443 }
+															, { "file", 0 }
 															};
 // TEXTSTR result = ConvertURIText( addr, length )
 // SACK_ParseURL takes a URL string and gets the pieces it can identify
@@ -26242,7 +26171,7 @@ static void AppendBuffer( CTEXTSTR *output, CTEXTSTR seperator, CTEXTSTR input )
 		if( seperator )
 			len += StrLen( seperator );
 		newout = NewArray( TEXTCHAR, len );
-		tnprintf( newout, len, WIDE("%s%s%s"), (*output), seperator?seperator:WIDE(""), tmpbuf );
+		tnprintf( newout, len, "%s%s%s", (*output), seperator?seperator:"", tmpbuf );
 		Release( (POINTER)*output );
 		(*output) = newout;
 		Release( (POINTER)tmpbuf );
@@ -26415,13 +26344,13 @@ struct url_data * SACK_URLParse( const char *url )
 			if( state == PARSE_STATE_COLLECT_PROTOCOL_1 )
 			{
 				if( outchar > 0 )
-					lprintf( WIDE("Characters between protocol ':' and first slash") );
+					lprintf( "Characters between protocol ':' and first slash" );
 				state = PARSE_STATE_COLLECT_PROTOCOL_2;
 			}
 			else if( state == PARSE_STATE_COLLECT_PROTOCOL_2 )
 			{
 				if( outchar > 0 )
-					lprintf( WIDE("Characters between protocol first and second slash") );
+					lprintf( "Characters between protocol first and second slash" );
 				state = PARSE_STATE_COLLECT_USER;
 			}
 			else if( state == PARSE_STATE_COLLECT_USER )
@@ -26462,7 +26391,7 @@ struct url_data * SACK_URLParse( const char *url )
 			{
 				outbuf[outchar] = 0;
 				outchar = 0;
-				AppendBuffer( &data->resource_path, WIDE("/"), outbuf );
+				AppendBuffer( &data->resource_path, "/", outbuf );
 				state = PARSE_STATE_COLLECT_RESOURCE_NAME;
 			}
 			else if( state == PARSE_STATE_COLLECT_RESOURCE_NAME )
@@ -26470,7 +26399,7 @@ struct url_data * SACK_URLParse( const char *url )
 				// this isn't really the name, it's another part of the resource path
 				outbuf[outchar] = 0;
 				outchar = 0;
-				AppendBuffer( &data->resource_path, WIDE("/"), outbuf );
+				AppendBuffer( &data->resource_path, "/", outbuf );
 				state = PARSE_STATE_COLLECT_RESOURCE_NAME;
 			}
 			break;
@@ -26562,7 +26491,7 @@ struct url_data * SACK_URLParse( const char *url )
  // blank cgi names go & to & and stay in the same state
 				&& ( state != PARSE_STATE_COLLECT_CGI_NAME )
 				)
-				lprintf( WIDE("Dropping character (%d) '%c' in %s"), url - _outbuf, ch, _outbuf );
+				lprintf( "Dropping character (%d) '%c' in %s", url - _outbuf, ch, _outbuf );
 		}
 		_state = state;
 	}
@@ -26610,13 +26539,13 @@ struct url_data * SACK_URLParse( const char *url )
 			{
 				outbuf[outchar] = 0;
 				outchar = 0;
-				AppendBuffer( &data->resource_path, WIDE("/"), outbuf );
+				AppendBuffer( &data->resource_path, "/", outbuf );
 				state = PARSE_STATE_COLLECT_RESOURCE_NAME;
 			}
 			else
 			{
 				outbuf[outchar] = 0;
-				lprintf( WIDE("Unused output: state %d [%s]"), state, outbuf );
+				lprintf( "Unused output: state %d [%s]", state, outbuf );
 			}
 		}
 		break;
@@ -26630,7 +26559,7 @@ char *SACK_BuildURL( struct url_data *data )
 	CTEXTSTR tmp = NULL;
 	CTEXTSTR tmp2 = NULL;
 	if( data->protocol )
-		vtprintf( pvt, WIDE("%s://"), tmp = ConvertTextURI( data->protocol, StrLen( data->protocol ), 0 ) );
+		vtprintf( pvt, "%s://", tmp = ConvertTextURI( data->protocol, StrLen( data->protocol ), 0 ) );
 	if( tmp )
 	{
 		Release( (POINTER)tmp );
@@ -26638,10 +26567,10 @@ char *SACK_BuildURL( struct url_data *data )
 	}
 	// must be a user to use the password, setting just a password is an error really
 	if( data->user )
-		vtprintf( pvt, WIDE("%s%s%s@")
+		vtprintf( pvt, "%s%s%s@"
 				  , tmp = ConvertTextURI( data->user, StrLen( data->user ), 0 )
-				  , data->password?WIDE(":"):WIDE("")
-				  , data->password?(tmp2 = ConvertTextURI( data->password, StrLen( data->password ), 0 )):WIDE("") );
+				  , data->password?":":""
+				  , data->password?(tmp2 = ConvertTextURI( data->password, StrLen( data->password ), 0 )):"" );
 	if( tmp )
 	{
 		Release( (POINTER)tmp );
@@ -26653,7 +26582,7 @@ char *SACK_BuildURL( struct url_data *data )
 		tmp2 = NULL;
 	}
 	if( data->host )
-		vtprintf( pvt, WIDE("%s")
+		vtprintf( pvt, "%s"
 				  , tmp = ConvertTextURI( data->host, StrLen( data->host ), 0 ) );
 	if( tmp )
 	{
@@ -26661,14 +26590,14 @@ char *SACK_BuildURL( struct url_data *data )
 		tmp = NULL;
 	}
 	if( data->port )
-		vtprintf( pvt, WIDE(":%d"), data->port );
+		vtprintf( pvt, ":%d", data->port );
 	if( tmp )
 	{
 		Release( (POINTER)tmp );
 		tmp = NULL;
 	}
 	if( data->resource_path )
-		vtprintf( pvt, WIDE("/%s")
+		vtprintf( pvt, "/%s"
 				  , tmp = ConvertTextURI( data->resource_path, StrLen( data->resource_path), 1 ) );
 	if( tmp )
 	{
@@ -26676,7 +26605,7 @@ char *SACK_BuildURL( struct url_data *data )
 		tmp = NULL;
 	}
 	if( data->resource_file )
-		vtprintf( pvt, WIDE("/%s")
+		vtprintf( pvt, "/%s"
 				  , tmp = ConvertTextURI( data->resource_file, StrLen( data->resource_file), 0 ) );
 	if( tmp )
 	{
@@ -26684,7 +26613,7 @@ char *SACK_BuildURL( struct url_data *data )
 		tmp = NULL;
 	}
 	if( data->resource_extension )
-		vtprintf( pvt, WIDE(".%s")
+		vtprintf( pvt, ".%s"
 				  , tmp = ConvertTextURI( data->resource_extension, StrLen( data->resource_extension), 0 ) );
 	if( tmp )
 	{
@@ -26692,7 +26621,7 @@ char *SACK_BuildURL( struct url_data *data )
 		tmp = NULL;
 	}
 	if( data->resource_anchor )
-		vtprintf( pvt, WIDE("#%s")
+		vtprintf( pvt, "#%s"
 				  , tmp = ConvertTextURI( data->resource_anchor, StrLen( data->resource_anchor), 0 ) );
 	if( tmp )
 	{
@@ -26707,9 +26636,9 @@ char *SACK_BuildURL( struct url_data *data )
 		LIST_FORALL( data->cgi_parameters, idx, struct url_cgi_data *, cgi_data )
 		{
 			if( cgi_data->value )
-				vtprintf( pvt, WIDE("%s%s=%s"), first?WIDE("?"):WIDE("&"), cgi_data->name, cgi_data->value );
+				vtprintf( pvt, "%s%s=%s", first?"?":"&", cgi_data->name, cgi_data->value );
 			else
-				vtprintf( pvt, WIDE("%s%s"), first?WIDE("?"):WIDE("&"), cgi_data->name );
+				vtprintf( pvt, "%s%s", first?"?":"&", cgi_data->name );
 			first = 0;
 		}
 	}
@@ -27238,6 +27167,8 @@ void _json_dispose_message( PDATALIST *msg_data );
 #ifdef __cplusplus
 } } SACK_NAMESPACE_END
 #endif
+// derefecing NULL pointers; the function wouldn't be called with a NULL.
+#pragma warning( disable:6011)
 #ifdef __cplusplus
 SACK_NAMESPACE namespace network { namespace json {
 #endif
@@ -27380,7 +27311,7 @@ static int gatherString( CTEXTSTR msg, CTEXTSTR *msg_input, size_t msglen, TEXTS
 					}
 					if( oct_char > 255 ) {
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, WIDE( "(escaped character, parsing octal escape val=%d) fault while parsing; )" ) WIDE( " (near %*.*s[%c]%s)" )
+						vtprintf( state->pvtError, "(escaped character, parsing octal escape val=%d) fault while parsing; )" " (near %*.*s[%c]%s)"
 							, oct_char
 							, (int)((n>3) ? 3 : n), (int)((n>3) ? 3 : n)
 							, (*msg_input) - ((n>3) ? 3 : n)
@@ -27412,7 +27343,7 @@ static int gatherString( CTEXTSTR msg, CTEXTSTR *msg_input, size_t msglen, TEXTS
 						else if( c >= 'a' && c <= 'f' ) hex_char += (c - 'a') + 10;
 						else {
 							if( !state->pvtError ) state->pvtError = VarTextCreate();
-							vtprintf( state->pvtError, WIDE( "(escaped character, parsing hex of \\x) fault while parsing; '%c' unexpected at %" )_size_f WIDE( " (near %*.*s[%c]%s)" ), c, n
+							vtprintf( state->pvtError, "(escaped character, parsing hex of \\x) fault while parsing; '%c' unexpected at %" _size_f " (near %*.*s[%c]%s)", c, n
 								, (int)((n>3) ? 3 : n), (int)((n>3) ? 3 : n)
 								, (*msg_input) - ((n>3) ? 3 : n)
 								, c
@@ -27452,7 +27383,7 @@ static int gatherString( CTEXTSTR msg, CTEXTSTR *msg_input, size_t msglen, TEXTS
 						else if( c >= 'a' && c <= 'f' ) hex_char += (c - 'a') + 10;
 						else {
 							if( !state->pvtError ) state->pvtError = VarTextCreate();
-							vtprintf( state->pvtError, WIDE( "(escaped character, parsing hex of \\u) fault while parsing; '%c' unexpected at %" )_size_f WIDE( " (near %*.*s[%c]%s)" ), c, n
+							vtprintf( state->pvtError, "(escaped character, parsing hex of \\u) fault while parsing; '%c' unexpected at %" _size_f " (near %*.*s[%c]%s)", c, n
 								, (int)((n > 3) ? 3 : n), (int)((n > 3) ? 3 : n)
 								, (*msg_input) - ((n > 3) ? 3 : n)
 								, c
@@ -27473,7 +27404,7 @@ static int gatherString( CTEXTSTR msg, CTEXTSTR *msg_input, size_t msglen, TEXTS
 					}
 					else {
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, WIDE( "(escaped character) fault while parsing; '%c' unexpected %" )_size_f WIDE( " (near %*.*s[%c]%s)" ), c, n
+						vtprintf( state->pvtError, "(escaped character) fault while parsing; '%c' unexpected %" _size_f " (near %*.*s[%c]%s)", c, n
 							, (int)((n>3) ? 3 : n), (int)((n>3) ? 3 : n)
 							, (*msg_input) - ((n>3) ? 3 : n)
 							, c
@@ -27675,11 +27606,11 @@ int json_parse_add_data( struct json_parse_state *state
 				{
 					if( state->parse_context == CONTEXT_IN_ARRAY ) {
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, WIDE( "(in array, got colon out of string):parsing fault; unexpected %c at %" ) _size_f, c, state->n );
+						vtprintf( state->pvtError, "(in array, got colon out of string):parsing fault; unexpected %c at %" _size_f, c, state->n );
 					}
 					else {
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, WIDE( "(outside any object, got colon out of string):parsing fault; unexpected %c at %" ) _size_f, c, state->n );
+						vtprintf( state->pvtError, "(outside any object, got colon out of string):parsing fault; unexpected %c at %" _size_f, c, state->n );
 					}
 					state->status = FALSE;
 				}
@@ -27715,7 +27646,7 @@ int json_parse_add_data( struct json_parse_state *state
 				else
 				{
 					if( !state->pvtError ) state->pvtError = VarTextCreate();
-					vtprintf( state->pvtError, WIDE( "Fault while parsing; unexpected %c at %" ) _size_f, c, state->n );
+					vtprintf( state->pvtError, "Fault while parsing; unexpected %c at %" _size_f, c, state->n );
 					state->status = FALSE;
 				}
 				break;
@@ -27748,7 +27679,7 @@ int json_parse_add_data( struct json_parse_state *state
 				{
 					if( !state->pvtError ) state->pvtError = VarTextCreate();
 // fault
-					vtprintf( state->pvtError, WIDE( "bad context %d; fault while parsing; '%c' unexpected at %" ) _size_f, state->parse_context, c, state->n );
+					vtprintf( state->pvtError, "bad context %d; fault while parsing; '%c' unexpected at %" _size_f, state->parse_context, c, state->n );
 					state->status = FALSE;
 				}
 				break;
@@ -27769,7 +27700,7 @@ int json_parse_add_data( struct json_parse_state *state
 				{
 					if( !state->pvtError ) state->pvtError = VarTextCreate();
 // fault
-					vtprintf( state->pvtError, WIDE( "bad context; fault while parsing; '%c' unexpected at %" ) _size_f, c, state->n );
+					vtprintf( state->pvtError, "bad context; fault while parsing; '%c' unexpected at %" _size_f, c, state->n );
 				}
 				break;
 			default:
@@ -27821,7 +27752,7 @@ int json_parse_add_data( struct json_parse_state *state
 					state->status = FALSE;
 					if( !state->pvtError ) state->pvtError = VarTextCreate();
 	// fault
-					vtprintf( state->pvtError, WIDE( "fault while parsing; whitespace unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, state->n );
+					vtprintf( state->pvtError, "fault while parsing; whitespace unexpected at %" _size_f "  %" _size_f ":%" _size_f, state->n );
 					// skip whitespace
 					//n++;
 					//lprintf( "whitespace skip..." );
@@ -27834,7 +27765,7 @@ int json_parse_add_data( struct json_parse_state *state
 						state->status = FALSE;
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
 // fault
-						vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f, c, state->n ); }
+						vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f, c, state->n ); }
 					break;
 				case 'r':
 					if( state->word == WORD_POS_TRUE_1 ) state->word = WORD_POS_TRUE_2;
@@ -27842,7 +27773,7 @@ int json_parse_add_data( struct json_parse_state *state
 						state->status = FALSE;
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
 // fault
-						vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f, c, state->n ); }
+						vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f, c, state->n ); }
 					break;
 				case 'u':
 					if( state->word == WORD_POS_TRUE_2 ) state->word = WORD_POS_TRUE_3;
@@ -27850,7 +27781,7 @@ int json_parse_add_data( struct json_parse_state *state
 					else if( state->word == WORD_POS_RESET ) state->word = WORD_POS_UNDEFINED_1;
 					else { state->status = FALSE; if( !state->pvtError ) state->pvtError = VarTextCreate();
 // fault
-					vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f, c, state->n ); }
+					vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f, c, state->n ); }
 					break;
 				case 'e':
 					if( state->word == WORD_POS_TRUE_3 ) {
@@ -27865,7 +27796,7 @@ int json_parse_add_data( struct json_parse_state *state
 					else if( state->word == WORD_POS_UNDEFINED_7 ) state->word = WORD_POS_UNDEFINED_8;
 					else { state->status = FALSE; if( !state->pvtError ) state->pvtError = VarTextCreate();
 // fault
-					vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f, c, state->n ); }
+					vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f, c, state->n ); }
 					break;
 				case 'n':
 					if( state->word == WORD_POS_RESET ) state->word = WORD_POS_NULL_1;
@@ -27873,20 +27804,20 @@ int json_parse_add_data( struct json_parse_state *state
 					else if( state->word == WORD_POS_UNDEFINED_6 ) state->word = WORD_POS_UNDEFINED_7;
 					else { state->status = FALSE; if( !state->pvtError ) state->pvtError = VarTextCreate();
 // fault
-					vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f, c, state->n ); }
+					vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f, c, state->n ); }
 					break;
 				case 'd':
 					if( state->word == WORD_POS_UNDEFINED_2 ) state->word = WORD_POS_UNDEFINED_3;
 					else if( state->word == WORD_POS_UNDEFINED_8 ) { state->val.value_type = VALUE_UNDEFINED; state->word = WORD_POS_END; }
 					else { state->status = FALSE; if( !state->pvtError ) state->pvtError = VarTextCreate();
 // fault
-					vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f, c, state->n ); }
+					vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f, c, state->n ); }
 					break;
 				case 'i':
 					if( state->word == WORD_POS_UNDEFINED_5 ) state->word = WORD_POS_UNDEFINED_6;
 					else { state->status = FALSE; if( !state->pvtError ) state->pvtError = VarTextCreate();
 // fault
-					vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f, c, state->n ); }
+					vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f, c, state->n ); }
 					break;
 				case 'l':
 					if( state->word == WORD_POS_NULL_2 ) state->word = WORD_POS_NULL_3;
@@ -27897,26 +27828,26 @@ int json_parse_add_data( struct json_parse_state *state
 					else if( state->word == WORD_POS_FALSE_2 ) state->word = WORD_POS_FALSE_3;
 					else { state->status = FALSE; if( !state->pvtError ) state->pvtError = VarTextCreate();
 // fault
-					vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f, c, state->n ); }
+					vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f, c, state->n ); }
 					break;
 				case 'f':
 					if( state->word == WORD_POS_RESET ) state->word = WORD_POS_FALSE_1;
 					else if( state->word == WORD_POS_UNDEFINED_4 ) state->word = WORD_POS_UNDEFINED_5;
 					else { state->status = FALSE; if( !state->pvtError ) state->pvtError = VarTextCreate();
 // fault
-					vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f, c, state->n ); }
+					vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f, c, state->n ); }
 					break;
 				case 'a':
 					if( state->word == WORD_POS_FALSE_1 ) state->word = WORD_POS_FALSE_2;
 					else { state->status = FALSE; if( !state->pvtError ) state->pvtError = VarTextCreate();
 // fault
-					vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f, c, state->n ); }
+					vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f, c, state->n ); }
 					break;
 				case 's':
 					if( state->word == WORD_POS_FALSE_3 ) state->word = WORD_POS_FALSE_4;
 					else { state->status = FALSE; if( !state->pvtError ) state->pvtError = VarTextCreate();
 // fault
-					vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f, c, state->n ); }
+					vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f, c, state->n ); }
 					break;
 					//
 					//----------------------------------------------------------
@@ -27966,7 +27897,7 @@ int json_parse_add_data( struct json_parse_state *state
 								else {
 									state->status = FALSE;
 									if( !state->pvtError ) state->pvtError = VarTextCreate();
-									vtprintf( state->pvtError, WIDE( "fault wile parsing; '%c' unexpected at %" ) _size_f, c, state->n );
+									vtprintf( state->pvtError, "fault wile parsing; '%c' unexpected at %" _size_f, c, state->n );
 									break;
 								}
 							}
@@ -27980,7 +27911,7 @@ int json_parse_add_data( struct json_parse_state *state
 								else {
 									state->status = FALSE;
 									if( !state->pvtError ) state->pvtError = VarTextCreate();
-									vtprintf( state->pvtError, WIDE( "fault wile parsing; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+									vtprintf( state->pvtError, "fault wile parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 									break;
 								}
 							}
@@ -27988,7 +27919,7 @@ int json_parse_add_data( struct json_parse_state *state
 								if( !state->exponent ) {
 									state->status = FALSE;
 									if( !state->pvtError ) state->pvtError = VarTextCreate();
-									vtprintf( state->pvtError, WIDE( "fault wile parsing; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+									vtprintf( state->pvtError, "fault wile parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 									break;
 								}
 								else {
@@ -28051,7 +27982,7 @@ int json_parse_add_data( struct json_parse_state *state
 						// fault, illegal characer (whitespace?)
 						state->status = FALSE;
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, WIDE( "fault parsing '%c' unexpected %" )_size_f WIDE( " (near %*.*s[%c]%s)" ), c, state->n
+						vtprintf( state->pvtError, "fault parsing '%c' unexpected %" _size_f " (near %*.*s[%c]%s)", c, state->n
 							, (int)((state->n > 4) ? 3 : (state->n - 1)), (int)((state->n > 4) ? 3 : (state->n - 1))
 							, input->pos + state->n - ((state->n > 4) ? 4 : state->n)
 							, c
@@ -28203,7 +28134,7 @@ static void FillDataToElement( struct json_context_object_element *element
 				((CTEXTSTR*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = StrDup( val->string );
 				break;
 			default:
-				lprintf( WIDE("Expected a string, but parsed result was a %d"), val->value_type );
+				lprintf( "Expected a string, but parsed result was a %d", val->value_type );
 				break;
 			}
 		}
@@ -28301,7 +28232,7 @@ static void FillDataToElement( struct json_context_object_element *element
 			case VALUE_NUMBER:
 				if( val->float_result )
 				{
-					lprintf( WIDE("warning received float, converting to int") );
+					lprintf( "warning received float, converting to int" );
 					((int64_t*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = (int64_t)val->result_d;
 				}
 				else
@@ -28310,7 +28241,7 @@ static void FillDataToElement( struct json_context_object_element *element
 				}
 				break;
 			default:
-				lprintf( WIDE("Expected a string, but parsed result was a %d"), val->value_type );
+				lprintf( "Expected a string, but parsed result was a %d", val->value_type );
 				break;
 			}
 		}
@@ -28338,7 +28269,7 @@ static void FillDataToElement( struct json_context_object_element *element
 				else
 				{
                // this is probably common (0 for instance)
-					lprintf( WIDE("warning received int, converting to float") );
+					lprintf( "warning received int, converting to float" );
 					if( element->type == JSON_Element_Float )
 						((float*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = (float)val->result_n;
 					else
@@ -28346,7 +28277,7 @@ static void FillDataToElement( struct json_context_object_element *element
 				}
 				break;
 			default:
-				lprintf( WIDE("Expected a float, but parsed result was a %d"), val->value_type );
+				lprintf( "Expected a float, but parsed result was a %d", val->value_type );
 				break;
 			}
 		}
@@ -28369,7 +28300,7 @@ static void FillDataToElement( struct json_context_object_element *element
 			case VALUE_NUMBER:
 				if( val->float_result )
 				{
-					lprintf( WIDE("warning received float, converting to int (uintptr_t)") );
+					lprintf( "warning received float, converting to int (uintptr_t)" );
 					((uintptr_t*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = (uintptr_t)val->result_d;
 				}
 				else
@@ -28437,13 +28368,13 @@ LOGICAL json_decode_message( struct json_context *format
 								}
 								else
 								{
-									lprintf( WIDE("Error; object type does not have an object") );
+									lprintf( "Error; object type does not have an object" );
 									status = FALSE;
 								}
 							}
 							else
 							{
-								lprintf( WIDE("Incompatible value expected object type, type is %d"), element->type );
+								lprintf( "Incompatible value expected object type, type is %d", element->type );
 							}
 						}
 					}
@@ -29329,7 +29260,7 @@ static int gatherString6(struct json_parse_state *state, CTEXTSTR msg, CTEXTSTR 
 					continue;
 				} else {
 					if( state->hex_char > 255 ) {
-						lprintf(WIDE("(escaped character, parsing octal escape val=%d) fault while parsing; )") WIDE(" (near %*.*s[%c]%s)")
+						lprintf("(escaped character, parsing octal escape val=%d) fault while parsing; )" " (near %*.*s[%c]%s)"
 							, state->hex_char
 							, (int)( ( n>3 ) ? 3 : n ), (int)( ( n>3 ) ? 3 : n )
 							, ( *msg_input ) - ( ( n>3 ) ? 3 : n )
@@ -29358,7 +29289,7 @@ static int gatherString6(struct json_parse_state *state, CTEXTSTR msg, CTEXTSTR 
 				else if( c >= 'A' && c <= 'F' ) state->hex_char += ( c - 'A' ) + 10;
 				else if( c >= 'a' && c <= 'f' ) state->hex_char += ( c - 'a' ) + 10;
 				else {
-					lprintf(WIDE("(escaped character, parsing hex of \\u) fault while parsing; '%c' unexpected at %")_size_f WIDE(" (near %*.*s[%c]%s)"), c, n
+					lprintf("(escaped character, parsing hex of \\u) fault while parsing; '%c' unexpected at %" _size_f " (near %*.*s[%c]%s)", c, n
 						, (int)( ( n > 3 ) ? 3 : n ), (int)( ( n > 3 ) ? 3 : n )
 						, ( *msg_input ) - ( ( n > 3 ) ? 3 : n )
 						, c
@@ -29381,7 +29312,7 @@ static int gatherString6(struct json_parse_state *state, CTEXTSTR msg, CTEXTSTR 
 					else if( c >= 'A' && c <= 'F' ) state->hex_char += ( c - 'A' ) + 10;
 					else if( c >= 'a' && c <= 'f' ) state->hex_char += ( c - 'a' ) + 10;
 					else {
-						lprintf(WIDE("(escaped character, parsing hex of \\x) fault while parsing; '%c' unexpected at %")_size_f WIDE(" (near %*.*s[%c]%s)"), c, n
+						lprintf("(escaped character, parsing hex of \\x) fault while parsing; '%c' unexpected at %" _size_f " (near %*.*s[%c]%s)", c, n
 							, (int)( ( n>3 ) ? 3 : n ), (int)( ( n>3 ) ? 3 : n )
 							, ( *msg_input ) - ( ( n>3 ) ? 3 : n )
 							, c
@@ -29465,7 +29396,7 @@ static int gatherString6(struct json_parse_state *state, CTEXTSTR msg, CTEXTSTR 
 					state->escape = FALSE;
 					mOut += ConvertToUTF8(mOut, c);
 				} else {
-					lprintf(WIDE("(escaped character) fault while parsing; '%c' unexpected %")_size_f WIDE(" (near %*.*s[%c]%s)"), c, n
+					lprintf("(escaped character) fault while parsing; '%c' unexpected %" _size_f " (near %*.*s[%c]%s)", c, n
 						, (int)( ( n>3 ) ? 3 : n ), (int)( ( n>3 ) ? 3 : n )
 						, ( *msg_input ) - ( ( n>3 ) ? 3 : n )
 						, c
@@ -29613,7 +29544,7 @@ int json6_parse_add_data( struct json_parse_state *state
 					if( c == '*' ) { state->comment = 3; continue; }
 					if( c != '/' ) {
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, WIDE( "Fault while parsing; unexpected %c at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+						vtprintf( state->pvtError, "Fault while parsing; unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 						state->status = FALSE;
 					}
 					else state->comment = 2;
@@ -29665,7 +29596,7 @@ int json6_parse_add_data( struct json_parse_state *state
 			case '[':
 				if( state->parse_context == CONTEXT_OBJECT_FIELD ) {
 					if( !state->pvtError ) state->pvtError = VarTextCreate();
-					vtprintf( state->pvtError, WIDE( "Fault while parsing; while getting field name unexpected %c at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+					vtprintf( state->pvtError, "Fault while parsing; while getting field name unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 					state->status = FALSE;
 					break;
 				}
@@ -29696,7 +29627,7 @@ int json6_parse_add_data( struct json_parse_state *state
 						// allow starting a new word
 						state->status = FALSE;
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, WIDE( "unquoted keyword used as object field name:parsing fault; unexpected %c at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+						vtprintf( state->pvtError, "unquoted keyword used as object field name:parsing fault; unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 						break;
 					}
 					else if( state->word == WORD_POS_FIELD ) {
@@ -29721,9 +29652,9 @@ int json6_parse_add_data( struct json_parse_state *state
 				{
 					if( !state->pvtError ) state->pvtError = VarTextCreate();
 					if( state->parse_context == CONTEXT_IN_ARRAY )
-						vtprintf( state->pvtError, WIDE( "(in array, got colon out of string):parsing fault; unexpected %c at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+						vtprintf( state->pvtError, "(in array, got colon out of string):parsing fault; unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 					else
-						vtprintf( state->pvtError, WIDE( "(outside any object, got colon out of string):parsing fault; unexpected %c at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+						vtprintf( state->pvtError, "(outside any object, got colon out of string):parsing fault; unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 					state->status = FALSE;
 				}
 				break;
@@ -29764,7 +29695,7 @@ int json6_parse_add_data( struct json_parse_state *state
 				else
 				{
 					if( !state->pvtError ) state->pvtError = VarTextCreate();
-					vtprintf( state->pvtError, WIDE( "Fault while parsing; unexpected %c at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+					vtprintf( state->pvtError, "Fault while parsing; unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 					state->status = FALSE;
 				}
 				break;
@@ -29803,7 +29734,7 @@ int json6_parse_add_data( struct json_parse_state *state
 				{
 					if( !state->pvtError ) state->pvtError = VarTextCreate();
 // fault
-					vtprintf( state->pvtError, WIDE( "bad context %d; fault while parsing; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, state->parse_context, c, state->n, state->line, state->col );
+					vtprintf( state->pvtError, "bad context %d; fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, state->parse_context, c, state->n, state->line, state->col );
 					state->status = FALSE;
 				}
 				break;
@@ -29842,7 +29773,7 @@ int json6_parse_add_data( struct json_parse_state *state
 					state->status = FALSE;
 					if( !state->pvtError ) state->pvtError = VarTextCreate();
 // fault
-					vtprintf( state->pvtError, WIDE( "bad context; fault while parsing; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+					vtprintf( state->pvtError, "bad context; fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 				}
 				break;
 			default:
@@ -29854,7 +29785,7 @@ int json6_parse_add_data( struct json_parse_state *state
 							state->status = FALSE;
 							if( !state->pvtError ) state->pvtError = VarTextCreate();
 	// fault
-							vtprintf( state->pvtError, WIDE( "fault while parsing object field name; \\u00%02X unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+							vtprintf( state->pvtError, "fault while parsing object field name; \\u00%02X unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 							break;
 						}
 					}
@@ -29867,7 +29798,7 @@ int json6_parse_add_data( struct json_parse_state *state
 								state->status = FALSE;
 								if( !state->pvtError ) state->pvtError = VarTextCreate();
 	// fault
-								vtprintf( state->pvtError, WIDE( "fault while parsing object field name; \\u00%02X unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+								vtprintf( state->pvtError, "fault while parsing object field name; \\u00%02X unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 								break;
 							}
 						}
@@ -29920,7 +29851,7 @@ int json6_parse_add_data( struct json_parse_state *state
 						state->status = FALSE;
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
 	// fault
-						vtprintf( state->pvtError, WIDE( "fault while parsing; whitespace unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, state->n, state->line, state->col );
+						vtprintf( state->pvtError, "fault while parsing; whitespace unexpected at %" _size_f "  %" _size_f ":%" _size_f, state->n, state->line, state->col );
 						// skip whitespace
 						//n++;
 						//lprintf( "whitespace skip..." );
@@ -29930,7 +29861,7 @@ int json6_parse_add_data( struct json_parse_state *state
 							state->status = FALSE;
 							if( !state->pvtError ) state->pvtError = VarTextCreate();
 	// fault
-							vtprintf( state->pvtError, WIDE( "fault while parsing; unquoted space in field name at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, state->n, state->line, state->col );
+							vtprintf( state->pvtError, "fault while parsing; unquoted space in field name at %" _size_f "  %" _size_f ":%" _size_f, state->n, state->line, state->col );
 							break;
 						} else if( state->word == WORD_POS_RESET ) {
 							state->word = WORD_POS_FIELD;
@@ -30001,7 +29932,7 @@ int json6_parse_add_data( struct json_parse_state *state
 						state->status = FALSE;
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
 	// fault
-						vtprintf( state->pvtError, WIDE( "fault while parsing; whitespace unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, state->n );
+						vtprintf( state->pvtError, "fault while parsing; whitespace unexpected at %" _size_f "  %" _size_f ":%" _size_f, state->n );
 					}
 					// skip whitespace
 					//n++;
@@ -30015,7 +29946,7 @@ int json6_parse_add_data( struct json_parse_state *state
 					else {
 						state->status = FALSE;
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f
+						vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f
 								, c, state->n, state->line, state->col );
 // fault
 					}
@@ -30025,7 +29956,7 @@ int json6_parse_add_data( struct json_parse_state *state
 					else {
 						state->status = FALSE;
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f
+						vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f
 							, c, state->n, state->line, state->col );
 // fault
 					}
@@ -30037,7 +29968,7 @@ int json6_parse_add_data( struct json_parse_state *state
 					else {
 						state->status = FALSE;
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f
+						vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f
 							, c, state->n, state->line, state->col );
 // fault
 					}
@@ -30056,7 +29987,7 @@ int json6_parse_add_data( struct json_parse_state *state
 					else {
 						state->status = FALSE;
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f
+						vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f
 							, c, state->n, state->line, state->col );
 // fault
 					}
@@ -30070,7 +30001,7 @@ int json6_parse_add_data( struct json_parse_state *state
 					else {
 						state->status = FALSE;
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f
+						vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f
 							, c, state->n, state->line, state->col );
 // fault
 					}
@@ -30081,7 +30012,7 @@ int json6_parse_add_data( struct json_parse_state *state
 					else {
 						state->status = FALSE;
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f
+						vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f
 							, c, state->n, state->line, state->col );
 // fault
 					}
@@ -30093,7 +30024,7 @@ int json6_parse_add_data( struct json_parse_state *state
 					else {
 						state->status = FALSE;
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f
+						vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f
 							, c, state->n, state->line, state->col );
 // fault
 					}
@@ -30108,7 +30039,7 @@ int json6_parse_add_data( struct json_parse_state *state
 					else {
 						state->status = FALSE;
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f
+						vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f
 							, c, state->n, state->line, state->col );
 // fault
 					}
@@ -30120,7 +30051,7 @@ int json6_parse_add_data( struct json_parse_state *state
 					else {
 						state->status = FALSE;
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f
+						vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f
 							, c, state->n, state->line, state->col );
 // fault
 					}
@@ -30131,7 +30062,7 @@ int json6_parse_add_data( struct json_parse_state *state
 					else {
 						state->status = FALSE;
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f
+						vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f
 							, c, state->n, state->line, state->col );
 // fault
 					}
@@ -30141,7 +30072,7 @@ int json6_parse_add_data( struct json_parse_state *state
 					else {
 						state->status = FALSE;
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f
+						vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f
 							, c, state->n, state->line, state->col );
 // fault
 					}
@@ -30151,7 +30082,7 @@ int json6_parse_add_data( struct json_parse_state *state
 					else {
 						state->status = FALSE;
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f
+						vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f
 							, c, state->n, state->line, state->col );
 // fault
 					}
@@ -30162,7 +30093,7 @@ int json6_parse_add_data( struct json_parse_state *state
 					else {
 						state->status = FALSE;
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f
+						vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f
 							, c, state->n, state->line, state->col );
 // fault
 					}
@@ -30172,7 +30103,7 @@ int json6_parse_add_data( struct json_parse_state *state
 					else {
 						state->status = FALSE;
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, WIDE( "fault while parsing; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f
+						vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f
 							, c, state->n, state->line, state->col );
 // fault
 					}
@@ -30244,7 +30175,7 @@ int json6_parse_add_data( struct json_parse_state *state
 								else {
 									state->status = FALSE;
 									if( !state->pvtError ) state->pvtError = VarTextCreate();
-									vtprintf( state->pvtError, WIDE( "fault white parsing number; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+									vtprintf( state->pvtError, "fault white parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 									break;
 								}
 							}
@@ -30258,7 +30189,7 @@ int json6_parse_add_data( struct json_parse_state *state
 								else {
 									state->status = FALSE;
 									if( !state->pvtError ) state->pvtError = VarTextCreate();
-									vtprintf( state->pvtError, WIDE( "fault white parsing number; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+									vtprintf( state->pvtError, "fault white parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 									break;
 								}
 							}
@@ -30266,7 +30197,7 @@ int json6_parse_add_data( struct json_parse_state *state
 								if( !state->exponent ) {
 									state->status = FALSE;
 									if( !state->pvtError ) state->pvtError = VarTextCreate();
-									vtprintf( state->pvtError, WIDE( "fault white parsing number; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+									vtprintf( state->pvtError, "fault white parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 									break;
 								}
 								else {
@@ -30277,7 +30208,7 @@ int json6_parse_add_data( struct json_parse_state *state
 									else {
 										state->status = FALSE;
 										if( !state->pvtError ) state->pvtError = VarTextCreate();
-										vtprintf( state->pvtError, WIDE( "fault white parsing number; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+										vtprintf( state->pvtError, "fault white parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 										break;
 									}
 								}
@@ -30291,7 +30222,7 @@ int json6_parse_add_data( struct json_parse_state *state
 								else {
 									state->status = FALSE;
 									if( !state->pvtError ) state->pvtError = VarTextCreate();
-									vtprintf( state->pvtError, WIDE( "fault white parsing number; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+									vtprintf( state->pvtError, "fault white parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 									break;
 								}
 							}
@@ -30312,7 +30243,7 @@ int json6_parse_add_data( struct json_parse_state *state
 									else {
 										state->status = FALSE;
 										if( !state->pvtError ) state->pvtError = VarTextCreate();
-										vtprintf( state->pvtError, WIDE( "fault white parsing number; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+										vtprintf( state->pvtError, "fault white parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 										break;
 									}
 								}
@@ -30358,7 +30289,7 @@ int json6_parse_add_data( struct json_parse_state *state
 						// fault, illegal characer
 						state->status = FALSE;
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, WIDE( "fault parsing '%c' unexpected %" )_size_f WIDE( " (near %*.*s[%c]%s)" ), c, state->n
+						vtprintf( state->pvtError, "fault parsing '%c' unexpected %" _size_f " (near %*.*s[%c]%s)", c, state->n
 							, (int)((state->n > 4) ? 3 : (state->n-1)), (int)((state->n > 4) ? 3 : (state->n-1))
 							, input->buf + state->n - ((state->n > 3) ? 3 : state->n)
 							, c
@@ -30496,13 +30427,13 @@ PTEXT json_parse_get_error( struct json_parse_state *state ) {
 	return NULL;
 }
 const char *json_get_parse_buffer( struct json_parse_state *pState, const char *buf ) {
-	int idx;
+	INDEX idx;
 	PPARSE_BUFFER buffer;
 	//lprintf( "Getting buffer from %p", pState );
 	for( idx = 0; buffer = (PPARSE_BUFFER)PeekLinkEx( pState->outBuffers, idx ); idx++ )
 		if( ((uintptr_t)buf) >= ((uintptr_t)buffer->buf) && ((uintptr_t)buf) < ((uintptr_t)buffer->pos) )
 			return buffer->buf;
-	for( idx = 0; buffer = (PPARSE_BUFFER)PeekQueueEx( *pState->outQueue, idx ); idx++ )
+	for( idx = 0; buffer = (PPARSE_BUFFER)PeekQueueEx( *pState->outQueue, (int)idx ); idx++ )
 		if( ((uintptr_t)buf) >= ((uintptr_t)buffer->buf) && ((uintptr_t)buf) < ((uintptr_t)buffer->pos) )
 			return buffer->buf;
 	LIST_FORALL( pState->outValBuffers[0], idx, PPARSE_BUFFER, buffer ) {
@@ -30616,7 +30547,7 @@ static void FillDataToElement6( struct json_context_object_element *element
 				((CTEXTSTR*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = StrDup( val->string );
 				break;
 			default:
-				lprintf( WIDE("Expected a string, but parsed result was a %d"), val->value_type );
+				lprintf( "Expected a string, but parsed result was a %d", val->value_type );
 				break;
 			}
 		}
@@ -30714,7 +30645,7 @@ static void FillDataToElement6( struct json_context_object_element *element
 			case VALUE_NUMBER:
 				if( val->float_result )
 				{
-					lprintf( WIDE("warning received float, converting to int") );
+					lprintf( "warning received float, converting to int" );
 					((int64_t*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = (int64_t)val->result_d;
 				}
 				else
@@ -30723,7 +30654,7 @@ static void FillDataToElement6( struct json_context_object_element *element
 				}
 				break;
 			default:
-				lprintf( WIDE("Expected a string, but parsed result was a %d"), val->value_type );
+				lprintf( "Expected a string, but parsed result was a %d", val->value_type );
 				break;
 			}
 		}
@@ -30751,7 +30682,7 @@ static void FillDataToElement6( struct json_context_object_element *element
 				else
 				{
 					// this is probably common (0 for instance)
-					lprintf( WIDE("warning received int, converting to float") );
+					lprintf( "warning received int, converting to float" );
 					if( element->type == JSON_Element_Float )
 						((float*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = (float)val->result_n;
 					else
@@ -30759,7 +30690,7 @@ static void FillDataToElement6( struct json_context_object_element *element
 				}
 				break;
 			default:
-				lprintf( WIDE("Expected a float, but parsed result was a %d"), val->value_type );
+				lprintf( "Expected a float, but parsed result was a %d", val->value_type );
 				break;
 			}
 		}
@@ -30782,7 +30713,7 @@ static void FillDataToElement6( struct json_context_object_element *element
 			case VALUE_NUMBER:
 				if( val->float_result )
 				{
-					lprintf( WIDE("warning received float, converting to int (uintptr_t)") );
+					lprintf( "warning received float, converting to int (uintptr_t)" );
 					((uintptr_t*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = (uintptr_t)val->result_d;
 				}
 				else
@@ -30861,7 +30792,6 @@ parse_message
  ***************************************************************/
 #ifndef JSOX_PARSER_HEADER_INCLUDED
 #define JSOX_PARSER_HEADER_INCLUDED
-#define JSON_EMITTER_HEADER_INCLUDED
 // include types to get namespace, and, well PDATALIST types
 #ifdef __cplusplus
 SACK_NAMESPACE namespace network {
@@ -31453,7 +31383,7 @@ static int gatherStringX(struct jsox_parse_state *state, CTEXTSTR msg, CTEXTSTR 
 					continue;
 				} else {
 					if( state->hex_char > 255 ) {
-						lprintf(WIDE("(escaped character, parsing octal escape val=%d) fault while parsing; )") WIDE(" (near %*.*s[%c]%s)")
+						lprintf("(escaped character, parsing octal escape val=%d) fault while parsing; )" " (near %*.*s[%c]%s)"
 							, state->hex_char
 							, (int)( ( n>3 ) ? 3 : n ), (int)( ( n>3 ) ? 3 : n )
 							, ( *msg_input ) - ( ( n>3 ) ? 3 : n )
@@ -31482,7 +31412,7 @@ static int gatherStringX(struct jsox_parse_state *state, CTEXTSTR msg, CTEXTSTR 
 				else if( c >= 'A' && c <= 'F' ) state->hex_char += ( c - 'A' ) + 10;
 				else if( c >= 'a' && c <= 'f' ) state->hex_char += ( c - 'a' ) + 10;
 				else {
-					lprintf(WIDE("(escaped character, parsing hex of \\u) fault while parsing; '%c' unexpected at %")_size_f WIDE(" (near %*.*s[%c]%s)"), c, n
+					lprintf("(escaped character, parsing hex of \\u) fault while parsing; '%c' unexpected at %" _size_f " (near %*.*s[%c]%s)", c, n
 						, (int)( ( n > 3 ) ? 3 : n ), (int)( ( n > 3 ) ? 3 : n )
 						, ( *msg_input ) - ( ( n > 3 ) ? 3 : n )
 						, c
@@ -31505,7 +31435,7 @@ static int gatherStringX(struct jsox_parse_state *state, CTEXTSTR msg, CTEXTSTR 
 					else if( c >= 'A' && c <= 'F' ) state->hex_char += ( c - 'A' ) + 10;
 					else if( c >= 'a' && c <= 'f' ) state->hex_char += ( c - 'a' ) + 10;
 					else {
-						lprintf(WIDE("(escaped character, parsing hex of \\x) fault while parsing; '%c' unexpected at %")_size_f WIDE(" (near %*.*s[%c]%s)"), c, n
+						lprintf("(escaped character, parsing hex of \\x) fault while parsing; '%c' unexpected at %" _size_f " (near %*.*s[%c]%s)", c, n
 							, (int)( ( n>3 ) ? 3 : n ), (int)( ( n>3 ) ? 3 : n )
 							, ( *msg_input ) - ( ( n>3 ) ? 3 : n )
 							, c
@@ -31589,7 +31519,7 @@ static int gatherStringX(struct jsox_parse_state *state, CTEXTSTR msg, CTEXTSTR 
 					state->escape = FALSE;
 					mOut += ConvertToUTF8(mOut, c);
 				} else {
-					lprintf(WIDE("(escaped character) fault while parsing; '%c' unexpected %")_size_f WIDE(" (near %*.*s[%c]%s)"), c, n
+					lprintf("(escaped character) fault while parsing; '%c' unexpected %" _size_f " (near %*.*s[%c]%s)", c, n
 						, (int)( ( n>3 ) ? 3 : n ), (int)( ( n>3 ) ? 3 : n )
 						, ( *msg_input ) - ( ( n>3 ) ? 3 : n )
 						, c
@@ -31703,6 +31633,7 @@ static int openObject( struct jsox_parse_state *state, struct jsox_output_buffer
 		old_context->current_class = state->current_class;
 		old_context->current_class_item = state->current_class_item;
 		old_context->arrayType = state->arrayType;
+		state->arrayType = -1;
 		state->current_class = cls;
 		state->current_class_item = 0;
 // CreateDataList( sizeof( state->val ) );
@@ -31715,6 +31646,10 @@ static int openObject( struct jsox_parse_state *state, struct jsox_output_buffer
 	}
 	return TRUE;
 }
+// this is about nLeast being uninitialized.
+// LIST_FORALL initilaizes typeIndex.
+// knownArrayTypeNames is always NOT NULL.
+#pragma warning( disable: 6001 )
 static LOGICAL openArray( struct jsox_parse_state *state, struct jsox_output_buffer* output, int c ) {
 	PJSOX_CLASS cls = NULL;
 	if( state->word > JSOX_WORD_POS_RESET && state->word < JSOX_WORD_POS_FIELD )
@@ -31749,7 +31684,7 @@ static LOGICAL openArray( struct jsox_parse_state *state, struct jsox_output_buf
 #if 0
 			// might be an external type
 			if( !state->pvtError ) state->pvtError = VarTextCreate();
-			vtprintf( state->pvtError, WIDE( "Unknown type specified for array:; %s at '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f
+			vtprintf( state->pvtError, "Unknown type specified for array:; %s at '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f
 				, state->val.string, c, state->n, state->line, state->col );
 			state->status = FALSE;
 			return FALSE;
@@ -31757,7 +31692,7 @@ static LOGICAL openArray( struct jsox_parse_state *state, struct jsox_output_buf
 		}
 	} else if( state->parse_context == JSOX_CONTEXT_OBJECT_FIELD ) {
 		if( !state->pvtError ) state->pvtError = VarTextCreate();
-		vtprintf( state->pvtError, WIDE( "Fault while parsing; while getting field name unexpected %c at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+		vtprintf( state->pvtError, "Fault while parsing; while getting field name unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 		state->status = FALSE;
 		return FALSE;
 	}
@@ -31787,6 +31722,7 @@ static LOGICAL openArray( struct jsox_parse_state *state, struct jsox_output_buf
 	}
 	return TRUE;
 }
+#pragma warning( default: 6001 )
 int recoverIdent( struct jsox_parse_state *state, struct jsox_output_buffer* output, int cInt ) {
 	if( state->word != JSOX_WORD_POS_RESET ) {
 		if( !state->val.string ) {
@@ -32050,7 +31986,7 @@ int recoverIdent( struct jsox_parse_state *state, struct jsox_output_buffer* out
 /*']'*/
 /*':'*/
 		if( cInt == 44 || cInt == 125 || cInt == 93 || cInt == 58 )
-			vtprintf( state->pvtError, WIDE( "invalid character; unexpected %c at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, cInt, state->n, state->line, state->col );
+			vtprintf( state->pvtError, "invalid character; unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, cInt, state->n, state->line, state->col );
 		else {
 			if( !state->val.string )  state->val.string = output->pos;
 			if( cInt < 128 ) (*output->pos++) = cInt;
@@ -32247,7 +32183,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 					if( c == '*' ) { state->comment = 3; continue; }
 					if( c != '/' ) {
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, WIDE( "Fault while parsing; unexpected %c at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+						vtprintf( state->pvtError, "Fault while parsing; unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 						state->status = FALSE;
 					}
 					else state->comment = 2;
@@ -32289,7 +32225,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 						// allow starting a new word
 						state->status = FALSE;
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, WIDE( "unquoted keyword used as object field name:parsing fault; unexpected %c at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+						vtprintf( state->pvtError, "unquoted keyword used as object field name:parsing fault; unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 						break;
 					}
 					else if( state->word == JSOX_WORD_POS_FIELD || state->word == JSOX_WORD_POS_AFTER_FIELD && !state->completedString ) {
@@ -32321,9 +32257,9 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 				{
 					if( !state->pvtError ) state->pvtError = VarTextCreate();
 					if( state->parse_context == JSOX_CONTEXT_IN_ARRAY )
-						vtprintf( state->pvtError, WIDE( "(in array, got colon out of string):parsing fault; unexpected %c at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+						vtprintf( state->pvtError, "(in array, got colon out of string):parsing fault; unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 					else
-						vtprintf( state->pvtError, WIDE( "(outside any object, got colon out of string):parsing fault; unexpected %c at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+						vtprintf( state->pvtError, "(outside any object, got colon out of string):parsing fault; unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 					state->status = FALSE;
 				}
 				break;
@@ -32367,7 +32303,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 						state->arrayType = old_context->arrayType;
 						DeleteFromSet( JSOX_PARSE_CONTEXT, jxpsd.parseContexts, old_context );
 					} else {
-						vtprintf( state->pvtError, WIDE( "State error; gathering class fields, and lost the class; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f
+						vtprintf( state->pvtError, "State error; gathering class fields, and lost the class; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f
 							, c, state->n, state->line, state->col );
 						state->status = FALSE;
 					}
@@ -32381,7 +32317,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 							}
 							else {
 								if( !state->val.name ) {
-									vtprintf( state->pvtError, "State error; class fields, class has no fields, and one was needed; '%c' unexpected at %" _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f
+									vtprintf( state->pvtError, "State error; class fields, class has no fields, and one was needed; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f
 										, c, state->n, state->line, state->col );
 									state->status = FALSE;
 									break;
@@ -32464,7 +32400,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 				else
 				{
 					if( !state->pvtError ) state->pvtError = VarTextCreate();
-					vtprintf( state->pvtError, WIDE( "Fault while parsing; unexpected %c at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+					vtprintf( state->pvtError, "Fault while parsing; unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 					state->status = FALSE;
 				}
 				break;
@@ -32515,7 +32451,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 				{
 					if( !state->pvtError ) state->pvtError = VarTextCreate();
 // fault
-					vtprintf( state->pvtError, WIDE( "bad context %d; fault while parsing; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, state->parse_context, c, state->n, state->line, state->col );
+					vtprintf( state->pvtError, "bad context %d; fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, state->parse_context, c, state->n, state->line, state->col );
 					state->status = FALSE;
 				}
 				break;
@@ -32537,7 +32473,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 					else {
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
 // fault
-						vtprintf( state->pvtError, WIDE( "lost class definition; fault while parsing; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, state->parse_context, c, state->n, state->line, state->col );
+						vtprintf( state->pvtError, "lost class definition; fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, state->parse_context, c, state->n, state->line, state->col );
 						state->status = FALSE;
 					}
 				}
@@ -32551,7 +32487,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 						else if( !state->val.name ) {
 							if( !state->pvtError ) state->pvtError = VarTextCreate();
 // fault
-							vtprintf( state->pvtError, WIDE( "class field has no matching field definitions; fault while parsing; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, state->parse_context, c, state->n, state->line, state->col );
+							vtprintf( state->pvtError, "class field has no matching field definitions; fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, state->parse_context, c, state->n, state->line, state->col );
 							state->status = FALSE;
 							break;
 						}
@@ -32603,7 +32539,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 					state->status = FALSE;
 					if( !state->pvtError ) state->pvtError = VarTextCreate();
 // fault
-					vtprintf( state->pvtError, WIDE( "bad context; fault while parsing; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+					vtprintf( state->pvtError, "bad context; fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 				}
 				break;
 			default:
@@ -32626,7 +32562,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 							state->status = FALSE;
 							if( !state->pvtError ) state->pvtError = VarTextCreate();
 // fault
-							vtprintf( state->pvtError, WIDE( "too many strings in a row; fault while parsing; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+							vtprintf( state->pvtError, "too many strings in a row; fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 							break;
 						}
 						if( state->word == JSOX_WORD_POS_FIELD
@@ -32698,7 +32634,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 							state->status = FALSE;
 							if( !state->pvtError ) state->pvtError = VarTextCreate();
 	// fault
-							vtprintf( state->pvtError, WIDE( "fault while parsing; whitespace unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, state->n, state->line, state->col );
+							vtprintf( state->pvtError, "fault while parsing; whitespace unexpected at %" _size_f "  %" _size_f ":%" _size_f, state->n, state->line, state->col );
 						}
 						// skip whitespace
 						//n++;
@@ -32712,7 +32648,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 							state->status = FALSE;
 							if( !state->pvtError ) state->pvtError = VarTextCreate();
 	// fault
-							vtprintf( state->pvtError, WIDE( "fault while parsing; second string in field name at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, state->n, state->line, state->col );
+							vtprintf( state->pvtError, "fault while parsing; second string in field name at %" _size_f "  %" _size_f ":%" _size_f, state->n, state->line, state->col );
 							break;
 						} else if( state->word == JSOX_WORD_POS_RESET ) {
 							state->word = JSOX_WORD_POS_FIELD;
@@ -32724,7 +32660,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 							state->status = FALSE;
 							if( !state->pvtError ) state->pvtError = VarTextCreate();
 	// fault
-							vtprintf( state->pvtError, WIDE( "fault while parsing object field name; \\u00%02X unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+							vtprintf( state->pvtError, "fault while parsing object field name; \\u00%02X unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 							break;
 						}
 						if( !state->val.string ) state->val.string = output->pos;
@@ -32812,7 +32748,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 						state->status = FALSE;
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
 	// fault
-						vtprintf( state->pvtError, WIDE( "fault while parsing; whitespace unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, state->n );
+						vtprintf( state->pvtError, "fault while parsing; whitespace unexpected at %" _size_f "  %" _size_f ":%" _size_f, state->n );
 					}
 					// skip whitespace
 					//n++;
@@ -32980,7 +32916,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 								else {
 									state->status = FALSE;
 									if( !state->pvtError ) state->pvtError = VarTextCreate();
-									vtprintf( state->pvtError, WIDE( "fault while parsing number; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+									vtprintf( state->pvtError, "fault while parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 									break;
 								}
 							}
@@ -32994,7 +32930,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 								else {
 									state->status = FALSE;
 									if( !state->pvtError ) state->pvtError = VarTextCreate();
-									vtprintf( state->pvtError, WIDE( "fault white parsing number; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+									vtprintf( state->pvtError, "fault white parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 									break;
 								}
 							}
@@ -33002,7 +32938,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 								if( !state->exponent ) {
 									state->status = FALSE;
 									if( !state->pvtError ) state->pvtError = VarTextCreate();
-									vtprintf( state->pvtError, WIDE( "fault white parsing number; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+									vtprintf( state->pvtError, "fault white parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 									break;
 								}
 								else {
@@ -33013,7 +32949,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 									else {
 										state->status = FALSE;
 										if( !state->pvtError ) state->pvtError = VarTextCreate();
-										vtprintf( state->pvtError, WIDE( "fault white parsing number; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+										vtprintf( state->pvtError, "fault white parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 										break;
 									}
 								}
@@ -33031,7 +32967,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 								else {
 									state->status = FALSE;
 									if( !state->pvtError ) state->pvtError = VarTextCreate();
-									vtprintf( state->pvtError, WIDE( "fault white parsing number; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+									vtprintf( state->pvtError, "fault white parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 									break;
 								}
 							} else {
@@ -33050,7 +32986,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 									else {
 										state->status = FALSE;
 										if( !state->pvtError ) state->pvtError = VarTextCreate();
-										vtprintf( state->pvtError, WIDE( "fault white parsing number; '%c' unexpected at %" ) _size_f WIDE( "  %" ) _size_f WIDE( ":%" ) _size_f, c, state->n, state->line, state->col );
+										vtprintf( state->pvtError, "fault white parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 										break;
 									}
 								}
@@ -33360,13 +33296,12 @@ static void stepPath( const char **path ) {
 struct jsox_value_container *jsox_get_parsed_array_value( struct jsox_value_container *val, const char *path
 	, void( *callback )(uintptr_t psv, struct jsox_value_container *val), uintptr_t psv
 ) {
-	INDEX idx;
 	if( path[0] == '[' )
 		path++;
 	int64_t index = IntCreateFromTextRef( &path );
 	if( path[0] == ']' )
 		path++;
-	struct jsox_value_container * member = (struct jsox_value_container*)GetDataItem( &val->contains, index );
+	struct jsox_value_container * member = (struct jsox_value_container*)GetDataItem( &val->contains, (int)index );
 	stepPath( &path );
 	if( !path[0] ) {
 		callback( psv, member );
@@ -33630,42 +33565,42 @@ using namespace sack::math::fraction;
 	if( x->denominator < 0 )
 	{
 		if( x->numerator > -x->denominator )
-			return tnprintf( string, 31, WIDE("-%d %d/%d")
+			return tnprintf( string, 31, "-%d %d/%d"
 						, x->numerator / (-x->denominator)
 						, x->numerator % (-x->denominator), -x->denominator );
 		else
-			return tnprintf( string, 31, WIDE("-%d/%d"), x->numerator, -x->denominator );
+			return tnprintf( string, 31, "-%d/%d", x->numerator, -x->denominator );
 	}
 	else
 	{
 		if( x->numerator > x->denominator )
-			return tnprintf( string, 31, WIDE("%d %d/%d")
+			return tnprintf( string, 31, "%d %d/%d"
 						, x->numerator / x->denominator
 						, x->numerator % x->denominator, x->denominator );
 		else
-			return tnprintf( string, 31, WIDE("%d/%d"), x->numerator, x->denominator );
+			return tnprintf( string, 31, "%d/%d", x->numerator, x->denominator );
 	}
 }
 //---------------------------------------------------------------------------
  int  sLogCoords ( TEXTCHAR *string, PCOORDPAIR pcp )
 {
 	TEXTCHAR *start = string;
-	string += tnprintf( string, 2*sizeof(TEXTCHAR), WIDE("(") );
+	string += tnprintf( string, 2*sizeof(TEXTCHAR), "(" );
 	string += sLogFraction( string, &pcp->x );
-	string += tnprintf( string, 2*sizeof(TEXTCHAR), WIDE(",") );
+	string += tnprintf( string, 2*sizeof(TEXTCHAR), "," );
 	string += sLogFraction( string, &pcp->y );
-	string += tnprintf( string, 2*sizeof(TEXTCHAR), WIDE(")") );
+	string += tnprintf( string, 2*sizeof(TEXTCHAR), ")" );
 	return (int)(string - start);
 }
  void  LogCoords ( PCOORDPAIR pcp )
 {
 	TEXTCHAR buffer[256];
 	TEXTCHAR *string = buffer;
-	string += tnprintf( string, 2*sizeof(TEXTCHAR), WIDE("(") );
+	string += tnprintf( string, 2*sizeof(TEXTCHAR), "(" );
 	string += sLogFraction( string, &pcp->x );
-	string += tnprintf( string, 2*sizeof(TEXTCHAR), WIDE(",") );
+	string += tnprintf( string, 2*sizeof(TEXTCHAR), "," );
 	string += sLogFraction( string, &pcp->y );
-	string += tnprintf( string, 2*sizeof(TEXTCHAR), WIDE(")") );
+	string += tnprintf( string, 2*sizeof(TEXTCHAR), ")" );
 	Log( buffer );
 }
 //---------------------------------------------------------------------------
@@ -33694,9 +33629,9 @@ static void NormalizeFraction( PFRACTION f )
 	if( !offset->numerator )
 		return base;
 	//LogFraction( base );
-	//fprintf( log, WIDE(" + ") );
+	//fprintf( log, " + " );
 	//LogFraction( offset );
-	//fprintf( log, WIDE(" = ") );
+	//fprintf( log, " = " );
 	if( base->denominator < 0 )
 	{
 		if( offset->denominator < 0 )
@@ -33772,7 +33707,7 @@ static void NormalizeFraction( PFRACTION f )
 	NormalizeFraction( base );
 	return base;
 	//LogFraction( base );
-	//fprintf( log, WIDE("\n") );
+	//fprintf( log, "\n" );
 }
 //---------------------------------------------------------------------------
  PFRACTION  SubtractFractions ( PFRACTION base, PFRACTION offset )
@@ -33781,9 +33716,9 @@ static void NormalizeFraction( PFRACTION f )
 	if( !offset->numerator )
 		return base;
 	//LogFraction( base );
-	//fprintf( log, WIDE(" + ") );
+	//fprintf( log, " + " );
 	//LogFraction( offset );
-	//fprintf( log, WIDE(" = ") );
+	//fprintf( log, " = " );
 	if( base->denominator < 0 )
 	{
 		if( offset->denominator < 0 )
@@ -33859,7 +33794,7 @@ static void NormalizeFraction( PFRACTION f )
 	NormalizeFraction( base );
 	return base;
 	//LogFraction( base );
-	//fprintf( log, WIDE("\n") );
+	//fprintf( log, "\n" );
 }
 //---------------------------------------------------------------------------
  void  AddCoords ( PCOORDPAIR base, PCOORDPAIR offset )
@@ -34050,9 +33985,9 @@ struct file_system_interface {
                                                  //file *
 	int (CPROC *_close)(void *);
                     //file *, buffer, length (to read)
-	size_t (CPROC *_read)(void *,char *, size_t);
+	size_t (CPROC *_read)(void *,void *, size_t);
                     //file *, buffer, length (to write)
-	size_t (CPROC *_write)(void*,const char *, size_t);
+	size_t (CPROC *_write)(void*,const void *, size_t);
 	size_t (CPROC *seek)( void *, size_t, int whence);
 	void  (CPROC *truncate)( void *);
 	int (CPROC *_unlink)( uintptr_t psvInstance, const char *);
@@ -34349,9 +34284,9 @@ FILESYS_PROC  uintptr_t FILESYS_API  sack_fs_ioctl( struct file_system_mounted_i
  //NO_FILEOP_ALIAS
 #endif
 #ifdef __LINUX__
-#define SYSPATHCHAR WIDE("/")
+#define SYSPATHCHAR "/"
 #else
-#define SYSPATHCHAR WIDE("\\")
+#define SYSPATHCHAR "\\"
 #endif
 FILESYS_NAMESPACE_END
 #ifdef __cplusplus
@@ -34808,13 +34743,13 @@ PRIORITY_PRELOAD( Deadstart_finished_enough, GLOBAL_INIT_PRELOAD_PRIORITY + 1 )
 PRIORITY_PRELOAD( InitGlobal, DEFAULT_PRELOAD_PRIORITY )
 {
 #ifndef __NO_OPTIONS__
-	g.bLogCritical = SACK_GetProfileIntEx( GetProgramName(), WIDE( "SACK/Memory Library/Log critical sections" ), g.bLogCritical, TRUE );
-	g.bLogAllocate = SACK_GetProfileIntEx( GetProgramName(), WIDE( "SACK/Memory Library/Enable Logging" ), g.bLogAllocate, TRUE );
+	g.bLogCritical = SACK_GetProfileIntEx( GetProgramName(), "SACK/Memory Library/Log critical sections", g.bLogCritical, TRUE );
+	g.bLogAllocate = SACK_GetProfileIntEx( GetProgramName(), "SACK/Memory Library/Enable Logging", g.bLogAllocate, TRUE );
 	if( g.bLogAllocate )
-		ll_lprintf( WIDE( "Memory allocate logging enabled." ) );
-	g.bLogAllocateWithHold = SACK_GetProfileIntEx( GetProgramName(), WIDE( "SACK/Memory Library/Enable Logging Holds" ), g.bLogAllocateWithHold, TRUE );
-	//USE_CUSTOM_ALLOCER = SACK_GetProfileIntEx( GetProgramName(), WIDE( "SACK/Memory Library/Custom Allocator" ), USE_CUSTOM_ALLOCER, TRUE );
-	g.bDisableDebug = SACK_GetProfileIntEx( GetProgramName(), WIDE( "SACK/Memory Library/Disable Debug" ), !USE_DEBUG_LOGGING, TRUE );
+		ll_lprintf( "Memory allocate logging enabled." );
+	g.bLogAllocateWithHold = SACK_GetProfileIntEx( GetProgramName(), "SACK/Memory Library/Enable Logging Holds", g.bLogAllocateWithHold, TRUE );
+	//USE_CUSTOM_ALLOCER = SACK_GetProfileIntEx( GetProgramName(), "SACK/Memory Library/Custom Allocator", USE_CUSTOM_ALLOCER, TRUE );
+	g.bDisableDebug = SACK_GetProfileIntEx( GetProgramName(), "SACK/Memory Library/Disable Debug", !USE_DEBUG_LOGGING, TRUE );
 #else
 	//g.bLogAllocate = 1;
 #endif
@@ -34835,8 +34770,8 @@ PRIORITY_PRELOAD( InitGlobal, DEFAULT_PRELOAD_PRIORITY )
 #  elif defined __ARM__ || defined __ANDROID__
 #    define XCHG(p,val)  __atomic_exchange_n(p,val,__ATOMIC_RELAXED)
 #  else
-inline uint32_t DoXchg( volatile uint32_t* p, uint32_t val ) { __asm__( WIDE( "lock xchg (%2),%0" ) :WIDE( "=a" )(val) : WIDE( "0" )(val), WIDE( "c" )(p) ); return val; }
-inline uint64_t DoXchg64( volatile int64_t* p, uint64_t val ) { __asm__( WIDE( "lock xchg (%2),%0" ) :WIDE( "=a" )(val) : WIDE( "0" )(val), WIDE( "c" )(p) ); return val; }
+inline uint32_t DoXchg( volatile uint32_t* p, uint32_t val ) { __asm__( "lock xchg (%2),%0" :"=a"(val) : "0"(val), "c"(p) ); return val; }
+inline uint64_t DoXchg64( volatile int64_t* p, uint64_t val ) { __asm__( "lock xchg (%2),%0" :"=a"(val) : "0"(val), "c"(p) ); return val; }
 #    define XCHG( p,val) ( ( sizeof( val ) > sizeof( uint32_t ) )?DoXchg64( (volatile int64_t*)p, (uint64_t)val ):DoXchg( (volatile uint32_t*)p, (uint32_t)val ) )
 #  endif
 //#  endif
@@ -34937,12 +34872,12 @@ uint64_t  LockedExchange64( volatile uint64_t* p, uint64_t val )
 #if 0
 static void DumpSection( PCRITICALSECTION pcs )
 {
-	ll_lprintf( WIDE( "Critical Section....." ) );
-	ll_lprintf( WIDE( "------------------------------" ) );
-	ll_lprintf( WIDE( "Update: %08x" ), pcs->dwUpdating );
-	ll_lprintf( WIDE( "Current Process: %16"_64fx"" ), pcs->dwThreadID );
-	ll_lprintf( WIDE( "Next Process:    %16"_64fx"" ), pcs->dwThreadWaiting );
-	ll_lprintf( WIDE( "Last update: %s(%d)" ), pcs->pFile ? pcs->pFile : "unknown", pcs->nLine );
+	ll_lprintf( "Critical Section....." );
+	ll_lprintf( "------------------------------" );
+	ll_lprintf( "Update: %08x", pcs->dwUpdating );
+	ll_lprintf( "Current Process: %16" _64fx, pcs->dwThreadID );
+	ll_lprintf( "Next Process:    %16" _64fx, pcs->dwThreadWaiting );
+	ll_lprintf( "Last update: %s(%d)", pcs->pFile ? pcs->pFile : "unknown", pcs->nLine );
 }
 #endif
 #endif
@@ -34968,7 +34903,7 @@ static void DumpSection( PCRITICALSECTION pcs )
 #ifdef LOG_DEBUG_CRITICAL_SECTIONS
 #  ifndef NO_LOGGING
 			if( g.bLogCritical > 0 && g.bLogCritical < 2 )
-				ll__lprintf( DBG_RELAY )(WIDE( "Attempt enter critical Section %") _64fx WIDE( " %" ) _64fx WIDE( " %") _64fx WIDE(" %08" ) _32fx
+				ll__lprintf( DBG_RELAY )("Attempt enter critical Section %" _64fx " %" _64fx " %" _64fx " %08" _32fx
 					, pcs->dwThreadID
 					, pcs->dwThreadWaiting
 					, (prior?(*prior):-1)
@@ -34997,7 +34932,7 @@ static void DumpSection( PCRITICALSECTION pcs )
 						if( prior ) {
 							if( !(*prior) ) {
 #ifdef LOG_DEBUG_CRITICAL_SECTIONS
-								ll__lprintf( DBG_RELAY )(WIDE( "waiter is not myself... this is more recent than him... claim now. %" ) _64fx WIDE( " %" ) _64fx WIDE( " %" ) _64fx, pcs->dwThreadWaiting, prior ? (*prior) : -1LL, pcs->dwThreadID);
+								ll__lprintf( DBG_RELAY )("waiter is not myself... this is more recent than him... claim now. %" _64fx " %" _64fx " %" _64fx, pcs->dwThreadWaiting, prior ? (*prior) : -1LL, pcs->dwThreadID);
 #endif
 								// this would stack me on top anyway so just allow the waitier to keep waiting....
 #ifdef DEBUG_CRITICAL_SECTIONS
@@ -35016,7 +34951,7 @@ static void DumpSection( PCRITICALSECTION pcs )
 							}
 							else {
 #ifdef LOG_DEBUG_CRITICAL_SECTIONS
-								ll__lprintf( DBG_RELAY )(WIDE( "waiter is not myself... AND am in stack of waiter. %" ) _64fx WIDE( " %" ) _64fx WIDE( " %" ) _64fx, pcs->dwThreadWaiting, prior ? (*prior) : -1LL, pcs->dwThreadID);
+								ll__lprintf( DBG_RELAY )("waiter is not myself... AND am in stack of waiter. %" _64fx " %" _64fx " %" _64fx, pcs->dwThreadWaiting, prior ? (*prior) : -1LL, pcs->dwThreadID);
 #endif
 								// prior is set, so someone has set their prior to me....
 								pcs->dwUpdating = 0;
@@ -35025,7 +34960,7 @@ static void DumpSection( PCRITICALSECTION pcs )
 						}
 						else {
 #ifdef LOG_DEBUG_CRITICAL_SECTIONS
-							ll__lprintf( DBG_RELAY )(WIDE( "Waiter which is quick-wait does not sleep; claiming section... %" ) _64fx WIDE( " %" ) _64fx WIDE( " %" ) _64fx, pcs->dwThreadWaiting, prior ? (*prior) : -1LL, pcs->dwThreadID);
+							ll__lprintf( DBG_RELAY )("Waiter which is quick-wait does not sleep; claiming section... %" _64fx " %" _64fx " %" _64fx, pcs->dwThreadWaiting, prior ? (*prior) : -1LL, pcs->dwThreadID);
 #endif
 #ifdef DEBUG_CRITICAL_SECTIONS
 #  ifdef _DEBUG
@@ -35045,7 +34980,7 @@ static void DumpSection( PCRITICALSECTION pcs )
  //  waiting is me
 					else {
 #ifdef LOG_DEBUG_CRITICAL_SECTIONS
-						ll_lprintf( WIDE( "@@@ Woke up after waiting, set prior waiter as next waiter... %" ) _64fx, prior ? (*prior) : -1LL );
+						ll_lprintf( "@@@ Woke up after waiting, set prior waiter as next waiter... %" _64fx, prior ? (*prior) : -1LL );
 #endif
 						if( prior && (*prior) ) {
 							if( (*prior) == 1 ) {
@@ -35079,7 +35014,7 @@ static void DumpSection( PCRITICALSECTION pcs )
 							DebugBreak();
 					}
 #ifdef LOG_DEBUG_CRITICAL_SECTIONS
-					ll_lprintf( WIDE( "Claimed critical section." ) );
+					ll_lprintf( "Claimed critical section." );
 #endif
 #ifdef DEBUG_CRITICAL_SECTIONS
 #  ifdef _DEBUG
@@ -35109,13 +35044,13 @@ static void DumpSection( PCRITICALSECTION pcs )
 #  ifndef NO_LOGGING
 #    ifdef LOG_DEBUG_CRITICAL_SECTIONS
 				if( g.bLogCritical > 0 && g.bLogCritical < 2 )
-					ll_lprintf( WIDE( "Locks are %08" )_32fx, pcs->dwLocks );
+					ll_lprintf( "Locks are %08" _32fx, pcs->dwLocks );
 #    endif
 				if( (pcs->dwLocks & 0xFFFFF) > 1 )
 				{
 #    ifdef LOG_DEBUG_CRITICAL_SECTIONS
 					if( g.bLogCritical > 0 && g.bLogCritical < 2 )
-						_xlprintf( 1 DBG_RELAY )(WIDE( "!!!!  %p  Multiple Double entry! %" )_32fx, pcs, pcs->dwLocks);
+						_xlprintf( 1 DBG_RELAY )("!!!!  %p  Multiple Double entry! %" _32fx, pcs, pcs->dwLocks);
 #    endif
 				}
 #  endif
@@ -35139,7 +35074,7 @@ static void DumpSection( PCRITICALSECTION pcs )
 #ifdef LOG_DEBUG_CRITICAL_SECTIONS
 				pcs->dwLocks |= SECTION_LOGGED_WAIT;
 				if( g.bLogCritical )
-					ll_lprintf( WIDE( "Waiting on critical section owned by %s(%d) %08lx %." ) _64fx, (pcs->pFile) ? (pcs->pFile) : WIDE( "Unknown" ), pcs->nLine, pcs->dwLocks, pcs->dwThreadID );
+					ll_lprintf( "Waiting on critical section owned by %s(%d) %08lx %." _64fx, (pcs->pFile) ? (pcs->pFile) : "Unknown", pcs->nLine, pcs->dwLocks, pcs->dwThreadID );
 #endif
 			}
 			// if the prior is wanted to be saved...
@@ -35150,20 +35085,20 @@ static void DumpSection( PCRITICALSECTION pcs )
 					if( pcs->dwThreadWaiting != dwCurProc )
 					{
 						if( !pcs->dwThreadWaiting ) {
-							ll_lprintf( WIDE( "@@@ Someone stole the critical section that we were wiating on before we reentered. fail. %" )_64fx WIDE( " %" ) _64fx WIDE( " %" ) _64fx, pcs->dwThreadWaiting, dwCurProc, *prior );
+							ll_lprintf( "@@@ Someone stole the critical section that we were wiating on before we reentered. fail. %" _64fx " %" _64fx " %" _64fx, pcs->dwThreadWaiting, dwCurProc, *prior );
 							DebugBreak();
 							// go back to sleep again.
 							pcs->dwThreadWaiting = dwCurProc;
 						}
 						else {
 							if( (*prior) == pcs->dwThreadWaiting ) {
-								ll_lprintf( WIDE( "prior is thread wiaiting (normal?!) %" )_64fx WIDE( " %" ) _64fx, pcs->dwThreadWaiting, *prior );
+								ll_lprintf( "prior is thread wiaiting (normal?!) %" _64fx " %" _64fx, pcs->dwThreadWaiting, *prior );
 								DebugBreak();
 								(*prior) = 0;
 							}
 							else {
 #ifdef LOG_DEBUG_CRITICAL_SECTIONS
-								ll_lprintf( WIDE( "Someone stole the critical section that we were wiating on before we reentered. fail. %" )_64fx WIDE( " %" ) _64fx WIDE( " %" ) _64fx, pcs->dwThreadWaiting, dwCurProc, *prior );
+								ll_lprintf( "Someone stole the critical section that we were wiating on before we reentered. fail. %" _64fx " %" _64fx " %" _64fx, pcs->dwThreadWaiting, dwCurProc, *prior );
 #endif
 							}
 						}
@@ -35182,14 +35117,14 @@ static void DumpSection( PCRITICALSECTION pcs )
 					if( pcs->dwThreadWaiting ) {
 #ifdef LOG_DEBUG_CRITICAL_SECTIONS
 						if( g.bLogCritical )
-							ll_lprintf( WIDE( "@@@ Setting prior to % " ) _64fx WIDE( " and prior was %" ) _64fx, pcs->dwThreadWaiting, (*prior) );
+							ll_lprintf( "@@@ Setting prior to % " _64fx " and prior was %" _64fx, pcs->dwThreadWaiting, (*prior) );
 #endif
 						*prior = pcs->dwThreadWaiting;
 					}
 					else {
 #ifdef LOG_DEBUG_CRITICAL_SECTIONS
 						if( g.bLogCritical )
-							ll_lprintf( WIDE( "@@@ Setting prior to % " ) _64fx WIDE( " and prior was %" ) _64fx, pcs->dwThreadWaiting, (*prior) );
+							ll_lprintf( "@@@ Setting prior to % " _64fx " and prior was %" _64fx, pcs->dwThreadWaiting, (*prior) );
 #endif
 						*prior = 1;
 					}
@@ -35223,13 +35158,13 @@ static void DumpSection( PCRITICALSECTION pcs )
 #  ifdef LOG_DEBUG_CRITICAL_SECTIONS
 #    ifndef NO_LOGGING
 			if( g.bLogCritical > 0 && g.bLogCritical < 2 )
-				ll__lprintf( DBG_RELAY )(WIDE( "Locked %p for leaving..." ), pcs);
+				ll__lprintf( DBG_RELAY )("Locked %p for leaving...", pcs);
 #    endif
 #  endif
 			if( !AND_NOT_SECTION_LOGGED_WAIT(pcs->dwLocks) )
 			{
 				if( g.bLogCritical > 0 && g.bLogCritical < 2 )
-					ll_lprintf( DBG_FILELINEFMT WIDE( "Leaving a blank critical section" ) DBG_RELAY );
+					ll_lprintf( DBG_FILELINEFMT "Leaving a blank critical section" DBG_RELAY );
 				DebugBreak();
 				//while( 1 );
 				pcs->dwUpdating = 0;
@@ -35237,7 +35172,7 @@ static void DumpSection( PCRITICALSECTION pcs )
 			}
 #ifdef DEBUG_CRITICAL_SECTIONS
 			//if( g.bLogCritical > 1 )
-			// ll_lprintf( DBG_FILELINEFMT WIDE( "Leaving %"_64fx"x %"_64fx"x %p" ) DBG_RELAY ,pcs->dwThreadID, dwCurProc, pcs );
+			// ll_lprintf( DBG_FILELINEFMT ( "Leaving %" _64fx"x %" _64fx"x %p" ) DBG_RELAY ,pcs->dwThreadID, dwCurProc, pcs );
 #endif
 			if( pcs->dwThreadID == dwCurProc )
 			{
@@ -35295,14 +35230,14 @@ static void DumpSection( PCRITICALSECTION pcs )
 			{
 #ifdef DEBUG_CRITICAL_SECTIONS
 				{
-					_xlprintf( 0 DBG_RELAY )(WIDE( "Sorry - you can't leave a section owned by %") _64fx WIDE(" %08lx %s(%d)..." )
+					_xlprintf( 0 DBG_RELAY )("Sorry - you can't leave a section owned by %" _64fx " %08lx %s(%d)..."
 						, pcs->dwThreadID
 						, pcs->dwLocks
-						, (pcs->pFile[(pcs->nPrior + 15) % MAX_SECTION_LOG_QUEUE]) ? (pcs->pFile[(pcs->nPrior + 15) % MAX_SECTION_LOG_QUEUE]) : WIDE( "Unknown" ), pcs->nLine[(pcs->nPrior + 15) % MAX_SECTION_LOG_QUEUE]);
+						, (pcs->pFile[(pcs->nPrior + 15) % MAX_SECTION_LOG_QUEUE]) ? (pcs->pFile[(pcs->nPrior + 15) % MAX_SECTION_LOG_QUEUE]) : "Unknown", pcs->nLine[(pcs->nPrior + 15) % MAX_SECTION_LOG_QUEUE]);
 					DebugBreak();
 				}
 #else
-				lprintf( WIDE( "Sorry - you can't leave a section you don't own..." ) );
+				lprintf( "Sorry - you can't leave a section you don't own..." );
 				DebugBreak();
 #endif
 				pcs->dwUpdating = 0;
@@ -35349,51 +35284,27 @@ LOGICAL OpenRootMemory()
 {
 	uintptr_t size = sizeof( SPACEPOOL );
 	uint32_t created;
-	TEXTCHAR spacename[32];
+	char spacename[32];
 	if( g.pSpacePool != NULL )
 	{
 		// if local already has something, just return.
 		return FALSE;
 	}
 #ifdef DEBUG_GLOBAL_REGISTRATION
-	ll_lprintf( WIDE( "Opening space..." ) );
+	ll_lprintf( "Opening space..." );
 #endif
 #ifdef WIN32
-	tnprintf( spacename, sizeof( spacename ), WIDE( "memory:%" ) _32fx, GetCurrentProcessId() );
+	snprintf( spacename, sizeof( spacename ), "memory:%" _32fx, GetCurrentProcessId() );
 #else
-	tnprintf( spacename, sizeof( spacename ), WIDE( "memory:%08X" ), getpid() );
-#  ifdef DEBUG_FIRST_UNICODE_OPERATION
-	{
-		wchar_t buf[32];
-		strcpy( (char*)buf, "abcdefghijklmn" );
-		swprintf( buf, 32, L"%s", L"some_name" );
-		{
-			char tmpmsg[256];
-			int chars;
-			int ofs = 0;
-			ofs = snprintf( tmpmsg, 256, "in the beginning(w):" );
-			for( chars = 0; chars < 32; chars++ )
-				ofs += snprintf( tmpmsg + ofs, 256 - ofs, "%02x ", ((char*)buf)[chars] );
-			__android_log_print( ANDROID_LOG_INFO, "org.d3x0r.sack.xxxx", tmpmsg );
-			ofs = snprintf( tmpmsg, 256, "in the beginning(w):" );
-			for( chars = 0; chars < 32; chars++ )
-				ofs += snprintf( tmpmsg + ofs, 256 - ofs, "%c", (buf)[chars] );
-			__android_log_print( ANDROID_LOG_INFO, "org.d3x0r.sack.xxxx", tmpmsg );
-			ofs = snprintf( tmpmsg, 256, "in the beginning(w):" );
-			for( chars = 0; chars < 32; chars++ )
-				ofs += snprintf( tmpmsg + ofs, 256 - ofs, "%c", (name)[chars] );
-			__android_log_print( ANDROID_LOG_INFO, "org.d3x0r.sack.xxxx", tmpmsg );
-			ofs = snprintf( tmpmsg, 256, "in the beginning(w):" );
-			for( chars = 0; chars < 32; chars++ )
-				ofs += snprintf( tmpmsg + ofs, 256 - ofs, "%c", (spacename)[chars] );
-			__android_log_print( ANDROID_LOG_INFO, "org.d3x0r.sack.xxxx", tmpmsg );
-		}
-	}
-#  endif
+	snprintf( spacename, sizeof( spacename ), "memory:%08X", getpid() );
 #endif
 	// hmm application only shared space?
 	// how do I get that to happen?
+#ifdef __STATIC_GLOBALS__
+	 g.pSpacePool = (PSPACEPOOL)OpenSpaceExx( NULL, NULL, 0, &size, &created );
+#else
 	 g.pSpacePool = (PSPACEPOOL)OpenSpaceExx( spacename, NULL, 0, &size, &created );
+#endif
 	// I myself must have a global space, which is kept sepearte from named spaces
 	// but then... blah
 	return created;
@@ -35404,8 +35315,8 @@ PRIORITY_ATEXIT(ReleaseAllMemory,ATEXIT_PRIORITY_SHAREMEM)
 {
 #if defined( __SKIP_RELEASE_OPEN_SPACES__ ) || defined( __NO_MMAP__ )
 	// actually, under linux, it releases /tmp/.shared files.
-	//ll_lprintf( WIDE( "No super significant reason to release all memory blocks?" ) );
-	//ll_lprintf( WIDE( "Short circuit on memory shutdown." ) );
+	//ll_lprintf( "No super significant reason to release all memory blocks?" );
+	//ll_lprintf( "Short circuit on memory shutdown." );
 	return;
 #else
 	// need to try and close /tmp/.shared region files...  so we only close
@@ -35428,8 +35339,8 @@ PRIORITY_ATEXIT(ReleaseAllMemory,ATEXIT_PRIORITY_SHAREMEM)
 #ifdef _DEBUG
 				if( !g.bDisableDebug )
 				{
-					ll_lprintf( WIDE("Space: %p mem: %p-%p"), ps, ps->pMem, (uint8_t*)ps->pMem + ps->dwSmallSize );
-					ll_lprintf( WIDE("Closing tracked space...") );
+					ll_lprintf( "Space: %p mem: %p-%p", ps, ps->pMem, (uint8_t*)ps->pMem + ps->dwSmallSize );
+					ll_lprintf( "Closing tracked space..." );
 				}
 #endif
 */
@@ -35448,7 +35359,7 @@ PRIORITY_ATEXIT(ReleaseAllMemory,ATEXIT_PRIORITY_SHAREMEM)
 		CloseHandle( ps->hMem );
 		CloseHandle( ps->hFile );
 #else
-		//ll_lprintf( WIDE("unmaping space tracking structure...") );
+		//ll_lprintf( "unmaping space tracking structure..." );
 		munmap( ps, MAX_PER_BLOCK * sizeof( SPACE ) );
 		//close( (int)ps->pMem );
 		//if( ps->hFile >= 0 )
@@ -35478,7 +35389,7 @@ void InitSharedMemory( void )
 #endif
 #ifdef VERBOSE_LOGGING
 		if( !g.bDisableDebug )
-			Log2( WIDE("CHUNK: %d  MEM:%d"), CHUNK_SIZE(0), MEM_SIZE );
+			Log2( "CHUNK: %d  MEM:%d", CHUNK_SIZE(0), MEM_SIZE );
 #endif
   // onload was definatly a zero.
 		g.bInit = TRUE;
@@ -35489,7 +35400,7 @@ void InitSharedMemory( void )
 				g.pSpacePool->me = &g.pSpacePool;
 #ifdef VERBOSE_LOGGING
 				if( !g.bDisableDebug )
-					Log1( WIDE("Allocated Space pool %lu"), dwSize );
+					Log1( "Allocated Space pool %lu", dwSize );
 #endif
 			}
 		}
@@ -35498,7 +35409,7 @@ void InitSharedMemory( void )
 	{
 #ifdef VERBOSE_LOGGING
 		if( !g.bDisableDebug )
-			ODS( WIDE("already initialized?") );
+			ODS( "already initialized?" );
 #endif
 	}
 #endif
@@ -35524,7 +35435,7 @@ static PSPACE AddSpace( PSPACE pAddAfter
 	{
 #ifdef VERBOSE_LOGGING
 		if( !g.bDisableDebug )
-			Log2( WIDE("No space pool(%p) or InAdding(%d)"), g.pSpacePool, g.InAdding );
+			Log2( "No space pool(%p) or InAdding(%d)", g.pSpacePool, g.InAdding );
 #endif
 		return NULL;
 	}
@@ -35562,7 +35473,7 @@ Retry:
 		}
 		goto Retry;
 	}
-	//Log7( WIDE("Managing space (s)%p (pm)%p (hf)%08") _32fx WIDE(" (hm)%08") _32fx WIDE(" (sz)%") _32f WIDE(" %08") _32fx WIDE("-%08") _32fx WIDE("")
+	//Log7( "Managing space (s)%p (pm)%p (hf)%08" _32fx " (hm)%08" _32fx " (sz)%" _32f " %08" _32fx "-%08" _32fx ""
 	//				, ps, pMem, (uint32_t)hFile, (uint32_t)hMem, dwSize
 	//				, (uint32_t)pMem, ((uint32_t)pMem + dwSize)
 	//				);
@@ -35582,7 +35493,7 @@ Retry:
 	{
 		while( AddAfter && AddAfter->next )
 			AddAfter = AddAfter->next;
-		//Log2( WIDE("Linked into space...%p after %p "), ps, AddAfter );
+		//Log2( "Linked into space...%p after %p ", ps, AddAfter );
 		if( AddAfter )
 		{
 			ps->me = &AddAfter->next;
@@ -35610,7 +35521,7 @@ static void DoCloseSpace( PSPACE ps, int bFinal )
 {
 	if( ps )
 	{
-		//Log( WIDE("Closing a space...") );
+		//Log( "Closing a space..." );
 #ifdef _WIN32
 		UnmapViewOfFile( ps->pMem );
 		CloseHandle( ps->hMem );
@@ -35677,7 +35588,7 @@ uintptr_t GetFileSize( int fd )
 	if( !dwSize ) return NULL;
 	if( !g.bInit )
 	{
-		//ODS( WIDE("Doing Init") );
+		//ODS( "Doing Init" );
 		InitSharedMemory();
 	}
 #ifndef USE_SIMPLE_LOCK_ON_OPEN
@@ -35720,10 +35631,10 @@ uintptr_t GetFileSize( int fd )
 						  , 0 );
 			if( pMem == (POINTER)-1 )
 			{
-				ll_lprintf( WIDE("Something bad about this region sized %") _PTRSZVALfs WIDE("(%d)"), *dwSize, errno );
+				ll_lprintf( "Something bad about this region sized %" _PTRSZVALfs "(%d)", *dwSize, errno );
 				DebugBreak();
 			}
-			//ll_lprintf( WIDE("Clearing anonymous mmap %p %") _size_f WIDE(""), pMem, *dwSize );
+			//ll_lprintf( "Clearing anonymous mmap %p %" _size_f "", pMem, *dwSize );
 			MemSet( pMem, 0, *dwSize );
 		}
  // name doesn't matter, same file cannot be called another name
@@ -35744,7 +35655,7 @@ uintptr_t GetFileSize( int fd )
 			snprintf( tmpbuf, 256, "./tmp.shared.%s", pWhat );
 #else
 			filename = tmpbuf;
-			snprintf( tmpbuf, 256, WIDE("/tmp/.shared.%s"), pWhat );
+			snprintf( tmpbuf, 256, "/tmp/.shared.%s", pWhat );
 #endif
 			bTemp = TRUE;
 #endif
@@ -35762,16 +35673,16 @@ uintptr_t GetFileSize( int fd )
 					int ret;
 					if( !(*dwSize ) )
 					{
-						ll_lprintf( WIDE("Region didn't exist... and no size... return") );
+						ll_lprintf( "Region didn't exist... and no size... return" );
 						return NULL;
 					}
 #   ifdef DEBUG_SHARED_REGION_CREATE
-					ll_lprintf( WIDE("Shared region didn't already exist...: %s"), filename );
+					ll_lprintf( "Shared region didn't already exist...: %s", filename );
 #   endif
 					fd = open("/dev/ashmem", O_RDWR);
 					if( fd < 0 )
 					{
-						ll_lprintf( WIDE("Failed to open core device...") );
+						ll_lprintf( "Failed to open core device..." );
 						return NULL;
 					}
 					if( bCreated )
@@ -35780,13 +35691,13 @@ uintptr_t GetFileSize( int fd )
 					ret = ioctl(fd, ASHMEM_SET_NAME, filename + 12 );
 					if (ret < 0)
 					{
-						ll_lprintf( WIDE("Failed to set the name of ashmem region: %s"), filename + 12 );
+						ll_lprintf( "Failed to set the name of ashmem region: %s", filename + 12 );
 						//							goto error;
 					}
 					ret = ioctl(fd, ASHMEM_SET_SIZE, (*dwSize) );
 					if (ret < 0)
 					{
-						ll_lprintf( WIDE("Failed to set IOCTL size to %d"), (*dwSize) );
+						ll_lprintf( "Failed to set IOCTL size to %d", (*dwSize) );
 						//goto error;
 					}
 					/*
@@ -35837,7 +35748,7 @@ uintptr_t GetFileSize( int fd )
 				}
 				if( fd == -1 )
 				{
-					Log2( WIDE("Sorry - failed to open: %d %s")
+					Log2( "Sorry - failed to open: %d %s"
 						, errno
 						, filename );
 #ifndef USE_SIMPLE_LOCK_ON_OPEN
@@ -35922,7 +35833,7 @@ uintptr_t GetFileSize( int fd )
 		*dwSize = ( ( (*dwSize) + ( FILE_GRAN - 1 ) ) / FILE_GRAN ) * FILE_GRAN;
 		if( !pWhat && !pWhere )
 		{
-			//ll_lprintf( "ALLOCATE %"_64fx"d", (*dwSize)>>32, 0 );
+			//ll_lprintf( "ALLOCATE %" _64fx"d", (*dwSize)>>32, 0 );
 			hMem = CreateFileMapping( INVALID_HANDLE_VALUE, NULL
 											, PAGE_READWRITE
 											|SEC_COMMIT
@@ -35973,7 +35884,7 @@ uintptr_t GetFileSize( int fd )
 			else
 			{
 #ifdef DEBUG_OPEN_SPACE
-				ll_lprintf( WIDE("Failed to open region named %s %d"), pWhat, GetLastError() );
+				ll_lprintf( "Failed to open region named %s %d", pWhat, GetLastError() );
 #endif
   // don't continue... we're expecting open-existing behavior
 				if( (*dwSize) == 0 )
@@ -36008,8 +35919,8 @@ uintptr_t GetFileSize( int fd )
 									//| FILE_FLAG_DELETE_ON_CLOSE
 									, NULL );
 #ifdef DEBUG_OPEN_SPACE
-			ll_lprintf( WIDE("Create file %s result %d"), pWhere, hFile );
-			ll_lprintf( WIDE("File result is %ld (error %ld)"), hFile, GetLastError() );
+			ll_lprintf( "Create file %s result %d", pWhere, hFile );
+			ll_lprintf( "File result is %ld (error %ld)", hFile, GetLastError() );
 #endif
 			if( hFile == INVALID_HANDLE_VALUE )
 			{
@@ -36017,7 +35928,7 @@ uintptr_t GetFileSize( int fd )
 				if( ( dwSize && (!(*dwSize )) ) && ( GetLastError() == ERROR_PATH_NOT_FOUND || GetLastError() == ERROR_FILE_NOT_FOUND ) )
 				{
 #ifdef DEBUG_OPEN_SPACE
-					ll_lprintf( WIDE("File did not exist, and we're not creating the file (0 size passed)") );
+					ll_lprintf( "File did not exist, and we're not creating the file (0 size passed)" );
 #endif
 #ifndef USE_SIMPLE_LOCK_ON_OPEN
 					if( g.deadstart_finished )
@@ -36043,7 +35954,7 @@ uintptr_t GetFileSize( int fd )
 										//| FILE_FLAG_DELETE_ON_CLOSE
 										, NULL );
 #ifdef DEBUG_OPEN_SPACE
-				ll_lprintf( WIDE("Create file %s result %d"), pWhere, hFile );
+				ll_lprintf( "Create file %s result %d", pWhere, hFile );
 #endif
 				if( hFile != INVALID_HANDLE_VALUE ) {
  // lie...
@@ -36059,7 +35970,7 @@ uintptr_t GetFileSize( int fd )
 				// might still be able to open it by shared name; even if the file share is disabled
 				readonly = 0;
 #ifdef DEBUG_OPEN_SPACE
-				ll_lprintf( WIDE("file is still invalid(alreadyexist?)... new size is %d %d on %p"), (*dwSize), FILE_GRAN, hFile );
+				ll_lprintf( "file is still invalid(alreadyexist?)... new size is %d %d on %p", (*dwSize), FILE_GRAN, hFile );
 #endif
  // is INVALID_HANDLE_VALUE, but is consistant
 				hMem = CreateFileMapping( hFile
@@ -36080,7 +35991,7 @@ uintptr_t GetFileSize( int fd )
 					goto isokay;
 				}
 #ifdef DEBUG_OPEN_SPACE
-				ll_lprintf( WIDE("Sorry - Nothing good can happen with a filename like that...%s %d"), pWhat, GetLastError());
+				ll_lprintf( "Sorry - Nothing good can happen with a filename like that...%s %d", pWhat, GetLastError());
 #endif
 					 //bOpening = FALSE;
 #ifndef USE_SIMPLE_LOCK_ON_OPEN
@@ -36100,12 +36011,12 @@ uintptr_t GetFileSize( int fd )
 			// mark status for memory... dunno why?
 				// in theory this is a memory image of valid memory already...
 #ifdef DEBUG_OPEN_SPACE
-				ll_lprintf( WIDE("Getting existing size of region...") );
+				ll_lprintf( "Getting existing size of region..." );
 #endif
 				if( SUS_LT( lSize.QuadPart, LONGLONG, (*dwSize), uintptr_t ) )
 				{
 #ifdef DEBUG_OPEN_SPACE
-					ll_lprintf( WIDE("Expanding file to size requested.") );
+					ll_lprintf( "Expanding file to size requested." );
 #endif
 					didCreate = 1;
 					SetFilePointer( hFile, (LONG)*dwSize, NULL, FILE_BEGIN );
@@ -36114,7 +36025,7 @@ uintptr_t GetFileSize( int fd )
 				else
 				{
 #ifdef DEBUG_OPEN_SPACE
-					ll_lprintf( WIDE("Setting size to size of file (which was larger..") );
+					ll_lprintf( "Setting size to size of file (which was larger.." );
 #endif
 					(*dwSize) = (uintptr_t)(lSize.QuadPart);
 				}
@@ -36122,7 +36033,7 @@ uintptr_t GetFileSize( int fd )
 			else
 			{
 #ifdef DEBUG_OPEN_SPACE
-				ll_lprintf( WIDE("New file, setting size to requested %d"), *dwSize );
+				ll_lprintf( "New file, setting size to requested %d", *dwSize );
 #endif
 				SetFilePointer( hFile, (LONG)*dwSize, NULL, FILE_BEGIN );
 				SetEndOfFile( hFile );
@@ -36132,7 +36043,7 @@ uintptr_t GetFileSize( int fd )
 				(*bCreated) = didCreate;
 			//(*dwSize) = GetFileSize( hFile, NULL );
 #ifdef DEBUG_OPEN_SPACE
-			ll_lprintf( WIDE("%s Readonly? %d  hFile %d"), pWhat, readonly, hFile );
+			ll_lprintf( "%s Readonly? %d  hFile %d", pWhat, readonly, hFile );
 #endif
 			hMem = CreateFileMapping( hFile
 											, NULL
@@ -36143,7 +36054,7 @@ uintptr_t GetFileSize( int fd )
 			if( pWhat && !hMem )
 			{
 #ifdef DEBUG_OPEN_SPACE
-				ll_lprintf( WIDE("Create of mapping failed on object specified? %d %p"), GetLastError(), hFile );
+				ll_lprintf( "Create of mapping failed on object specified? %d %p", GetLastError(), hFile );
 #endif
 				(*dwSize) = 1;
 				CloseHandle( hFile );
@@ -36182,7 +36093,7 @@ uintptr_t GetFileSize( int fd )
 	if( !pMem )
 	{
 #ifdef DEBUG_OPEN_SPACE
-		Log1( WIDE("Create view of file for memory access failed at %p"), (POINTER)address );
+		Log1( "Create view of file for memory access failed at %p", (POINTER)address );
 #endif
 		CloseHandle( hMem );
 		if( hFile != INVALID_HANDLE_VALUE )
@@ -36205,7 +36116,7 @@ uintptr_t GetFileSize( int fd )
 			VirtualQuery( pMem, &meminfo, sizeof( meminfo ) );
 			(*dwSize) = meminfo.RegionSize;
 #ifdef DEBUG_OPEN_SPACE
-			ll_lprintf( WIDE("Fixup memory size to %ld %s:%s(reported by system on view opened)")
+			ll_lprintf( "Fixup memory size to %ld %s:%s(reported by system on view opened)"
 					, *dwSize, pWhat?pWhat:"ANON", pWhere?pWhere:"ANON" );
 #endif
 		}
@@ -36256,16 +36167,16 @@ uintptr_t GetFileSize( int fd )
 	{
 		if( pMem->dwHeapID != 0xbab1f1ea )
 		{
-			ll_lprintf( WIDE("Memory has content, and is NOT a heap!") );
+			ll_lprintf( "Memory has content, and is NOT a heap!" );
 			return FALSE;
 		}
-		ll_lprintf( WIDE("Memory was already initialized as a heap?") );
+		ll_lprintf( "Memory was already initialized as a heap?" );
 		return FALSE;
 	}
 #ifndef __NO_MMAP__
 	if( !FindSpace( pMem ) )
 	{
-		//ll_lprintf( WIDE("space for heap has not been tracked yet....") );
+		//ll_lprintf( "space for heap has not been tracked yet...." );
 		// a heap must be in the valid space pool.
 		// it may not have come from a file, and will not have
 		// a file or memory handle.
@@ -36290,7 +36201,7 @@ uintptr_t GetFileSize( int fd )
 	if( !g.bDisableDebug )
 	{
 #ifdef VERBOSE_LOGGING
-		ll_lprintf( WIDE("Initializing %p %d")
+		ll_lprintf( "Initializing %p %d"
 				, pMem->pRoot[0].byData
 				, pMem->pRoot[0].dwSize );
 #endif
@@ -36299,7 +36210,7 @@ uintptr_t GetFileSize( int fd )
 	}
 	{
 		pMem->pRoot[0].dwPad += 2*MAGIC_SIZE;
-		BLOCK_FILE( pMem->pRoot ) = _WIDE(__FILE__);
+		BLOCK_FILE( pMem->pRoot ) = __FILE__;
 		BLOCK_LINE( pMem->pRoot ) = __LINE__;
 	}
 #endif
@@ -36313,12 +36224,12 @@ PMEM DigSpace( TEXTSTR pWhat, TEXTSTR pWhere, uintptr_t *dwSize )
 	if( !pMem )
 	{
 		// did reference BASE_MEMORY...
-		ll_lprintf( WIDE("Create view of file for memory access failed at %p %p"), pWhat, pWhere );
+		ll_lprintf( "Create view of file for memory access failed at %p %p", pWhat, pWhere );
 		CloseSpace( (POINTER)pMem );
 		return NULL;
 	}
 #ifdef VERBOSE_LOGGING
-	Log( WIDE("Go to init the heap...") );
+	Log( "Go to init the heap..." );
 #endif
 	pMem->dwSize = 0;
 #if USE_CUSTOM_ALLOCER
@@ -36331,11 +36242,11 @@ int ExpandSpace( PMEM pHeap, uintptr_t dwAmount )
 {
 	PSPACE pspace = FindSpace( (POINTER)pHeap ), pnewspace;
 	PMEM pExtend;
-	//ll_lprintf( WIDE("Expanding by %d %d"), dwAmount );
+	//ll_lprintf( "Expanding by %d %d", dwAmount );
 	pExtend = DigSpace( NULL, NULL, &dwAmount );
 	if( !pExtend )
 	{
-		ll_lprintf( WIDE("Failed to expand space by %") _PTRSZVALfs, dwAmount );
+		ll_lprintf( "Failed to expand space by %" _PTRSZVALfs, dwAmount );
 		return FALSE;
 	}
 	pnewspace = FindSpace( pExtend );
@@ -36360,7 +36271,7 @@ static PMEM InitMemory( void ) {
 	if( !g.pMemInstance )
 	{
 		g.bMemInstanced = FALSE;
-		ODS( WIDE( "Failed to allocate memory - assuming fatailty at Allocation service level." ) );
+		ODS( "Failed to allocate memory - assuming fatailty at Allocation service level." );
 		return NULL;
 	}
 #endif
@@ -36378,7 +36289,7 @@ static PMEM GrabMemEx( PMEM pMem DBG_PASS )
 		else
 			return 0;
 	}
-	//ll_lprintf( WIDE("grabbing memory %p"), pMem );
+	//ll_lprintf( "grabbing memory %p", pMem );
 	{
 #ifdef LOG_DEBUG_CRITICAL_SECTIONS
 		int log = g.bLogCritical;
@@ -36407,7 +36318,7 @@ static void DropMemEx( PMEM pMem DBG_PASS )
 {
 	if( !pMem )
 		return;
-	//ll_lprintf( WIDE("dropping memory %p"), pMem );
+	//ll_lprintf( "dropping memory %p", pMem );
 	{
 #ifdef LOG_DEBUG_CRITICAL_SECTIONS
 		int log = g.bLogCritical;
@@ -36452,7 +36363,7 @@ POINTER HeapAllocateAlignedEx( PMEM pHeap, uintptr_t dwSize, uint16_t alignment 
 #  ifdef _DEBUG
 		if( g.bLogAllocate )
 		{
-			ll__lprintf(DBG_RELAY)( WIDE( "alloc %p(%p) %" ) _PTRSZVALfs, pc, pc->byData, dwSize );
+			ll__lprintf(DBG_RELAY)( "alloc %p(%p) %" _PTRSZVALfs, pc, pc->byData, dwSize );
 		}
 #  endif
 #endif
@@ -36485,7 +36396,7 @@ POINTER HeapAllocateAlignedEx( PMEM pHeap, uintptr_t dwSize, uint16_t alignment 
 		PSPACE pMemSpace;
 		uint32_t dwPad = 0;
 		uint32_t dwMin = 0;
-		//ll__lprintf(DBG_RELAY)( WIDE( "..." ) );
+		//ll__lprintf(DBG_RELAY)( "..." );
 #ifdef _DEBUG
 		if( !g.bDisableAutoCheck )
 			GetHeapMemStatsEx(pHeap, &dwFree,&dwAllocated,&dwBlocks,&dwFreeBlocks DBG_RELAY);
@@ -36517,7 +36428,7 @@ POINTER HeapAllocateAlignedEx( PMEM pHeap, uintptr_t dwSize, uint16_t alignment 
 			dwPad += MAGIC_SIZE * 2;
  // pFile, nLine per block...
 			dwSize += MAGIC_SIZE * 2;
-									  //ll_lprintf( WIDE("Adding 8 bytes to block size...") );
+									  //ll_lprintf( "Adding 8 bytes to block size..." );
 		}
 		if( !g.bDisableDebug )
 		{
@@ -36539,7 +36450,7 @@ POINTER HeapAllocateAlignedEx( PMEM pHeap, uintptr_t dwSize, uint16_t alignment 
 				DropMem( pCurMem );
 			// then mark that this block is our current block.
 			pCurMem = (PMEM)pMemSpace->pMem;
-			//ll_lprintf( WIDE("region %p is now owned."), pCurMem );
+			//ll_lprintf( "region %p is now owned.", pCurMem );
 			for( pc = pCurMem->pFirstFree; pc; pc = pc->next )
 			{
  // if free block size is big enough...
@@ -36619,7 +36530,7 @@ POINTER HeapAllocateAlignedEx( PMEM pHeap, uintptr_t dwSize, uint16_t alignment 
 				if( ExpandSpace( pMem, dwSize + (CHUNK_SIZE*4) + MEM_SIZE + 8 * MAGIC_SIZE ) )
 				{
 #ifndef NO_LOGGING
-					//ll__lprintf(DBG_RELAY)( WIDE("Creating a new expanded space... %")_size_fs, dwSize + (CHUNK_SIZE*4) + MEM_SIZE + 8 * MAGIC_SIZE );
+					//ll__lprintf(DBG_RELAY)( "Creating a new expanded space... %" _size_fs, dwSize + (CHUNK_SIZE*4) + MEM_SIZE + 8 * MAGIC_SIZE );
 #endif
 					goto search_for_free_memory;
 				}
@@ -36628,7 +36539,7 @@ POINTER HeapAllocateAlignedEx( PMEM pHeap, uintptr_t dwSize, uint16_t alignment 
 			pCurMem = NULL;
 #ifdef _DEBUG
 			if( !g.bDisableDebug )
-				ODS( WIDE("Remaining space in memory block is insufficient.  Please EXPAND block."));
+				ODS( "Remaining space in memory block is insufficient.  Please EXPAND block.");
 #endif
 			DropMem( pMem );
 			return NULL;
@@ -36658,7 +36569,7 @@ POINTER HeapAllocateAlignedEx( PMEM pHeap, uintptr_t dwSize, uint16_t alignment 
 #  ifdef _DEBUG
 		if( g.bLogAllocate && g.allowLogging )
 		{
-			_xlprintf( 2 DBG_RELAY )(WIDE( "Allocate : %p(%p) - %" ) _PTRSZVALfs WIDE( " bytes" ), pc->byData, pc, pc->dwSize);
+			_xlprintf( 2 DBG_RELAY )("Allocate : %p(%p) - %" _PTRSZVALfs " bytes", pc->byData, pc, pc->dwSize);
 		}
 #  endif
 #endif
@@ -36783,7 +36694,7 @@ static void Bubble( PMEM pMem )
 #ifdef _DEBUG
 			if( temp->next == temp )
 			{
-				ll_lprintf( WIDE("OOps this block is way bad... how'd that happen? %s(%d)"), BLOCK_FILE( temp ), BLOCK_LINE( temp ) );
+				ll_lprintf( "OOps this block is way bad... how'd that happen? %s(%d)", BLOCK_FILE( temp ), BLOCK_LINE( temp ) );
 				DebugBreak();
 			}
 #endif
@@ -36863,7 +36774,7 @@ POINTER ReleaseEx ( POINTER pData DBG_PASS )
 #  ifdef _DEBUG
 				if( g.bLogAllocate )
 				{
-					ll__lprintf(DBG_RELAY)( WIDE( "Release %p(%p)" ), pc, pc->byData );
+					ll__lprintf(DBG_RELAY)( "Release %p(%p)", pc, pc->byData );
 				}
 #  endif
 #endif
@@ -36871,7 +36782,7 @@ POINTER ReleaseEx ( POINTER pData DBG_PASS )
 				if( !MemChk( pc->LeadProtect, LEAD_PROTECT_TAG, sizeof( pc->LeadProtect ) ) ||
 					!MemChk( pc->byData + pc->dwSize, LEAD_PROTECT_BLOCK_TAIL, sizeof( pc->LeadProtect ) ) )
 				{
-					ll_lprintf( WIDE( "overflow block (%p) %p" ), pData, pc );
+					ll_lprintf( "overflow block (%p) %p", pData, pc );
 					DebugBreak();
 				}
 #endif
@@ -36883,7 +36794,7 @@ POINTER ReleaseEx ( POINTER pData DBG_PASS )
 #ifndef NO_LOGGING
 				if( g.bLogAllocate && g.bLogAllocateWithHold )
 				{
-					ll__lprintf(DBG_RELAY)( WIDE( "Release(holding) %p(%p)" ), pc, pc->byData );
+					ll__lprintf(DBG_RELAY)( "Release(holding) %p(%p)", pc, pc->byData );
 				}
 #endif
 			}
@@ -36907,9 +36818,9 @@ POINTER ReleaseEx ( POINTER pData DBG_PASS )
 			if( g.bLogAllocate )
 			{
 				if( !g.bDisableDebug )
-					_xlprintf( 2 DBG_RELAY )(WIDE( "Release  : %p(%p) - %" ) _PTRSZVALfs WIDE( " bytes %s(%d)" ), pc->byData, pc, pc->dwSize, BLOCK_FILE( pc ), BLOCK_LINE( pc ));
+					_xlprintf( 2 DBG_RELAY )("Release  : %p(%p) - %" _PTRSZVALfs " bytes %s(%d)", pc->byData, pc, pc->dwSize, BLOCK_FILE( pc ), BLOCK_LINE( pc ));
 				else
-					_xlprintf( 2 DBG_RELAY )(WIDE( "Release  : %p(%p) - %" ) _PTRSZVALfs WIDE( " bytes" ), pc->byData, pc, pc->dwSize);
+					_xlprintf( 2 DBG_RELAY )("Release  : %p(%p) - %" _PTRSZVALfs " bytes", pc->byData, pc, pc->dwSize);
 			}
 #  endif
 #endif
@@ -36917,7 +36828,7 @@ POINTER ReleaseEx ( POINTER pData DBG_PASS )
 			if( !pMem )
 			{
 #ifndef NO_LOGGING
-				ll__lprintf( DBG_RELAY )( WIDE("ERROR: Chunk to free does not reference a heap!") );
+				ll__lprintf( DBG_RELAY )( "ERROR: Chunk to free does not reference a heap!" );
 #endif
 				DebugDumpHeapMemEx( pc->pRoot, 1 );
 				DebugBreak();
@@ -36929,17 +36840,17 @@ POINTER ReleaseEx ( POINTER pData DBG_PASS )
 									 )
 				 )
 			{
-				Log( WIDE("ERROR: This block should have immediatly referenced it's correct heap!") );
+				Log( "ERROR: This block should have immediatly referenced it's correct heap!" );
 				pMemSpace = pMemSpace->next;
 			}
 			if( !pMemSpace )
 			{
 #ifndef NO_LOGGING
 #  ifdef _DEBUG
-				ll__lprintf( DBG_RELAY )( WIDE("This Block is NOT within the managed heap! : %p" ), pData );
+				ll__lprintf( DBG_RELAY )( "This Block is NOT within the managed heap! : %p", pData );
 #  endif
 #endif
-				ll_lprintf( WIDE("this may not be an error.  This could be an old block from not using customallocer...") );
+				ll_lprintf( "this may not be an error.  This could be an old block from not using customallocer..." );
 				DebugDumpHeapMemEx( pc->pRoot, 1 );
 				DebugBreak();
 				DropMem( pMem );
@@ -36957,12 +36868,12 @@ POINTER ReleaseEx ( POINTER pData DBG_PASS )
 						_xlprintf( 2
 									, BLOCK_FILE(pc)
 									, BLOCK_LINE(pc)
-									)( WIDE("Block is already Free! %p ")
+									)( "Block is already Free! %p "
 									, pc );
 					else
 #  endif
 						// CRITICAL ERROR!
-						_xlprintf( 2 DBG_RELAY)( WIDE("Block is already Free! %p "), pc );
+						_xlprintf( 2 DBG_RELAY)( "Block is already Free! %p ", pc );
 #endif
 					DropMem( pMem );
 					return pData;
@@ -36971,7 +36882,7 @@ POINTER ReleaseEx ( POINTER pData DBG_PASS )
 				if( !g.bDisableDebug )
 					if( BLOCK_TAG( pc ) != BLOCK_TAG_ID )
 					{
-						ll_lprintf( WIDE("Application overflowed memory:%p"), pc->byData );
+						ll_lprintf( "Application overflowed memory:%p", pc->byData );
 						DebugDumpHeapMemEx( pc->pRoot, 1 );
 						DebugBreak();
 					}
@@ -37027,7 +36938,7 @@ POINTER ReleaseEx ( POINTER pData DBG_PASS )
 #ifdef _DEBUG
 							//if( bLogAllocate )
 							{
-								//ll_lprintf( WIDE("Collapsing freed block with prior block...%p %p"), pc, pPrior );
+								//ll_lprintf( "Collapsing freed block with prior block...%p %p", pc, pPrior );
 							}
 							if( !g.bDisableDebug )
 							{
@@ -37086,7 +36997,7 @@ POINTER ReleaseEx ( POINTER pData DBG_PASS )
 							}
 #ifdef _DEBUG
 							//if( bLogAllocate )
-								//ll_lprintf( WIDE("Collapsing freed block with next block...%p %p"), pc, next );
+								//ll_lprintf( "Collapsing freed block with next block...%p %p", pc, next );
 							if( !g.bDisableDebug )
 							{
 								pc->dwPad = MAGIC_SIZE;
@@ -37151,7 +37062,7 @@ POINTER ReleaseEx ( POINTER pData DBG_PASS )
 			//ll__lprintf( DBG_RELAY )( "holding block %p", pc );
 #ifndef NO_LOGGING
 			if( g.bLogAllocate && g.bLogAllocateWithHold )
-				_xlprintf( 2 DBG_RELAY)( WIDE("Hold	 : %p - %") _PTRSZVALfs WIDE(" bytes"),pc, pc->dwSize );
+				_xlprintf( 2 DBG_RELAY)( "Hold	 : %p - %" _PTRSZVALfs " bytes",pc, pc->dwSize );
 #endif
 			pc->dwOwners++;
 		}
@@ -37162,12 +37073,12 @@ POINTER ReleaseEx ( POINTER pData DBG_PASS )
 #ifndef NO_LOGGING
 			if( g.bLogAllocate )
 			{
-				_xlprintf( 2 DBG_RELAY)( WIDE("Hold	 : %p - %") _PTRSZVALfs WIDE(" bytes"),pc, pc->dwSize );
+				_xlprintf( 2 DBG_RELAY)( "Hold	 : %p - %" _PTRSZVALfs " bytes",pc, pc->dwSize );
 			}
 #endif
 			if( !pc->dwOwners )
 			{
-				ll_lprintf( WIDE("Held block has already been released!  too late to hold it!") );
+				ll_lprintf( "Held block has already been released!  too late to hold it!" );
 				DebugBreak();
 				DropMem( pMem );
 				return pData;
@@ -37200,9 +37111,9 @@ void  DebugDumpHeapMemEx ( PMEM pHeap, LOGICAL bVerbose )
 		PSPACE pMemSpace;
 		PMEM pMem = GrabMem( pHeap ), pCurMem;
 		pc = pMem->pRoot;
-		ll_lprintf(WIDE(" ------ Memory Dump ------- ") );
+		ll_lprintf(" ------ Memory Dump ------- " );
 		{
-			xlprintf(LOG_ALWAYS)( WIDE("FirstFree : %p"),
+			xlprintf(LOG_ALWAYS)( "FirstFree : %p",
 										pMem->pFirstFree );
 		}
 		for( pc = NULL, pMemSpace = FindSpace( pMem ); pMemSpace; pMemSpace = pMemSpace->next )
@@ -37227,10 +37138,10 @@ void  DebugDumpHeapMemEx ( PMEM pHeap, LOGICAL bVerbose )
 #if defined( _DEBUG ) || defined( _DEBUG_INFO )
 						CTEXTSTR pFile =  !IsBadReadPtr( BLOCK_FILE(pc), 1 )
 							?BLOCK_FILE(pc)
-							:WIDE("Unknown");
+							:"Unknown";
 						uint32_t nLine = BLOCK_LINE(pc);
 #endif
-						_xlprintf(LOG_ALWAYS DBG_RELAY)( WIDE("Free at %p size: %") _PTRSZVALfs WIDE("(%") _PTRSZVALfx WIDE(") Prior:%p NF:%p"),
+						_xlprintf(LOG_ALWAYS DBG_RELAY)( "Free at %p size: %" _PTRSZVALfs "(%" _PTRSZVALfx ") Prior:%p NF:%p",
 																 pc, pc->dwSize, pc->dwSize,
 																 pc->pPrior,
 																 pc->next );
@@ -37246,10 +37157,10 @@ void  DebugDumpHeapMemEx ( PMEM pHeap, LOGICAL bVerbose )
 #if defined( _DEBUG ) || defined( _DEBUG_INFO )
 						CTEXTSTR pFile =  !IsBadReadPtr( BLOCK_FILE(pc), 1 )
 							?BLOCK_FILE(pc)
-							:WIDE("Unknown");
+							:"Unknown";
 						uint32_t nLine = BLOCK_LINE(pc);
 #endif
-						_xlprintf(LOG_ALWAYS DBG_RELAY)( WIDE("Used at %p size: %") _PTRSZVALfs WIDE("(%") _PTRSZVALfx WIDE(") Prior:%p"),
+						_xlprintf(LOG_ALWAYS DBG_RELAY)( "Used at %p size: %" _PTRSZVALfs "(%" _PTRSZVALfx ") Prior:%p",
 																 pc, pc->dwSize, pc->dwSize,
 																 pc->pPrior );
 					}
@@ -37259,21 +37170,21 @@ void  DebugDumpHeapMemEx ( PMEM pHeap, LOGICAL bVerbose )
 				pc = (PCHUNK)(pc->byData + pc->dwSize );
 				if( pc == _pc )
 				{
-					ll_lprintf( WIDE("Next block is the current block...") );
+					ll_lprintf( "Next block is the current block..." );
  // broken memory chain
 					DebugBreak();
 					break;
 				}
 			}
 		}
-		xlprintf(LOG_ALWAYS)( WIDE("Total Free: %")_PTRSZVALfs WIDE("  TotalUsed: %")_PTRSZVALfs WIDE("  TotalChunks: %")_PTRSZVALfs WIDE(" TotalMemory:%") _PTRSZVALfs,
+		xlprintf(LOG_ALWAYS)( "Total Free: %" _PTRSZVALfs "  TotalUsed: %" _PTRSZVALfs "  TotalChunks: %" _PTRSZVALfs " TotalMemory:%" _PTRSZVALfs,
 									nTotalFree, nTotalUsed, nChunks,
 									(nTotalFree + nTotalUsed + nChunks * CHUNK_SIZE) );
 		DropMem( pMem );
 	}
 	else
 #endif
-		xlprintf(LOG_ALWAYS)( WIDE( "Cannot log chunks allocated that are not using custom allocer." ) );
+		xlprintf(LOG_ALWAYS)( "Cannot log chunks allocated that are not using custom allocer." );
 }
 	//------------------------------------------------------------------------------------------------------
  void  DebugDumpMemEx ( LOGICAL bVerbose )
@@ -37289,7 +37200,7 @@ void  DebugDumpHeapMemEx ( PMEM pHeap, LOGICAL bVerbose )
 	if( !USE_CUSTOM_ALLOCER )
 		return;
 #if USE_CUSTOM_ALLOCER
-	Fopen( file, pFilename, WIDE("wt") );
+	Fopen( file, pFilename, "wt" );
 	if( file )
 	{
 		PCHUNK pc, _pc;
@@ -37340,7 +37251,7 @@ void  DebugDumpHeapMemEx ( PMEM pHeap, LOGICAL bVerbose )
 				{
 					CTEXTSTR pFile =  !IsBadReadPtr( BLOCK_FILE(pc), 1 )
 							?BLOCK_FILE(pc)
-							:WIDE("Unknown");
+							:"Unknown";
 					fprintf( file, "%s(%d):%s\n", pFile, BLOCK_LINE(pc), byDebug );
 				}
 				else
@@ -37525,7 +37436,7 @@ void  DebugDumpHeapMemEx ( PMEM pHeap, LOGICAL bVerbose )
 				{
 					if( pc->dwSize > pMemCheck->dwSize )
 					{
-						ll_lprintf( WIDE("Memory block %p has a corrupt size."), pc->byData );
+						ll_lprintf( "Memory block %p has a corrupt size.", pc->byData );
 						DebugBreak();
 					}
 					else
@@ -37536,18 +37447,18 @@ void  DebugDumpHeapMemEx ( PMEM pHeap, LOGICAL bVerbose )
 						if( ( pc->dwPad >= minPad ) && ( BLOCK_TAG(pc) != BLOCK_TAG_ID ) )
 						{
 #ifndef NO_LOGGING
-							ll_lprintf( WIDE("memory block: %p(%p) %08") TAG_FORMAT_MODIFIER WIDE("x instead of %08")TAG_FORMAT_MODIFIER WIDE("x"), pc, pc->byData, BLOCK_TAG(pc), BLOCK_TAG_ID );
+							ll_lprintf( "memory block: %p(%p) %08" TAG_FORMAT_MODIFIER "x instead of %08"TAG_FORMAT_MODIFIER "x", pc, pc->byData, BLOCK_TAG(pc), BLOCK_TAG_ID );
 							if( !(pMemCheck->dwFlags & HEAP_FLAG_NO_DEBUG ) )
 							{
 								CTEXTSTR file = BLOCK_FILE(pc);
 #  ifdef _WIN32
 								if( IsBadReadPtr( file, 4 ) )
-									file = WIDE("(corrupt)");
+									file = "(corrupt)";
 #  endif
-								_xlprintf( 2, file, BLOCK_LINE(pc) )( WIDE("Application overflowed allocated memory.") );
+								_xlprintf( 2, file, BLOCK_LINE(pc) )( "Application overflowed allocated memory." );
 							}
 							else
-								ODS( WIDE("Application overflowed allocated memory.") );
+								ODS( "Application overflowed allocated memory." );
 #endif
 							DebugDumpHeapMemEx( pHeap, 1 );
 							DebugBreak();
@@ -37562,7 +37473,7 @@ void  DebugDumpHeapMemEx ( PMEM pHeap, LOGICAL bVerbose )
 			{
 				if( pc == _pc )
 				{
-					Log( WIDE("Current block is the same as the last block we checked!") );
+					Log( "Current block is the same as the last block we checked!" );
 					DebugDumpHeapMemEx( pHeap, 1 );
  // broken memory chain
 					DebugBreak();
@@ -37570,7 +37481,7 @@ void  DebugDumpHeapMemEx ( PMEM pHeap, LOGICAL bVerbose )
 				}
 				if( pc->pPrior != _pc )
 				{
-					ll_lprintf( WIDE("Block's prior is not the last block we checked! prior %p sz: %") _PTRSZVALfs WIDE(" current: %p currentprior: %p")
+					ll_lprintf( "Block's prior is not the last block we checked! prior %p sz: %" _PTRSZVALfs " current: %p currentprior: %p"
 						, _pc
 						, _pc->dwSize
 						, pc
@@ -37588,7 +37499,7 @@ void  DebugDumpHeapMemEx ( PMEM pHeap, LOGICAL bVerbose )
 			if( pc->dwOwners )
   // owned block is in free memory chain ! ?
 			{
-				ll_lprintf( WIDE("Owned block %p is in free memory chain!"), pc );
+				ll_lprintf( "Owned block %p is in free memory chain!", pc );
 				DebugBreak();
 				break;
 			}
@@ -37686,19 +37597,19 @@ lineNumber)
 	switch( allocType )
 	{
 	case _HOOK_ALLOC:
-		ll_lprintf( WIDE( "CRT Alloc: %d bytes %s(%d)" )
+		ll_lprintf( "CRT Alloc: %d bytes %s(%d)"
 			, size
 			, filename, lineNumber
 			);
 		break;
 	case _HOOK_REALLOC:
-		ll_lprintf( WIDE( "CRT Realloc: %d bytes %s(%d)" )
+		ll_lprintf( "CRT Realloc: %d bytes %s(%d)"
 			, size
 			, filename, lineNumber
 			);
 		break;
 	case _HOOK_FREE:
-		ll_lprintf( WIDE( "CRT Free: %p[%"_PTRSZVALfs"](%d) %s(%d)" )
+		ll_lprintf( ( "CRT Free: %p[%" _PTRSZVALfs "](%d) %s(%d)" )
 			, userData
 			, (uintptr_t)userData
 			, size
@@ -38440,12 +38351,12 @@ void EnqueStartupProc( PSTARTUP_PROC *root, PSTARTUP_PROC proc )
 			if( proc->priority < check->priority )
 			{
 #ifndef  DISABLE_DEBUG_REGISTER_AND_DISPATCH
-				_lprintf(DBG_RELAY)( WIDE("%s(%d) is to run before %s and after %s first is %s")
+				_lprintf(DBG_RELAY)( "%s(%d) is to run before %s and after %s first is %s"
 						 , proc->func
 						 , proc - procs
 						 , check->func
-						 , (check->me==root)?WIDE("Is First"):((PSTARTUP_PROC)check->me)->func
-						 , (*root)?(*root)->func:WIDE("First")
+						 , (check->me==root)?"Is First":((PSTARTUP_PROC)check->me)->func
+						 , (*root)?(*root)->func:"First"
 						 );
 #endif
 				proc->next = check;
@@ -38459,7 +38370,7 @@ void EnqueStartupProc( PSTARTUP_PROC *root, PSTARTUP_PROC proc )
 		if( !check )
 		{
 #ifndef  DISABLE_DEBUG_REGISTER_AND_DISPATCH
-			lprintf( WIDE("%s(%d) is to run after all")
+			lprintf( "%s(%d) is to run after all"
 					 , proc->func
 					 , proc - procs
 					 );
@@ -38490,7 +38401,7 @@ void RegisterPriorityStartupProc( void (CPROC*proc)(void), CTEXTSTR func,int pri
 		(1
 #endif
 		&& l.flags.bLog ))
-		lprintf( WIDE("Register %s@") DBG_FILELINEFMT_MIN WIDE(" %d"), func DBG_RELAY, priority);
+		lprintf( "Register %s@" DBG_FILELINEFMT_MIN " %d", func DBG_RELAY, priority);
 	if( nProcs == 1024 )
 	{
 		for( use_proc = 0; use_proc < 1024; use_proc++ )
@@ -38498,7 +38409,7 @@ void RegisterPriorityStartupProc( void (CPROC*proc)(void), CTEXTSTR func,int pri
 				break;
 		if( use_proc == 1024 )
 		{
-			lprintf( WIDE( "Used all 1024, and, have 1024 startups total scheduled." ) );
+			lprintf( "Used all 1024, and, have 1024 startups total scheduled." );
 			DebugBreak();
 		}
 	}
@@ -38522,7 +38433,7 @@ void RegisterPriorityStartupProc( void (CPROC*proc)(void), CTEXTSTR func,int pri
 	/*
 	if( nProcs == 1024 )
 	{
-		lprintf( WIDE( "Excessive number of startup procs!" ) );
+		lprintf( "Excessive number of startup procs!" );
 		DebugBreak();
 	}
 	*/
@@ -38530,11 +38441,11 @@ void RegisterPriorityStartupProc( void (CPROC*proc)(void), CTEXTSTR func,int pri
 	{
 #define ONE_MACRO(a,b) a,b
 #ifdef _DEBUG
-		_xlprintf(LOG_NOISE,pFile,nLine)( WIDE( "Initial done, not suspended, dispatch immediate." ) );
+		_xlprintf(LOG_NOISE,pFile,nLine)( "Initial done, not suspended, dispatch immediate." );
 #endif
 		InvokeDeadstart();
 	}
-	//lprintf( WIDE("Total procs %d"), nProcs );
+	//lprintf( "Total procs %d", nProcs );
 }
 #ifdef __LINUX__
 // this handles the peculiarities of fork() and exit()
@@ -38601,7 +38512,7 @@ void InvokeDeadstart( void )
 	{
 		if( l.flags.bLog )
  //-V595
-			lprintf( WIDE("Suspended, first proc is %s"), proc_schedule?proc_schedule->func:WIDE("No First") );
+			lprintf( "Suspended, first proc is %s", proc_schedule?proc_schedule->func:"No First" );
 		return;
 	}
 #ifdef WIN32
@@ -38637,9 +38548,9 @@ void InvokeDeadstart( void )
 		&& l.flags.bLog ))
 		{
 #ifdef _DEBUG
-			lprintf( WIDE("Dispatch %s@%s(%d)p:%d "), proc->func,proc->file,proc->line, proc->priority );
+			lprintf( "Dispatch %s@%s(%d)p:%d ", proc->func,proc->file,proc->line, proc->priority );
 #else
-			lprintf( WIDE("Dispatch %s@p:%d "), proc->func, proc->priority );
+			lprintf( "Dispatch %s@p:%d ", proc->func, proc->priority );
 #endif
 		}
 		{
@@ -38701,7 +38612,7 @@ PRIORITY_PRELOAD( InitDeadstartOptions, NAMESPACE_PRELOAD_PRIORITY+1 )
 {
 #ifdef DISABLE_DEBUG_REGISTER_AND_DISPATCH
 #  ifndef __NO_OPTIONS
-	l.flags.bLog = SACK_GetProfileIntEx( WIDE( "SACK/Deadstart" ), WIDE( "Logging Enabled?" ), 0, TRUE );
+	l.flags.bLog = SACK_GetProfileIntEx( "SACK/Deadstart", "Logging Enabled?", 0, TRUE );
 #  else
 	l.flags.bLog = 0;
 #  endif
@@ -38722,7 +38633,7 @@ void RegisterPriorityShutdownProc( void (CPROC*proc)(void), CTEXTSTR func, int p
 		 (1
 #endif
 		  && l.flags.bLog ))
-		lprintf( WIDE("Exit Proc %s(%p) from ") DBG_FILELINEFMT_MIN WIDE(" registered...")
+		lprintf( "Exit Proc %s(%p) from " DBG_FILELINEFMT_MIN " registered..."
 				 , func
 				 , proc DBG_RELAY );
 	shutdown_procs[nShutdownProcs].proc = proc;
@@ -38740,7 +38651,7 @@ void RegisterPriorityShutdownProc( void (CPROC*proc)(void), CTEXTSTR func, int p
 			if( shutdown_procs[nShutdownProcs].priority >= check->priority )
 			{
 #ifdef DEBUG_SHUTDOWN
-				lprintf( WIDE("%s(%d) is to run before %s(%d) %s")
+				lprintf( "%s(%d) is to run before %s(%d) %s"
 						 , shutdown_procs[nShutdownProcs].func
 						 , nShutdownProcs
 						 , check->file
@@ -38756,12 +38667,12 @@ void RegisterPriorityShutdownProc( void (CPROC*proc)(void), CTEXTSTR func, int p
 		}
 		if( !check )
 			LinkLast( shutdown_proc_schedule, PSHUTDOWN_PROC, shutdown_procs + nShutdownProcs );
-		//lprintf( WIDE("first routine is %s(%d)")
+		//lprintf( "first routine is %s(%d)"
 		//		 , shutdown_proc_schedule->func
 		//		 , shutdown_proc_schedule->line );
 	}
 	nShutdownProcs++;
-	//lprintf( WIDE("Total procs %d"), nProcs );
+	//lprintf( "Total procs %d", nProcs );
 }
 void InvokeExits( void )
 {
@@ -38795,7 +38706,7 @@ void InvokeExits( void )
 		while( ( proc = proclist ) )
 		{
 #if defined( DEBUG_SHUTDOWN )
-			lprintf( WIDE("Exit Proc %s(%p)(%d) priority %d from %s(%d)...")
+			lprintf( "Exit Proc %s(%p)(%d) priority %d from %s(%d)..."
 			       , proc->func
 			       , proc->proc
 			       , proc - shutdown_procs
@@ -38823,7 +38734,7 @@ void InvokeExits( void )
 			}
 			// okay I have the whol elist... so...
 #ifdef DEBUG_SHUTDOWN
-			lprintf( WIDE("Okay and that's done... next is %p %p"), proclist, shutdown_proc_schedule );
+			lprintf( "Okay and that's done... next is %p %p", proclist, shutdown_proc_schedule );
 #endif
 		}
 		// nope by this time memory doesn't exist anywhere.
