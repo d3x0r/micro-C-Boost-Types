@@ -1363,7 +1363,11 @@ typedef uint64_t THREAD_ID;
 #      ifdef __ANDROID__
 #        define GetMyThreadID()  (( ((uint64_t)getpid()) << 32 ) | ( (uint64_t)(gettid()) ) )
 #      else
-#        define GetMyThreadID()  (( ((uint64_t)getpid()) << 32 ) | ( (uint64_t)(syscall(SYS_gettid)) ) )
+#        if defined( __EMSCRIPTEN__ )
+#          define GetMyThreadID()  ( (uint64_t)(pthread_self()) )
+#        else
+#          define GetMyThreadID()  (( ((uint64_t)getpid()) << 32 ) | ( (uint64_t)(syscall(SYS_gettid)) ) )
+#        endif
 #      endif
 #    else
 #      define GetMyThreadID()  (( ((uint64_t)getppid()) << 32 ) | ( (uint64_t)(getpid()|0x40000000)) )
@@ -6853,46 +6857,16 @@ using namespace sack::timers;
 #else
 #endif
 #  ifdef _MSC_VER
-#    define SUFFER_WITH_NO_SNPRINTF
-#    ifndef SUFFER_WITH_NO_SNPRINTF
-#      define vnsprintf protable_vsnprintf
-//   this one gives deprication warnings
-//   #    define vsnprintf _vsnprintf
-//   this one doesn't work to measure strings
-//   #    define vsnprintf(buf,len,format,args) _vsnprintf_s(buf,len,(len)/sizeof(TEXTCHAR),format,args)
-//   this one doesn't macro well, and doesnt' measure strings
-//  (SUCCEEDED(StringCbVPrintf( buf, len, format, args ))?StrLen(buf):-1)
-#      define snprintf portable_snprintf
-//   this one gives deprication warnings
-//   #    define snprintf _snprintf
-//   this one doesn't work to measure strings
-//   #    define snprintf(buf,len,format,...) _snprintf_s(buf,len,(len)/sizeof(TEXTCHAR),format,##__VA_ARGS__)
-//   this one doesn't macro well, and doesnt' measure strings
-//   (SUCCEEDED(StringCbPrintf( buf, len, format,##__VA_ARGS__ ))?StrLen(buf):-1)
-// make sure this is off, cause we really don't, and have to include the following
-#      undef HAVE_SNPRINTF
- // define this anyhow so we can avoid name collisions
-#      define PREFER_PORTABLE_SNPRINTF
-#      ifdef SACK_CORE_BUILD
-#        include <../src/snprintf_2.2/snprintf.h>
-#      else
-#        include <snprintf-2.2/snprintf.h>
- // SACK_CORE_BUILD
-#      endif
- // SUFFER_WITH_WARNININGS
+#    define snprintf _snprintf
+#    define vsnprintf _vsnprintf
+#    if defined( _UNICODE )
+#      define tnprintf _snwprintf
+#      define vtnprintf _vsnwprintf
 #    else
-#      define snprintf _snprintf
-#      define vsnprintf _vsnprintf
-#      if defined( _UNICODE )
-#        define tnprintf _snwprintf
-#        define vtnprintf _vsnwprintf
-#      else
-#        define tnprintf _snprintf
-#        define vtnprintf _vsnprintf
-#      endif
-#    define snwprintf _snwprintf
-// suffer_with_warnings
+#      define tnprintf _snprintf
+#      define vtnprintf _vsnprintf
 #    endif
+#    define snwprintf _snwprintf
 #    if defined( _UNICODE ) && !defined( NO_UNICODE_C )
 #    define tscanf swscanf_s
 #    else
@@ -8325,7 +8299,11 @@ typedef uint64_t THREAD_ID;
 #      ifdef __ANDROID__
 #        define GetMyThreadID()  (( ((uint64_t)getpid()) << 32 ) | ( (uint64_t)(gettid()) ) )
 #      else
-#        define GetMyThreadID()  (( ((uint64_t)getpid()) << 32 ) | ( (uint64_t)(syscall(SYS_gettid)) ) )
+#        if defined( __EMSCRIPTEN__ )
+#          define GetMyThreadID()  ( (uint64_t)(pthread_self()) )
+#        else
+#          define GetMyThreadID()  (( ((uint64_t)getpid()) << 32 ) | ( (uint64_t)(syscall(SYS_gettid)) ) )
+#        endif
 #      endif
 #    else
 #      define GetMyThreadID()  (( ((uint64_t)getppid()) << 32 ) | ( (uint64_t)(getpid()|0x40000000)) )
@@ -13815,46 +13793,16 @@ using namespace sack::timers;
 #else
 #endif
 #  ifdef _MSC_VER
-#    define SUFFER_WITH_NO_SNPRINTF
-#    ifndef SUFFER_WITH_NO_SNPRINTF
-#      define vnsprintf protable_vsnprintf
-//   this one gives deprication warnings
-//   #    define vsnprintf _vsnprintf
-//   this one doesn't work to measure strings
-//   #    define vsnprintf(buf,len,format,args) _vsnprintf_s(buf,len,(len)/sizeof(TEXTCHAR),format,args)
-//   this one doesn't macro well, and doesnt' measure strings
-//  (SUCCEEDED(StringCbVPrintf( buf, len, format, args ))?StrLen(buf):-1)
-#      define snprintf portable_snprintf
-//   this one gives deprication warnings
-//   #    define snprintf _snprintf
-//   this one doesn't work to measure strings
-//   #    define snprintf(buf,len,format,...) _snprintf_s(buf,len,(len)/sizeof(TEXTCHAR),format,##__VA_ARGS__)
-//   this one doesn't macro well, and doesnt' measure strings
-//   (SUCCEEDED(StringCbPrintf( buf, len, format,##__VA_ARGS__ ))?StrLen(buf):-1)
-// make sure this is off, cause we really don't, and have to include the following
-#      undef HAVE_SNPRINTF
- // define this anyhow so we can avoid name collisions
-#      define PREFER_PORTABLE_SNPRINTF
-#      ifdef SACK_CORE_BUILD
-#        include <../src/snprintf_2.2/snprintf.h>
-#      else
-#        include <snprintf-2.2/snprintf.h>
- // SACK_CORE_BUILD
-#      endif
- // SUFFER_WITH_WARNININGS
+#    define snprintf _snprintf
+#    define vsnprintf _vsnprintf
+#    if defined( _UNICODE )
+#      define tnprintf _snwprintf
+#      define vtnprintf _vsnwprintf
 #    else
-#      define snprintf _snprintf
-#      define vsnprintf _vsnprintf
-#      if defined( _UNICODE )
-#        define tnprintf _snwprintf
-#        define vtnprintf _vsnwprintf
-#      else
-#        define tnprintf _snprintf
-#        define vtnprintf _vsnprintf
-#      endif
-#    define snwprintf _snwprintf
-// suffer_with_warnings
+#      define tnprintf _snprintf
+#      define vtnprintf _vsnprintf
 #    endif
+#    define snwprintf _snwprintf
 #    if defined( _UNICODE ) && !defined( NO_UNICODE_C )
 #    define tscanf swscanf_s
 #    else
@@ -22382,7 +22330,7 @@ struct guid_binary {
 };
 // snprintf( buf, 256, guid_format, guid_param_pass(&guid_binary) )
 // snprintf( buf, 256, guid_format, guid_param_pass(binary_buffer_result) )
-#define guid_format "%08"_32fx "-%04"_16fx "-%04"_16fx "-%04"_16fx "-%012"_64fx
+#define guid_format "%08" _32fx "-%04" _16fx "-%04" _16fx "-%04" _16fx "-%012" _64fx
 #define guid_param_pass(n) ((struct guid_binary*)(n))->u.d.l1,((struct guid_binary*)(n))->u.d.w1,((struct guid_binary*)(n))->u.d.w2,((struct guid_binary*)(n))->u.d.w3,((struct guid_binary*)(n))->u.d.ll1
 /* some internal stub-proxy linkage for generating remote
    responders..
@@ -22399,9 +22347,9 @@ typedef struct responce_tag
 		BIT_FIELD bFields : 1;
 	} flags;
 	PVARTEXT result_single_line;
-   int nLines;
+	int nLines;
 	CTEXTSTR *pLines;
-   CTEXTSTR *pFields;
+	CTEXTSTR *pFields;
 } SQL_RESPONCE, *PSQL_RESPONCE;
 /* *WORK IN PROGRESS* function call signature for callback method passed to
    RegisterResponceHandler.                              */
@@ -23475,116 +23423,6 @@ int CPROC BinaryCompareInt( uintptr_t old, uintptr_t new_key )
 	return 0;
 }
 //---------------------------------------------------------------------------
-#if 0
-PTREENODE RotateToRight( PTREENODE node )
-{
-	PTREENODE greater = node->greater;
-	*node->me = node->greater;
-	// my parent's nodes do NOT change....
-	// node->parent->children += node->greater->children - node->children;
-	greater->me       = node->me;
-	greater->parent   = node->parent;
-	node->children   -= (greater->children+1);
-	if( ( node->greater = greater->lesser ) )
-	{
-		greater->lesser->me     = &node->greater;
-		greater->lesser->parent = node;
-		node->children    += (greater->lesser->children + 1);
-		greater->children -= (greater->lesser->children + 1);
-	}
-	greater->lesser = node;
-	node->me        = &greater->lesser;
-	node->parent    = greater;
-	greater->children += (node->children + 1);
-	return greater;
-}
-//---------------------------------------------------------------------------
-PTREENODE RotateToLeft( PTREENODE node )
-{
-	PTREENODE lesser = node->lesser;
-	*node->me = node->lesser;
-	// my parent's nodes do NOT change....
-	// node->parent->children += node->lesser->children - node->children;
-	lesser->me       = node->me;
-	lesser->parent   = node->parent;
-	node->children  -= (lesser->children+1);
-	if( ( node->lesser = lesser->greater ) )
-	{
-		lesser->greater->me     = &node->lesser;
-		lesser->greater->parent = node;
-		node->children   += (lesser->greater->children + 1);
-		lesser->children -= (lesser->greater->children + 1);
-	}
-	lesser->greater = node;
-	node->me        = &lesser->greater;
-	node->parent    = lesser;
-	lesser->children += (node->children + 1);
-	return lesser;
-}
-//---------------------------------------------------------------------------
-// RotateToLeft - make left node root/current.
-// RotateToRight - make rightDepth node root/current
-static int BalanceBinaryBranch( PTREENODE root )
-{
-	PTREENODE check;
-	int balances = 0;
-	//while( balances )
-	{
-		balances = 0;
-	   if( ( check = root ) )
-	   {
-		    if( check->lesser && check->greater)
-		 {
-			int left = check->lesser->children
-			 , rightDepth = check->greater->children;
-			if( left && rightDepth && ( left > ( rightDepth * 2 ) ) )
-			{
-				//if( left > 2+((left+rightDepth)*55)/100 )
-				{
-					 //Log2( "rotateing to left (%d/%d)", left, rightDepth );
-					root = RotateToLeft( check );
-					balances++;
-				}
-				//else
-				//	root = NULL;
-			}
-			else if( rightDepth > ( left * 2 ) )
-			{
-				//if( rightDepth  > 2+((left+rightDepth)*55)/100 )
-				{
-					 //Log2( "rotateing to rightDepth (%d/%d)", rightDepth, left );
-					root = RotateToRight( check );
-					balances++;
-				}
-				//else
-				//	root = NULL;
-			}
-		 }
-		 else if( check->lesser && ( check->children >= 2 ) )
-		 {
-			 //Log1( "rotateing to left (%d)", check->children );
-			 root = RotateToLeft( check );
-			balances++;
-		 }
-		 else if( check->greater && ( check->children >= 2 )  )
-		 {
-			 //Log1( "rotateing to rightDepth (%d)", check->children );
-			 root = RotateToRight( check );
-			balances++;
-		 }
-		 //else
-		 //	root = NULL;
-		 if( root )
-		 {
-			balances += BalanceBinaryBranch( root->lesser );
-			balances += BalanceBinaryBranch( root->greater );
-		  }
-	    }
-	 }
-	 return balances;
-}
-#endif
-//---------------------------------------------------------------------------
 void BalanceBinaryTree( PTREEROOT root )
 {
 #if SACK_BINARYLIST_USE_CHILD_COUNTS
@@ -23598,14 +23436,14 @@ void BalanceBinaryTree( PTREEROOT root )
 //---------------------------------------------------------------------------
 //---------------------------------------------------------------------------
 //static PTREENODE AVL_RotateToRight( PTREENODE node )
-	                                                  /* Perform rotation*/
-	                            /* Update heights */
-#define AVL_RotateToRight(node)                                         {	                                            PTREENODE left = node->lesser;	           PTREENODE T2 = left->greater;	                                                         node->children -= (left->children + 1);	                                               node->me[0] = left;	left->me = node->me;	left->parent = node->parent;	 left->greater = node;	  node->me = &left->greater;	  node->parent = left;	                     node->lesser = T2;	              if( T2 ) {		              T2->me = &node->lesser;		              T2->parent = node;		              node->children += (left->greater->children + 1);		              left->children -= (left->greater->children + 1);	              }	              left->children += (node->children + 1);	                 {		              int leftDepth, rightDepth;		              leftDepth = node->lesser ? node->lesser->depth : 0;		              rightDepth = node->greater ? node->greater->depth : 0;		              if( leftDepth > rightDepth )			              node->depth = leftDepth + 1;		              else			              node->depth = rightDepth + 1;		                            leftDepth = left->lesser ? left->lesser->depth : 0;		              rightDepth = left->greater ? left->greater->depth : 0;		              if( leftDepth > rightDepth ) {			              left->depth = leftDepth + 1;		              }		              else			              left->depth = rightDepth + 1;	              }              }
+	                                                                                                              /* Perform rotation*/
+	                                                                                                   /* Update heights */
+#define AVL_RotateToRight(node)                                          {	                                                                        PTREENODE left = node->lesser;	                                   PTREENODE T2 = left->greater;	                                                                                                             node->children -= (left->children + 1);	                                                                                                   node->me[0] = left;	                                              left->me = node->me;	                                             left->parent = node->parent;	                                            left->greater = node;	                                            node->me = &left->greater;	                                       node->parent = left;	                                                                                                                      node->lesser = T2;	                                               if( T2 ) {		                                                       T2->me = &node->lesser;		                                  T2->parent = node;		                                       node->children += (left->greater->children + 1);		         left->children -= (left->greater->children + 1);	         }	                                                                left->children += (node->children + 1);	                                             {		                                                                int leftDepth, rightDepth;		                               leftDepth = node->lesser ? node->lesser->depth : 0;		      rightDepth = node->greater ? node->greater->depth : 0;		   if( leftDepth > rightDepth )			                             node->depth = leftDepth + 1;		                     else			                                                     node->depth = rightDepth + 1;		                                                                                             leftDepth = left->lesser ? left->lesser->depth : 0;		      rightDepth = left->greater ? left->greater->depth : 0;		   if( leftDepth > rightDepth ) {			                           left->depth = leftDepth + 1;		                     }		                                                        else			                                                     left->depth = rightDepth + 1;	                    }                                                                }
 //---------------------------------------------------------------------------
 //static PTREENODE AVL_RotateToLeft( PTREENODE node )
-	                                                  /* Perform rotation  */
-	                                         /*  Update heights */
-#define AVL_RotateToLeft(node)                                         {	                                         PTREENODE right = node->greater;	                                         PTREENODE T2 = right->lesser;	                                                                                  node->children -= (right->children + 1);	                                                                                  node->me[0] = right;	                                         right->me = node->me;	                                         right->parent = node->parent;	                                       right->lesser = node;	                                         node->me = &right->lesser;	                                         node->parent = right;	                                         node->greater = T2;	                                         if( T2 ) {		                                         T2->me = &node->greater;		                                         T2->parent = node;		                                         node->children += (right->lesser->children + 1);		                                         right->children -= (right->lesser->children + 1);	                                         }	                                         right->children += (node->children + 1);	                                         {		                                         int left, rightDepth;		                                         left = node->lesser ? node->lesser->depth : 0;		                                         rightDepth = node->greater ? node->greater->depth : 0;		                                         if( left > rightDepth )			                                         node->depth = left + 1;		                                         else			                                         node->depth = rightDepth + 1;		                                                                                  left = right->lesser ? right->lesser->depth : 0;		                                         rightDepth = right->greater ? right->greater->depth : 0;		                                         if( left > rightDepth )			                                         right->depth = left + 1;		                                               else			                                                                       right->depth = rightDepth + 1;	                                         }                                                                              }
+	                                                                                                             /* Perform rotation  */
+	                         /*  Update heights */
+#define AVL_RotateToLeft(node)                                           {	                                                                        PTREENODE right = node->greater;	                                 PTREENODE T2 = right->lesser;	                                                                                                             node->children -= (right->children + 1);	                                                                                                  node->me[0] = right;	                                             right->me = node->me;	                                            right->parent = node->parent;	                                          right->lesser = node;	                                            node->me = &right->lesser;	                                       node->parent = right;	                                            node->greater = T2;	                                              if( T2 ) {		                                                       T2->me = &node->greater;		                                 T2->parent = node;		                                       node->children += (right->lesser->children + 1);		         right->children -= (right->lesser->children + 1);	        }	                                                                right->children += (node->children + 1);	                                            {		                                                                int left, rightDepth;		                                    left = node->lesser ? node->lesser->depth : 0;		           rightDepth = node->greater ? node->greater->depth : 0;		   if( left > rightDepth )			                                  node->depth = left + 1;		                          else			                                                     node->depth = rightDepth + 1;		                                                                                             left = right->lesser ? right->lesser->depth : 0;		         rightDepth = right->greater ? right->greater->depth : 0;		 if( left > rightDepth )			                                  right->depth = left + 1;		                         else			                                                     right->depth = rightDepth + 1;	                   }                                                                }
 //---------------------------------------------------------------------------
 #ifdef DEFINE_BINARYLIST_PERF_COUNTERS
 int zz;
@@ -23850,46 +23688,18 @@ int AddBinaryNodeEx( PTREEROOT root
 }
 #undef AddBinaryNode
 int AddBinaryNode( PTREEROOT root
-						, CPOINTER userdata
-					  , uintptr_t key )
+                 , CPOINTER userdata
+                 , uintptr_t key )
 {
 	return AddBinaryNodeEx( root, userdata, key DBG_SRC );
 }
 //---------------------------------------------------------------------------
-static void RehangBranch( PTREEROOT root, PTREENODE node )
-{
-	if( node )
-	{
- // make sure I'm out of the tree...
-		(*node->me) = NULL;
-		if( node->greater )
-		{
-			RehangBranch( root, node->greater );
-		}
-		if( node->lesser )
-		{
-			RehangBranch( root, node->lesser );
-		}
-		node->children = 0;
-		node->depth = 0;
-		//lprintf( "putting self node back in tree %p", node );
-		HangBinaryNode( root, node );
-	}
-}
-static void DecrementParentCounts( PTREENODE node, int count )
-{
-	PTREENODE parent;
-	for( parent = node; parent && !parent->flags.bRoot; parent = parent->parent )
-	{
-		parent->children -= count;
-	}
-}
 static void NativeRemoveBinaryNode( PTREEROOT root, PTREENODE node )
 {
 	if( root )
 	{
-		CPOINTER userdata;
-		uintptr_t userkey;
+		CPOINTER userdata = node->userdata;
+		uintptr_t userkey = node->key;
 		LOGICAL no_children = FALSE;
 		// lprintf( "Removing node from tree.. %p under %p", node, node->parent );
 		if( !node->parent->flags.bRoot
@@ -23914,6 +23724,7 @@ static void NativeRemoveBinaryNode( PTREEROOT root, PTREENODE node )
 			bottom = (*node->me) = node->lesser;
 			bottom->parent = node->parent;
 		} else {
+			node->children--;
 			// have a lesser and a greater.
 			if( node->lesser->depth > node->greater->depth ) {
 				least = node->lesser;
@@ -23922,8 +23733,6 @@ static void NativeRemoveBinaryNode( PTREEROOT root, PTREENODE node )
 					(*(least->lesser->me =least->me)) = least->lesser;
 					least->lesser->parent  = least->parent;
 					bottom = least->lesser;
-					//least->parent->children--;
-					//least->parent->depth = (east->parent->greater->depth
 				} else {
 					(*(least->me)) = NULL;
 					bottom = least->parent;
@@ -23935,56 +23744,48 @@ static void NativeRemoveBinaryNode( PTREEROOT root, PTREENODE node )
 					(*(least->greater->me = least->me)) = least->greater;
 					least->greater->parent  = least->parent;
 					bottom = least->greater;
-					//least->parent->depth = (east->parent->greater->depth
 				} else {
 					(*(least->me)) = NULL;
 					bottom = least->parent;
 				}
 			}
 		}
-			{
-				int tmp1, tmp2;
-				backtrack = bottom;
-				lprintf( "Least: %p", least );
-				do {
-					while( backtrack->parent && ( no_children || backtrack != node ) ) {
-						backtrack = backtrack->parent;
-lprintf( "reduce parent's children from %d", backtrack->children );
-						backtrack->children--;
-						if( backtrack->lesser )
-							if( backtrack->greater )
-								if( (tmp1=backtrack->lesser->depth) > (tmp2=backtrack->greater->depth) )
-									backtrack->depth = tmp1 + 1;
-								else
-									backtrack->depth = tmp2 + 1;
+		{
+			backtrack = bottom;
+			do {
+				backtrack = backtrack->parent;
+				while( backtrack && ( no_children || backtrack != node ) ) {
+					backtrack->children--;
+					if( backtrack->lesser )
+						if( backtrack->greater ) {
+							int tmp1, tmp2;
+							if( (tmp1=backtrack->lesser->depth) > (tmp2=backtrack->greater->depth) )
+								backtrack->depth = tmp1 + 1;
 							else
-								backtrack->depth = backtrack->lesser->depth + 1;
+								backtrack->depth = tmp2 + 1;
+						} else
+							backtrack->depth = backtrack->lesser->depth + 1;
+					else
+						if( backtrack->greater )
+							backtrack->depth = backtrack->greater->depth + 1;
 						else
-							if( backtrack->greater )
-								backtrack->depth = backtrack->greater->depth + 1;
-							else
-								backtrack->depth = 0;
-					}
-					if( least ) {
-						userdata = node->userdata;
-						userkey = node->key;
-						node->userdata = least->userdata;
-						node->key = least->key;
-						DeleteFromSet( TREENODE, TreeNodeSet, least );
-						node = NULL;
-						least = NULL;
-					}
-					if( backtrack )
-						backtrack = backtrack->parent;
-				} while( backtrack );
-			}
+							backtrack->depth = 0;
+					backtrack = backtrack->parent;
+				}
+				if( least ) {
+					node->userdata = least->userdata;
+					node->key      = least->key;
+					DeleteFromSet( TREENODE, TreeNodeSet, least );
+					node   = NULL;
+					least  = NULL;
+				}
+			} while( backtrack );
+		}
 		AVLbalancer( root, bottom );
 		if( root->Destroy )
 			root->Destroy( userdata, userkey );
-		//MemSet( node, 0, sizeof( *node ) );
 		if( node )
 			DeleteFromSet( TREENODE, TreeNodeSet, node );
-		//Release( node );
 		return;
 	}
 	lprintf( "Fatal RemoveBinaryNode could not find the root!" );
@@ -24007,7 +23808,6 @@ lprintf( "reduce parent's children from %d", backtrack->children );
 		{
 			if( node->userdata == data )
 			{
-lprintf( "REMOVE NODE %p", node );
 				NativeRemoveBinaryNode( root, node );
 				break;
 			}
@@ -24149,9 +23949,10 @@ void DumpTree( PTREEROOT root
 #endif
 }
 //---------------------------------------------------------------------------
-void DumpNodeInOrder( PLINKQUEUE *queue, PTREENODE node, int level, int (*DumpMethod)( CPOINTER user, uintptr_t key ) )
+void DumpNodeInOrder( PLINKQUEUE *queue, int (*DumpMethod)( CPOINTER user, uintptr_t key ) )
 {
-	while( node = DequeLink( queue ) )
+	PTREENODE node;
+	while( node = (PTREENODE)DequeLink( queue ) )
 	{
 #ifdef SACK_BINARYLIST_USE_PRIMITIVE_LOGGING
 	static char buf[256];
@@ -24180,8 +23981,8 @@ void DumpNodeInOrder( PLINKQUEUE *queue, PTREENODE node, int level, int (*DumpMe
 		);
 		puts( buf );
 #else
-		lprintf( "[%3d] %p Node has %3d depth  %3" _32f " children (%p %3" _32f ",%p %3" _32f "). %10" _PTRSZVALfs
-			, level, node, node->depth, node->children
+		lprintf( "%p Node has %3d depth  %3" _32f " children (%p %3" _32f ",%p %3" _32f "). %10" _PTRSZVALfs
+			, node, node->depth, node->children
 			, node->lesser
 			, (node->lesser) ? (node->lesser->children + 1) : 0
 			, node->greater
@@ -24211,7 +24012,7 @@ void DumpInOrder( PTREEROOT root
 	if( !Dump ) {
 		lprintf(  "Tree %p has %" _32f " nodes. %p is root", root, root->children, root->tree );
 	}
-	DumpNodeInOrder( &plq, root->tree, 1, Dump );
+	DumpNodeInOrder( &plq, Dump );
 #endif
 }
 //---------------------------------------------------------------------------
@@ -24284,8 +24085,8 @@ int CPROC TextMatchLocate( uintptr_t key1, uintptr_t key2 )
 // -1 = no match, actual may be lesser
 // 100 = inexact match- checks nodes near for better match.
 CPOINTER LocateInBinaryTree( PTREEROOT root, uintptr_t key
-								  , int (CPROC*fuzzy)( uintptr_t psv, uintptr_t node_key )
-								  )
+                           , int (CPROC*fuzzy)( uintptr_t psv, uintptr_t node_key )
+                           )
 {
 	PTREENODE node;
 	node = root->tree;
