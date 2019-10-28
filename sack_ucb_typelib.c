@@ -86,8 +86,10 @@
 #  define NOMEMMGR
                 // typedef METAFILEPICT
 #  define NOMETAFILE
+#  ifndef NOMINMAX
                   // Macros min(a,b) and max(a,b)
-#  define NOMINMAX
+#    define NOMINMAX
+#  endif
 // #define NOMSG                     // typedef MSG and associated routines
 // #define NOOPENFILE                // OpenFile(), OemToAnsi, AnsiToOem, and OF_*
 // #define NOSCROLL                  // SB_* and scrolling routines
@@ -202,7 +204,7 @@ __declspec(dllimport) DWORD WINAPI timeGetTime(void);
 #    ifdef __ANDROID__
 #      define DebugBreak()
 #    else
-#      ifdef __EMSCRIPTEN__
+#      if defined( __EMSCRIPTEN__ ) || defined( __ARM__ )
 #        define DebugBreak()
 #      else
 #        define DebugBreak()  __asm__("int $3\n" )
@@ -620,7 +622,7 @@ But WHO doesn't have stdint?  BTW is sizeof( size_t ) == sizeof( void* )
 #    define LITERAL_LIB_IMPORT_METHOD __declspec(dllimport)
 #  else
 // MRT:  This is needed.  Need to see what may be defined wrong and fix it.
-#    if defined( __LINUX__ ) || defined( __STATIC__ )
+#    if defined( __LINUX__ ) || defined( __STATIC__ ) || defined( __ANDROID__ )
 #      define EXPORT_METHOD
 #      define IMPORT_METHOD extern
 #      define LITERAL_LIB_EXPORT_METHOD
@@ -642,6 +644,15 @@ But WHO doesn't have stdint?  BTW is sizeof( size_t ) == sizeof( void* )
 #      define LITERAL_LIB_IMPORT_METHOD __declspec(dllimport)
 #    endif
 #  endif
+#endif
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <emscripten/emscripten.h>
+// Emscripten exports just need to be not optimized out.
+#  undef  EXPORT_METHOD
+#  define EXPORT_METHOD                EMSCRIPTEN_KEEPALIVE
+#  undef  LITERAL_LIB_EXPORT_METHOD
+#  define LITERAL_LIB_EXPORT_METHOD    EMSCRIPTEN_KEEPALIVE
 #endif
 // used when the keword specifying a structure is packed
 // needs to prefix the struct keyword.
@@ -3753,6 +3764,8 @@ TYPELIB_PROC size_t TYPELIB_CALLTYPE GetDisplayableCharacterCount( const char *s
 TYPELIB_PROC CTEXTSTR TYPELIB_CALLTYPE GetDisplayableCharactersAtCount( const char *string, size_t character_index );
 TYPELIB_PROC size_t TYPELIB_CALLTYPE  GetDisplayableCharacterBytes( const char *string, size_t character_count );
 /* You Must Deallocate the result */
+TYPELIB_PROC char * TYPELIB_CALLTYPE WcharConvert_v2 ( const wchar_t *wch, size_t len, size_t *outlen DBG_PASS );
+/* You Must Deallocate the result */
 TYPELIB_PROC  char * TYPELIB_CALLTYPE  WcharConvertExx ( const wchar_t *wch, size_t len DBG_PASS );
 /* You Must Deallocate the result */
 TYPELIB_PROC  char * TYPELIB_CALLTYPE  WcharConvertEx ( const wchar_t *wch DBG_PASS );
@@ -5047,6 +5060,7 @@ typedef void (CPROC*TaskOutput)(uintptr_t, PTASK_INFO task, CTEXTSTR buffer, siz
 #define LPP_OPTION_NEW_GROUP             8
 #define LPP_OPTION_NEW_CONSOLE          16
 #define LPP_OPTION_SUSPEND              32
+#define LPP_OPTION_ELEVATE              64
 SYSTEM_PROC( PTASK_INFO, LaunchPeerProgramExx )( CTEXTSTR program, CTEXTSTR path, PCTEXTSTR args
                                                , int flags
                                                , TaskOutput OutputHandler
@@ -5497,7 +5511,7 @@ typedef struct memory_block_tag* PMEM;
 // DigSpace( "Picture Memory", "Picture.mem", 100000 );
 /* <combinewith sack::memory::OpenSpaceExx@CTEXTSTR@CTEXTSTR@uintptr_t@uintptr_t *@uint32_t*>
    \ \                                                                                 */
-MEM_PROC  POINTER MEM_API  OpenSpace ( CTEXTSTR pWhat, CTEXTSTR pWhere, uintptr_t *dwSize );
+MEM_PROC  POINTER MEM_API  OpenSpace ( CTEXTSTR pWhat, CTEXTSTR pWhere, size_t *dwSize );
 /* <unfinished>
    Open a shared memory region. The region may be named with a
    text string (this does not work under linux platforms, and
@@ -5536,7 +5550,7 @@ MEM_PROC  POINTER MEM_API  OpenSpace ( CTEXTSTR pWhat, CTEXTSTR pWhere, uintptr_
    2) Open a file for direct memory access, the file is loaded
    into memory by system paging routines and not any API.         */
 MEM_PROC  POINTER MEM_API  OpenSpaceExx ( CTEXTSTR pWhat, CTEXTSTR pWhere, uintptr_t address
-	, uintptr_t *dwSize, uint32_t* bCreated );
+	, size_t *dwSize, uint32_t* bCreated );
 /* <combine sack::memory::OpenSpaceExx@CTEXTSTR@CTEXTSTR@uintptr_t@uintptr_t *@uint32_t*>
    \ \                                                                             */
 #define OpenSpaceEx( what,where,address,psize) OpenSpaceExx( what,where,address,psize,NULL )
@@ -5566,7 +5580,7 @@ MEM_PROC  uintptr_t MEM_API  GetSpaceSize ( POINTER pMem );
    Parameters
    pMem :    pointer to a memory space to setup as a heap.
    dwSize :  size of the memory space pointed at by pMem.        */
-MEM_PROC  int MEM_API  InitHeap( PMEM pMem, uintptr_t dwSize );
+MEM_PROC  int MEM_API  InitHeap( PMEM pMem, size_t dwSize );
 /* Dumps all blocks into the log.
    Parameters
    pHeap :     Heap to dump. If NULL or unspecified, dump the
@@ -5595,7 +5609,7 @@ MEM_PROC  void MEM_API  DebugDumpHeapMemFile ( PMEM pHeap, CTEXTSTR pFilename );
    \ \                                                        */
 MEM_PROC  void MEM_API  DebugDumpMemFile ( CTEXTSTR pFilename );
 #ifdef __GNUC__
-MEM_PROC  POINTER MEM_API  HeapAllocateAlignedEx ( PMEM pHeap, uintptr_t dwSize, uint16_t alignment DBG_PASS ) __attribute__( (malloc) );
+MEM_PROC  POINTER MEM_API  HeapAllocateAlignedEx ( PMEM pHeap, size_t dwSize, uint16_t alignment DBG_PASS ) __attribute__( (malloc) );
 MEM_PROC  POINTER MEM_API  HeapAllocateEx ( PMEM pHeap, uintptr_t nSize DBG_PASS ) __attribute__((malloc));
 MEM_PROC  POINTER MEM_API  AllocateEx ( uintptr_t nSize DBG_PASS ) __attribute__((malloc));
 #else
@@ -7021,8 +7035,10 @@ namespace sack {
 #  define NOMEMMGR
                 // typedef METAFILEPICT
 #  define NOMETAFILE
+#  ifndef NOMINMAX
                   // Macros min(a,b) and max(a,b)
-#  define NOMINMAX
+#    define NOMINMAX
+#  endif
 // #define NOMSG                     // typedef MSG and associated routines
 // #define NOOPENFILE                // OpenFile(), OemToAnsi, AnsiToOem, and OF_*
 // #define NOSCROLL                  // SB_* and scrolling routines
@@ -7137,7 +7153,7 @@ __declspec(dllimport) DWORD WINAPI timeGetTime(void);
 #    ifdef __ANDROID__
 #      define DebugBreak()
 #    else
-#      ifdef __EMSCRIPTEN__
+#      if defined( __EMSCRIPTEN__ ) || defined( __ARM__ )
 #        define DebugBreak()
 #      else
 #        define DebugBreak()  __asm__("int $3\n" )
@@ -7556,7 +7572,7 @@ But WHO doesn't have stdint?  BTW is sizeof( size_t ) == sizeof( void* )
 #    define LITERAL_LIB_IMPORT_METHOD __declspec(dllimport)
 #  else
 // MRT:  This is needed.  Need to see what may be defined wrong and fix it.
-#    if defined( __LINUX__ ) || defined( __STATIC__ )
+#    if defined( __LINUX__ ) || defined( __STATIC__ ) || defined( __ANDROID__ )
 #      define EXPORT_METHOD
 #      define IMPORT_METHOD extern
 #      define LITERAL_LIB_EXPORT_METHOD
@@ -7578,6 +7594,15 @@ But WHO doesn't have stdint?  BTW is sizeof( size_t ) == sizeof( void* )
 #      define LITERAL_LIB_IMPORT_METHOD __declspec(dllimport)
 #    endif
 #  endif
+#endif
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <emscripten/emscripten.h>
+// Emscripten exports just need to be not optimized out.
+#  undef  EXPORT_METHOD
+#  define EXPORT_METHOD                EMSCRIPTEN_KEEPALIVE
+#  undef  LITERAL_LIB_EXPORT_METHOD
+#  define LITERAL_LIB_EXPORT_METHOD    EMSCRIPTEN_KEEPALIVE
 #endif
 // used when the keword specifying a structure is packed
 // needs to prefix the struct keyword.
@@ -10689,6 +10714,8 @@ TYPELIB_PROC size_t TYPELIB_CALLTYPE GetDisplayableCharacterCount( const char *s
 TYPELIB_PROC CTEXTSTR TYPELIB_CALLTYPE GetDisplayableCharactersAtCount( const char *string, size_t character_index );
 TYPELIB_PROC size_t TYPELIB_CALLTYPE  GetDisplayableCharacterBytes( const char *string, size_t character_count );
 /* You Must Deallocate the result */
+TYPELIB_PROC char * TYPELIB_CALLTYPE WcharConvert_v2 ( const wchar_t *wch, size_t len, size_t *outlen DBG_PASS );
+/* You Must Deallocate the result */
 TYPELIB_PROC  char * TYPELIB_CALLTYPE  WcharConvertExx ( const wchar_t *wch, size_t len DBG_PASS );
 /* You Must Deallocate the result */
 TYPELIB_PROC  char * TYPELIB_CALLTYPE  WcharConvertEx ( const wchar_t *wch DBG_PASS );
@@ -11983,6 +12010,7 @@ typedef void (CPROC*TaskOutput)(uintptr_t, PTASK_INFO task, CTEXTSTR buffer, siz
 #define LPP_OPTION_NEW_GROUP             8
 #define LPP_OPTION_NEW_CONSOLE          16
 #define LPP_OPTION_SUSPEND              32
+#define LPP_OPTION_ELEVATE              64
 SYSTEM_PROC( PTASK_INFO, LaunchPeerProgramExx )( CTEXTSTR program, CTEXTSTR path, PCTEXTSTR args
                                                , int flags
                                                , TaskOutput OutputHandler
@@ -12433,7 +12461,7 @@ typedef struct memory_block_tag* PMEM;
 // DigSpace( "Picture Memory", "Picture.mem", 100000 );
 /* <combinewith sack::memory::OpenSpaceExx@CTEXTSTR@CTEXTSTR@uintptr_t@uintptr_t *@uint32_t*>
    \ \                                                                                 */
-MEM_PROC  POINTER MEM_API  OpenSpace ( CTEXTSTR pWhat, CTEXTSTR pWhere, uintptr_t *dwSize );
+MEM_PROC  POINTER MEM_API  OpenSpace ( CTEXTSTR pWhat, CTEXTSTR pWhere, size_t *dwSize );
 /* <unfinished>
    Open a shared memory region. The region may be named with a
    text string (this does not work under linux platforms, and
@@ -12472,7 +12500,7 @@ MEM_PROC  POINTER MEM_API  OpenSpace ( CTEXTSTR pWhat, CTEXTSTR pWhere, uintptr_
    2) Open a file for direct memory access, the file is loaded
    into memory by system paging routines and not any API.         */
 MEM_PROC  POINTER MEM_API  OpenSpaceExx ( CTEXTSTR pWhat, CTEXTSTR pWhere, uintptr_t address
-	, uintptr_t *dwSize, uint32_t* bCreated );
+	, size_t *dwSize, uint32_t* bCreated );
 /* <combine sack::memory::OpenSpaceExx@CTEXTSTR@CTEXTSTR@uintptr_t@uintptr_t *@uint32_t*>
    \ \                                                                             */
 #define OpenSpaceEx( what,where,address,psize) OpenSpaceExx( what,where,address,psize,NULL )
@@ -12502,7 +12530,7 @@ MEM_PROC  uintptr_t MEM_API  GetSpaceSize ( POINTER pMem );
    Parameters
    pMem :    pointer to a memory space to setup as a heap.
    dwSize :  size of the memory space pointed at by pMem.        */
-MEM_PROC  int MEM_API  InitHeap( PMEM pMem, uintptr_t dwSize );
+MEM_PROC  int MEM_API  InitHeap( PMEM pMem, size_t dwSize );
 /* Dumps all blocks into the log.
    Parameters
    pHeap :     Heap to dump. If NULL or unspecified, dump the
@@ -12531,7 +12559,7 @@ MEM_PROC  void MEM_API  DebugDumpHeapMemFile ( PMEM pHeap, CTEXTSTR pFilename );
    \ \                                                        */
 MEM_PROC  void MEM_API  DebugDumpMemFile ( CTEXTSTR pFilename );
 #ifdef __GNUC__
-MEM_PROC  POINTER MEM_API  HeapAllocateAlignedEx ( PMEM pHeap, uintptr_t dwSize, uint16_t alignment DBG_PASS ) __attribute__( (malloc) );
+MEM_PROC  POINTER MEM_API  HeapAllocateAlignedEx ( PMEM pHeap, size_t dwSize, uint16_t alignment DBG_PASS ) __attribute__( (malloc) );
 MEM_PROC  POINTER MEM_API  HeapAllocateEx ( PMEM pHeap, uintptr_t nSize DBG_PASS ) __attribute__((malloc));
 MEM_PROC  POINTER MEM_API  AllocateEx ( uintptr_t nSize DBG_PASS ) __attribute__((malloc));
 #else
@@ -14260,10 +14288,15 @@ struct rt_init
 #ifdef __MANUAL_PRELOAD__
 #define PRIORITY_PRELOAD(name,pr) static void name(void);	 RTINIT_STATIC struct rt_init pastejunk(name,_ctor_label)		__attribute__((section(DEADSTART_SECTION))) __attribute__((used))	 =	 {0,0,pr INIT_PADDING, __LINE__, name PASS_FILENAME	, TOSTR(name) JUNKINIT(name)} ;	 void name(void);	 void pastejunk(registerStartup,name)(void) __attribute__((constructor));	 void pastejunk(registerStartup,name)(void) {	 RegisterPriorityStartupProc(name,TOSTR(name),pr,NULL DBG_SRC); }	 void name(void)
 #else
-#define PRIORITY_PRELOAD(name,pr) static void name(void);	 RTINIT_STATIC struct rt_init pastejunk(name,_ctor_label)	   __attribute__((section(DEADSTART_SECTION))) __attribute__((used))	 ={0,0,pr INIT_PADDING	     ,__LINE__,name	          PASS_FILENAME	        ,TOSTR(name)	        JUNKINIT(name)};	 void name(void) __attribute__((used));	  void name(void)
+#if defined( _WIN32 ) && defined( __GNUC__ )
+#  define HIDDEN_VISIBILITY
+#else
+#  define HIDDEN_VISIBILITY  __attribute__((visibility("hidden")))
+#endif
+#define PRIORITY_PRELOAD(name,pr) static void name(void);	         RTINIT_STATIC struct rt_init pastejunk(name,_ctor_label)	         __attribute__((section(DEADSTART_SECTION))) __attribute__((used)) HIDDEN_VISIBILITY	 ={0,0,pr INIT_PADDING	                                           ,__LINE__,name	                                                 PASS_FILENAME	                                                 ,TOSTR(name)	                                                   JUNKINIT(name)};	                                               static void name(void) __attribute__((used)) HIDDEN_VISIBILITY;	 void name(void)
 #endif
 typedef void(*atexit_priority_proc)(void (*)(void),CTEXTSTR,int DBG_PASS);
-#define PRIORITY_ATEXIT(name,priority) static void name(void); static void pastejunk(atexit,name)(void) __attribute__((constructor));  void pastejunk(atexit,name)(void)                                                  {	                                                                        RegisterPriorityShutdownProc(name,TOSTR(name),priority,NULL DBG_SRC);                          }                                                                          void name(void)
+#define PRIORITY_ATEXIT(name,priority) static void name(void);           static void pastejunk(atexit,name)(void) __attribute__((constructor));   void pastejunk(atexit,name)(void)                                        {	                                                                        RegisterPriorityShutdownProc(name,TOSTR(name),priority,NULL DBG_SRC); }                                                                        void name(void)
 #define ATEXIT(name) PRIORITY_ATEXIT( name,ATEXIT_PRIORITY_DEFAULT )
 #define ROOT_ATEXIT(name) static void name(void) __attribute__((destructor));    static void name(void)
 #define PRELOAD(name) PRIORITY_PRELOAD(name,DEFAULT_PRELOAD_PRIORITY)
@@ -14903,25 +14936,26 @@ PROCREG_PROC( int, ReleaseRegisteredFunctionEx )( PCLASSROOT root
 /* This is a macro used to paste two symbols together. */
 #define paste_(a,b) a##b
 #define paste(a,b) paste_(a,b)
+#define preproc_symbol(a)  a
 #ifdef __cplusplus
 #define EXTRA_PRELOAD_SYMBOL _
 #else
 #define EXTRA_PRELOAD_SYMBOL
 #endif
-#define DefineRegistryMethod2_i(task,name,classtype,methodname,desc,returntype,argtypes,line)	   CPROC paste(name,line)argtypes;	       PRIORITY_PRELOAD( paste(paste(paste(paste(Register,name),Method),EXTRA_PRELOAD_SYMBOL),line), SQL_PRELOAD_PRIORITY ) {	  SimpleRegisterMethod( task "/" classtype, paste(name,line)	  , #returntype, methodname, #argtypes );    RegisterValue( task "/" classtype "/" methodname, "Description", desc ); }	                                                                          static returntype CPROC paste(name,line)
+#define DefineRegistryMethod2_i(task,name,classtype,methodname,desc,returntype,argtypes,line)	   CPROC paste(name,line)argtypes;	       PRIORITY_PRELOAD( paste(paste(paste(paste(Register,name),Method),preproc_symbol(EXTRA_PRELOAD_SYMBOL)),line), SQL_PRELOAD_PRIORITY ) {	  SimpleRegisterMethod( task "/" classtype, paste(name,line)	  , #returntype, methodname, #argtypes );    RegisterValue( task "/" classtype "/" methodname, "Description", desc ); }	                                                                          static returntype CPROC paste(name,line)
 #define DefineRegistryMethod2(task,name,classtype,methodname,desc,returntype,argtypes,line)	   DefineRegistryMethod2_i(task,name,classtype,methodname,desc,returntype,argtypes,line)
 /* Dekware uses this macro.
      passes preload priority override.
 	 so it can register new internal commands before initial macros are run.
 */
-#define DefineRegistryMethod2P_i(priority,task,name,classtype,methodname,desc,returntype,argtypes,line)	   CPROC paste(name,line)argtypes;	       PRIORITY_PRELOAD( paste(paste(paste(paste(Register,name),Method),EXTRA_PRELOAD_SYMBOL),line), priority ) {	  SimpleRegisterMethod( task "/" classtype, paste(name,line)	  , #returntype, methodname, #argtypes );    RegisterValue( task "/" classtype "/" methodname, "Description", desc ); }	                                                                          static returntype CPROC paste(name,line)
+#define DefineRegistryMethod2P_i(priority,task,name,classtype,methodname,desc,returntype,argtypes,line)	   CPROC paste(name,line)argtypes;	       PRIORITY_PRELOAD( paste(paste(paste(paste(Register,name),Method),preproc_symbol(EXTRA_PRELOAD_SYMBOL)),line), priority ) {	  SimpleRegisterMethod( task "/" classtype, paste(name,line)	  , #returntype, methodname, #argtypes );    RegisterValue( task "/" classtype "/" methodname, "Description", desc ); }	                                                                          static returntype CPROC paste(name,line)
 /* This macro indirection is to resolve inner macros like "" around text.  */
 #define DefineRegistryMethod2P(priority,task,name,classtype,methodname,desc,returntype,argtypes,line)	   DefineRegistryMethod2P_i(priority,task,name,classtype,methodname,desc,returntype,argtypes,line)
 /*
     This method is used by PSI/Intershell.
 	no description
 */
-#define DefineRegistryMethod_i(task,name,classtype,classbase,methodname,returntype,argtypes,line)	   CPROC paste(name,line)argtypes;	       PRELOAD( paste(Register##name##Button##EXTRA_PRELOAD_SYMBOL,line) ) {	  SimpleRegisterMethod( task "/" classtype "/" classbase, paste(name,line)	  , #returntype, methodname, #argtypes ); }	                                                                          static returntype CPROC paste(name,line)
+#define DefineRegistryMethod_i(task,name,classtype,classbase,methodname,returntype,argtypes,line)	   CPROC paste(name,line)argtypes;	       PRELOAD( paste(paste(Register##name##Button,preproc_symbol(EXTRA_PRELOAD_SYMBOL)),line) ) {	  SimpleRegisterMethod( task "/" classtype "/" classbase, paste(name,line)	  , #returntype, methodname, #argtypes ); }	                                                                          static returntype CPROC paste(name,line)
 #define DefineRegistryMethod(task,name,classtype,classbase,methodname,returntype,argtypes,line)	   DefineRegistryMethod_i(task,name,classtype,classbase,methodname,returntype,argtypes,line)
 /*
 #define _0_DefineRegistryMethod(task,name,classtype,classbase,methodname,returntype,argtypes,line)	   static returntype _1__DefineRegistryMethod(task,name,classtype,classbase,methodname,returntype,argtypes,line)
@@ -14930,7 +14964,7 @@ PROCREG_PROC( int, ReleaseRegisteredFunctionEx )( PCLASSROOT root
 // this macro is used for ___DefineRegistryMethodP. Because this is used with complex names
 // an extra define wrapper of priority_preload must be used to fully resolve paramters.
 /*
-#define DefineRegistryMethodP(priority,task,name,classtype,classbase,methodname,returntype,argtypes,line)	   CPROC paste(name,line)argtypes;	       PRIOR_PRELOAD( paste(Register##name##Button##EXTRA_PRELOAD_SYMBOL,line), priority ) {	  SimpleRegisterMethod( task "/" classtype "/" classbase, paste(name,line)	  , #returntype, methodname, #argtypes ); }	                                                                          static returntype CPROC paste(name,line)
+#define DefineRegistryMethodP(priority,task,name,classtype,classbase,methodname,returntype,argtypes,line)	   CPROC paste(name,line)argtypes;	       PRIOR_PRELOAD( paste(paset(Register##name##Button,preproc_symbol(EXTRA_PRELOAD_SYMBOL),line), priority ) {	  SimpleRegisterMethod( task "/" classtype "/" classbase, paste(name,line)	  , #returntype, methodname, #argtypes ); }	                                                                          static returntype CPROC paste(name,line)
 */
 /* <combine sack::app::registry::SimpleRegisterMethod>
    General form to build a registered procedure. Used by simple
@@ -14968,7 +15002,7 @@ PROCREG_PROC( int, ReleaseRegisteredFunctionEx )( PCLASSROOT root
 #define _0_DefineRegistryMethodP(priority,task,name,classtype,classbase,methodname,returntype,argtypes,line)	   _1__DefineRegistryMethodP(priority,task,name,classtype,classbase,methodname,returntype,argtypes,line)
 #define DefineRegistryMethodP(priority,task,name,classtype,classbase,methodname,returntype,argtypes)	  _0_DefineRegistryMethodP(priority,task,name,classtype,classbase,methodname,returntype,argtypes,__LINE__)
 */
-#define DefineRegistrySubMethod_i(task,name,classtype,classbase,methodname,subname,returntype,argtypes,line)	   CPROC paste(name,line)argtypes;	       PRELOAD( paste(Register##name##Button##EXTRA_PRELOAD_SYMBOL,line) ) {	  SimpleRegisterMethod( task "/" classtype "/" classbase "/" methodname, paste(name,line)	  , #returntype, subname, #argtypes ); }	                                                                          static returntype CPROC paste(name,line)
+#define DefineRegistrySubMethod_i(task,name,classtype,classbase,methodname,subname,returntype,argtypes,line)	   CPROC paste(name,line)argtypes;	       PRELOAD( paste(paste(Register##name##Button,preproc_symbol(EXTRA_PRELOAD_SYMBOL)),line) ) {	  SimpleRegisterMethod( task "/" classtype "/" classbase "/" methodname, paste(name,line)	  , #returntype, subname, #argtypes ); }	                                                                          static returntype CPROC paste(name,line)
 #define DefineRegistrySubMethod(task,name,classtype,classbase,methodname,subname,returntype,argtypes)	  DefineRegistrySubMethod_i(task,name,classtype,classbase,methodname,subname,returntype,argtypes,__LINE__)
 /* attempts to use dynamic linking functions to resolve passed
    global name if that fails, then a type is registered for this
@@ -19246,7 +19280,7 @@ plus1:
 //plus0:
 	return ch;
 }
-char * WcharConvertExx ( const wchar_t *wch, size_t len DBG_PASS )
+char * WcharConvert_v2 ( const wchar_t *wch, size_t len, size_t *outlen DBG_PASS )
 {
 	// Conversion to char* :
 	// Can just convert wchar_t* to char* using one of the
@@ -19393,8 +19427,14 @@ char * WcharConvertExx ( const wchar_t *wch, size_t len DBG_PASS )
 		}
 	}
 	(*ch) = 0;
+	if( outlen ) outlen[0] = ch - _ch;
 	ch = _ch;
 	return ch;
+}
+char * WcharConvertExx ( const wchar_t *wch, size_t len DBG_PASS )
+{
+	size_t outlen;
+	return WcharConvert_v2( wch, len, &outlen DBG_RELAY );
 }
 char * WcharConvertEx ( const wchar_t *wch DBG_PASS )
 {
@@ -25194,9 +25234,14 @@ NETWORK_PROC( void, RemoveClientExx )(PCLIENT lpClient, LOGICAL bBlockNofity, LO
 /* Begin an SSL Connection.  This ends up replacing ReadComplete callback with an inbetween layer*/
 NETWORK_PROC( LOGICAL, ssl_BeginClientSession )( PCLIENT pc, CPOINTER keypair, size_t keylen, CPOINTER keypass, size_t keypasslen, CPOINTER rootCert, size_t rootCertLen );
 NETWORK_PROC( LOGICAL, ssl_BeginServer )( PCLIENT pc, CPOINTER cert, size_t certlen, CPOINTER keypair, size_t keylen, CPOINTER keypass, size_t keypasslen);
+NETWORK_PROC( LOGICAL, ssl_BeginServer_v2 )( PCLIENT pc, CPOINTER cert, size_t certlen
+	, CPOINTER keypair, size_t keylen
+	, CPOINTER keypass, size_t keypasslen
+	, char* hosts );
 NETWORK_PROC( LOGICAL, ssl_GetPrivateKey )(PCLIENT pc, POINTER *keydata, size_t *keysize);
 NETWORK_PROC( LOGICAL, ssl_IsClientSecure )(PCLIENT pc);
 NETWORK_PROC( void, ssl_SetIgnoreVerification )(PCLIENT pc);
+NETWORK_PROC( CTEXTSTR, ssl_GetRequestedHostName )(PCLIENT pc);
 // during ssl error callback, this can be used to revert (server) sockets to
 // non SSL.
 // a CLient socket will have already sent SSL Data on the socket, and it would
@@ -25754,14 +25799,14 @@ enum ProcessHttpResult{
 	HTTP_STATE_RESOURCE_NOT_FOUND=404,
    HTTP_STATE_BAD_REQUEST=400,
 };
-HTTP_EXPORT
- /* Creates an empty http state, the next operation should be
+/* Creates an empty http state, the next operation should be
    AddHttpData.                                              */
-HTTPState  HTTPAPI CreateHttpState( PCLIENT *pc );
-HTTP_EXPORT
- /* Destroys a http state, releasing all resources associated
+HTTP_EXPORT HTTPState  HTTPAPI CreateHttpState( PCLIENT *pc );
+/*Get the http state associated with a network client */
+HTTP_EXPORT HTTPState HTTPAPI GetHttpState( PCLIENT pc );
+/* Destroys a http state, releasing all resources associated
    with it.                                                  */
-void HTTPAPI DestroyHttpState( HTTPState pHttpState );
+HTTP_EXPORT void HTTPAPI DestroyHttpState( HTTPState pHttpState );
 HTTP_EXPORT
  /* Add another bit of data to the block. After adding data,
    ProcessHttp should be called to see if the data has completed
@@ -27012,7 +27057,7 @@ char *json_escape_string( const char *string ) {
 #define _zero(result,from)  ((*from)++,0)
 #define _3char(result,from) ( ((*from) += 3),( ( ( result & 0xF ) << 12 ) | ( ( result & 0x3F00 ) >> 2 ) | ( ( result & 0x3f0000 ) >> 16 )) )
 #define _4char(result,from)  ( ((*from) += 4), ( ( ( result & 0x7 ) << 18 )						     | ( ( result & 0x3F00 ) << 4 )						   | ( ( result & 0x3f0000 ) >> 10 )						    | ( ( result & 0x3f000000 ) >> 24 ) ) )
-#define get4Chars(p) ((((TEXTRUNE*) ((uintptr_t)(p) & ~0x3) )[0]				  >> (CHAR_BIT*((uintptr_t)(p) & 0x3)))			             | (( ((uintptr_t)(p)) & 0x3 )				                          ? (((TEXTRUNE*) ((uintptr_t)(p) & ~0x3) )[1]					      << (CHAR_BIT*(4-((uintptr_t)(p) & 0x3))))				     :(TEXTRUNE)0 ))
+#define get4Chars(p) ((((TEXTRUNE*) ((uintptr_t)(p) & ~(sizeof(uint32_t)-1)) )[0]				  >> (CHAR_BIT*((uintptr_t)(p) & (sizeof(uint32_t)-1))))			             | (( ((uintptr_t)(p)) & (sizeof(uint32_t)-1) )				                          ? (((TEXTRUNE*) ((uintptr_t)(p) & ~(sizeof(uint32_t)-1)) )[1]					      << (CHAR_BIT*(4-((uintptr_t)(p) & (sizeof(uint32_t)-1)))))				     :(TEXTRUNE)0 ))
 #define __GetUtfChar( result, from )           ((result = get4Chars(*from)),		     ( ( !(result & 0xFF) )              ?_zero(result,from)	                                                    :( ( result & 0x80 )		                       ?( ( result & 0xE0 ) == 0xC0 )			   ?( ( ( result & 0xC000 ) == 0x8000 ) ?_2char(result,from) : _zero(result,from)  )			    :( ( ( result & 0xF0 ) == 0xE0 )				                           ?( ( ( ( result & 0xC000 ) == 0x8000 ) && ( ( result & 0xC00000 ) == 0x800000 ) ) ? _3char(result,from) : _zero(result,from)  )				   :( ( ( result & 0xF8 ) == 0xF0 )		                       ? ( ( ( ( result & 0xC000 ) == 0x8000 ) && ( ( result & 0xC00000 ) == 0x800000 ) && ( ( result & 0xC0000000 ) == 0x80000000 ) )					  ?_4char(result,from):_zero(result,from) )				                                                                                                                  :( ( ( result & 0xC0 ) == 0x80 )					                                                                                                  ?_zero(result,from)					                                                                                                                       : ( (*from)++, (result & 0x7F) ) ) ) )		                                                                                       : ( (*from)++, (result & 0x7F) ) ) ) )
 #define GetUtfChar(x) __GetUtfChar(c,x)
 static int gatherString( CTEXTSTR msg, CTEXTSTR *msg_input, size_t msglen, TEXTSTR *pmOut, size_t *line, size_t *col, TEXTRUNE start_c, struct json_parse_state *state ) {
@@ -28277,12 +28322,13 @@ static struct unicodeNonIdentifierBitSet{ int firstChar, lastChar; int bits[16];
 { 917376,917760,{ 0x0,0x0,0x0,0x0,0x0,0x200,0xff0000,0xffffff,0xffffff,0xffffff } }
 };
 static uint8_t const nonIdentifiers8[255] = {
-	 1,1,1,1,1,1,1,1,1,0,0,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,0,1,0,1,1,0
-	,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-	,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-	,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
-	,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0
-	,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	 1,1,1,1,1,1,1,1,1,0,0,1,1,0,1,1 ,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1 ,0,1,0,1,0,1,1,0
+/* '=' 1*/
+	,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0 ,0,0,1,1,1,0,1,1,1,0,0,0,0,0,0,0 ,0,0,0,0,0,0,0,0
+	,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0 ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 ,0,0,0,0,0,0,0,0
+	,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1 ,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1 ,1,1,1,1,1,1,1,1
+	,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1 ,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0 ,0,0,0,0,0,0,0,0
+	,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 ,0,0,0,0,0,0,0,0
 	,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0
 };
 /*
@@ -28988,6 +29034,15 @@ ID_Continue    XID_Continue     All of the above, plus nonspacing marks, spacing
 #ifdef __cplusplus
 SACK_NAMESPACE namespace network { namespace json {
 #endif
+//#define DEBUG_LOG_TIMING
+#ifdef DEBUG_LOG_TIMING
+uint32_t ticks[10];
+uint32_t lastTick;
+uint32_t thisDel;
+#define logTick(n)  ( ( thisDel=(timeGetTime()-lastTick) ), lastTick += thisDel, ticks[n] += thisDel )
+#else
+#define logTick(n)
+#endif
 char *json6_escape_string_length( const char *string, size_t len, size_t *outlen ) {
 	size_t m = 0;
 	size_t ch;
@@ -29018,9 +29073,9 @@ char *json6_escape_string( const char *string ) {
 #define _zero(result,from)  ((*from)++,0)
 #define _3char(result,from) ( ((*from) += 3),( ( ( result & 0xF ) << 12 ) | ( ( result & 0x3F00 ) >> 2 ) | ( ( result & 0x3f0000 ) >> 16 )) )
 #define _4char(result,from)  ( ((*from) += 4), ( ( ( result & 0x7 ) << 18 )						     | ( ( result & 0x3F00 ) << 4 )						   | ( ( result & 0x3f0000 ) >> 10 )						    | ( ( result & 0x3f000000 ) >> 24 ) ) )
-#define get4Chars(p) ((((TEXTRUNE*) ((uintptr_t)(p) & ~0x3) )[0]				  >> (CHAR_BIT*((uintptr_t)(p) & 0x3)))			             | (( ((uintptr_t)(p)) & 0x3 )				                          ? (((TEXTRUNE*) ((uintptr_t)(p) & ~0x3) )[1]					      << (CHAR_BIT*(4-((uintptr_t)(p) & 0x3))))				     :(TEXTRUNE)0 ))
+#define get4Chars(p) ((((TEXTRUNE*) ((uintptr_t)(p) & ~(sizeof(uint32_t)-1)) )[0]				  >> (CHAR_BIT*((uintptr_t)(p) & (sizeof(uint32_t)-1))))			             | (( ((uintptr_t)(p)) & (sizeof(uint32_t)-1) )				                          ? (((TEXTRUNE*) ((uintptr_t)(p) & ~(sizeof(uint32_t)-1)) )[1]					      << (CHAR_BIT*(4-((uintptr_t)(p) & (sizeof(uint32_t)-1)))))				     :(TEXTRUNE)0 ))
 #define __GetUtfChar( result, from )           ((result = get4Chars(*from)),		     ( ( !(result & 0xFF) )              ?_zero(result,from)	                                                    :( ( result & 0x80 )		                       ?( ( result & 0xE0 ) == 0xC0 )			   ?( ( ( result & 0xC000 ) == 0x8000 ) ?_2char(result,from) : _zero(result,from)  )			    :( ( ( result & 0xF0 ) == 0xE0 )				                           ?( ( ( ( result & 0xC000 ) == 0x8000 ) && ( ( result & 0xC00000 ) == 0x800000 ) ) ? _3char(result,from) : _zero(result,from)  )				   :( ( ( result & 0xF8 ) == 0xF0 )		                       ? ( ( ( ( result & 0xC000 ) == 0x8000 ) && ( ( result & 0xC00000 ) == 0x800000 ) && ( ( result & 0xC0000000 ) == 0x80000000 ) )					  ?_4char(result,from):_zero(result,from) )				                                                                                                                  :( ( ( result & 0xC0 ) == 0x80 )					                                                                                                  ?_zero(result,from)					                                                                                                                       : ( (*from)++, (result & 0x7F) ) ) ) )		                                                                                       : ( (*from)++, (result & 0x7F) ) ) ) )
-#define GetUtfChar(x) __GetUtfChar(c,x)
+//#define GetUtfChar(x) __GetUtfChar(c,x)
 static int gatherString6(struct json_parse_state *state, CTEXTSTR msg, CTEXTSTR *msg_input, size_t msglen, TEXTSTR *pmOut, TEXTRUNE start_c
 		//, int literalString
 		) {
@@ -29308,6 +29363,7 @@ int json6_parse_add_data( struct json_parse_state *state
 			retval = 1;
 		}
 	}
+	logTick(2);
 	while( state->status && ( input = (PPARSE_BUFFER)DequeLinkNL( state->inBuffers ) ) ) {
 		output = (struct json_output_buffer*)DequeLinkNL( state->outQueue );
 		//lprintf( "output is %p", output );
@@ -29334,9 +29390,11 @@ int json6_parse_add_data( struct json_parse_state *state
 			//lprintf( "continue gathering a string" );
 			goto continueNumber;
 		}
+		logTick(6);
 		//lprintf( "Completed at start?%d", state->completed );
 		while( state->status && (state->n < input->size) && (c = GetUtfChar( &input->pos )) )
 		{
+			logTick(7);
 			state->col++;
 			state->n = input->pos - input->buf;
 			if( state->n > input->size ) DebugBreak();
@@ -30111,6 +30169,7 @@ int json6_parse_add_data( struct json_parse_state *state
 				}
 				break;
 			}
+			logTick(8);
 		}
 		//lprintf( "at end... %d %d comp:%d", state->n, input->size, state->completed );
 		if( input ) {
@@ -30125,7 +30184,7 @@ int json6_parse_add_data( struct json_parse_state *state
 					PushLink( state->outBuffers, output );
 					if( state->parse_context == CONTEXT_UNKNOWN
 					  && ( state->val.value_type != VALUE_UNSET
-					     || state->elements[0]->Cnt ) ) {
+					     || ( state->elements && state->elements[0]->Cnt ) ) ) {
 						if( state->word == WORD_POS_END ) {
 							state->word = WORD_POS_RESET;
 						}
@@ -30159,6 +30218,7 @@ int json6_parse_add_data( struct json_parse_state *state
 		}
 		state->completed = FALSE;
 	}
+	logTick(9);
 	return retval;
 }
 PDATALIST json_parse_get_data( struct json_parse_state *state ) {
@@ -30292,13 +30352,19 @@ void json_parse_dispose_state( struct json_parse_state **ppState ) {
 LOGICAL json6_parse_message( const char * msg
 	, size_t msglen
 	, PDATALIST *_msg_output ) {
+	logTick(0);
 	struct json_parse_state *state = json_begin_parse();
+	//logTick(1);
 	//static struct json_parse_state *_state;
 	state->complete_at_end = TRUE;
+	logTick(1);
 	int result = json6_parse_add_data( state, msg, msglen );
+	//logTick(3);
 	if( jpsd.json6_state ) json_parse_dispose_state( &jpsd.json6_state );
 	if( result > 0 ) {
+		logTick(4);
 		(*_msg_output) = json_parse_get_data( state );
+		logTick(5);
 		jpsd.json6_state = state;
 		//json6_parse_dispose_state( &state );
 		return TRUE;
@@ -30308,6 +30374,15 @@ LOGICAL json6_parse_message( const char * msg
 	jpsd.json6_state = state;
 	return FALSE;
 }
+void getJson6Ticks( int *tickBuf ) {
+# ifdef DEBUG_LOG_TIMING
+    int n;
+    for( n = 0; n < sizeof( ticks ) / sizeof(ticks[0] ); n++ ) {
+	tickBuf[n] = ticks[n];
+    }
+    memset( ticks, 0, sizeof( ticks ) );
+# endif
+}
 struct json_parse_state *json6_get_message_parser( void ) {
 	//lprintf( "Return simple json6 parser:%p", jpsd.json6_state );
 	return jpsd.json6_state;
@@ -30316,217 +30391,6 @@ void json6_dispose_message( PDATALIST *msg_data )
 {
 	json_dispose_message( msg_data );
 	return;
-}
-// puts the current collected value into the element; assumes conversion was correct
-static void FillDataToElement6( struct json_context_object_element *element
-							    , size_t object_offset
-								, struct json_value_container *val
-								, POINTER msg_output )
-{
-	if( !val->name )
-		return;
-	// remove name; indicate that the value has been used.
-	Release( val->name );
-	val->name = NULL;
-	switch( element->type )
-	{
-	case JSON_Element_String:
-		if( element->count )
-		{
-		}
-		else if( element->count_offset != JSON_NO_OFFSET )
-		{
-		}
-		else
-		{
-			switch( val->value_type )
-			{
-			case VALUE_NULL:
-				((CTEXTSTR*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = NULL;
-				break;
-			case VALUE_STRING:
-				((CTEXTSTR*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = StrDup( val->string );
-				break;
-			default:
-				lprintf( "Expected a string, but parsed result was a %d", val->value_type );
-				break;
-			}
-		}
-		break;
-	case JSON_Element_Integer_64:
-	case JSON_Element_Integer_32:
-	case JSON_Element_Integer_16:
-	case JSON_Element_Integer_8:
-	case JSON_Element_Unsigned_Integer_64:
-	case JSON_Element_Unsigned_Integer_32:
-	case JSON_Element_Unsigned_Integer_16:
-	case JSON_Element_Unsigned_Integer_8:
-		if( element->count )
-		{
-		}
-		else if( element->count_offset != JSON_NO_OFFSET )
-		{
-		}
-		else
-		{
-			switch( val->value_type )
-			{
-			case VALUE_TRUE:
-				switch( element->type )
-				{
-				case JSON_Element_String:
-				case JSON_Element_CharArray:
-				case JSON_Element_Float:
-				case JSON_Element_Double:
-				case JSON_Element_Array:
-				case JSON_Element_Object:
-				case JSON_Element_ObjectPointer:
-				case JSON_Element_List:
-				case JSON_Element_Text:
-				case JSON_Element_PTRSZVAL:
-				case JSON_Element_PTRSZVAL_BLANK_0:
-				case JSON_Element_UserRoutine:
-				case JSON_Element_Raw_Object:
-					lprintf( "Uhandled element conversion." );
-					break;
-				case JSON_Element_Integer_64:
-				case JSON_Element_Unsigned_Integer_64:
-					((int8_t*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = 1;
-					break;
-				case JSON_Element_Integer_32:
-				case JSON_Element_Unsigned_Integer_32:
-					((int16_t*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = 1;
-					break;
-				case JSON_Element_Integer_16:
-				case JSON_Element_Unsigned_Integer_16:
-					((int32_t*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = 1;
-					break;
-				case JSON_Element_Integer_8:
-				case JSON_Element_Unsigned_Integer_8:
-					((int64_t*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = 1;
-					break;
-				}
-				break;
-			case VALUE_FALSE:
-				switch( element->type )
-				{
-				case JSON_Element_String:
-				case JSON_Element_CharArray:
-				case JSON_Element_Float:
-				case JSON_Element_Double:
-				case JSON_Element_Array:
-				case JSON_Element_Object:
-				case JSON_Element_ObjectPointer:
-				case JSON_Element_List:
-				case JSON_Element_Text:
-				case JSON_Element_PTRSZVAL:
-				case JSON_Element_PTRSZVAL_BLANK_0:
-				case JSON_Element_UserRoutine:
-				case JSON_Element_Raw_Object:
-					lprintf( "Uhandled element conversion." );
-					break;
-				case JSON_Element_Integer_64:
-				case JSON_Element_Unsigned_Integer_64:
-					((int8_t*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = 0;
-					break;
-				case JSON_Element_Integer_32:
-				case JSON_Element_Unsigned_Integer_32:
-					((int16_t*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = 0;
-					break;
-				case JSON_Element_Integer_16:
-				case JSON_Element_Unsigned_Integer_16:
-					((int32_t*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = 0;
-					break;
-				case JSON_Element_Integer_8:
-				case JSON_Element_Unsigned_Integer_8:
-					((int64_t*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = 0;
-					break;
-				}
-				break;
-			case VALUE_NUMBER:
-				if( val->float_result )
-				{
-					lprintf( "warning received float, converting to int" );
-					((int64_t*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = (int64_t)val->result_d;
-				}
-				else
-				{
-					((int64_t*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = val->result_n;
-				}
-				break;
-			default:
-				lprintf( "Expected a string, but parsed result was a %d", val->value_type );
-				break;
-			}
-		}
-		break;
-	case JSON_Element_Float:
-	case JSON_Element_Double:
-		if( element->count )
-		{
-		}
-		else if( element->count_offset != JSON_NO_OFFSET )
-		{
-		}
-		else
-		{
-			switch( val->value_type )
-			{
-			case VALUE_NUMBER:
-				if( val->float_result )
-				{
-					if( element->type == JSON_Element_Float )
-						((float*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = (float)val->result_d;
-					else
-						((double*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = val->result_d;
-				}
-				else
-				{
-					// this is probably common (0 for instance)
-					lprintf( "warning received int, converting to float" );
-					if( element->type == JSON_Element_Float )
-						((float*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = (float)val->result_n;
-					else
-						((double*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = (double)val->result_n;
-				}
-				break;
-			default:
-				lprintf( "Expected a float, but parsed result was a %d", val->value_type );
-				break;
-			}
-		}
-		break;
-	case JSON_Element_PTRSZVAL_BLANK_0:
-	case JSON_Element_PTRSZVAL:
-		if( element->count )
-		{
-		}
-		else if( element->count_offset != JSON_NO_OFFSET )
-		{
-		}
-		else
-		{
-			switch( val->value_type )
-			{
-			default:
-				lprintf( "FAULT: UNEXPECTED VALUE TYPE RECOVERINT IDENT:%d", val->value_type );
-				break;
-			case VALUE_NUMBER:
-				if( val->float_result )
-				{
-					lprintf( "warning received float, converting to int (uintptr_t)" );
-					((uintptr_t*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = (uintptr_t)val->result_d;
-				}
-				else
-				{
-					// this is probably common (0 for instance)
-					((uintptr_t*)( ((uintptr_t)msg_output) + element->offset + object_offset ))[0] = (uintptr_t)val->result_n;
-				}
-				break;
-			}
-		}
-		break;
-	}
 }
 #undef GetUtfChar
 #ifdef __cplusplus
@@ -31133,7 +30997,7 @@ char *jsox_escape_string( const char *string ) {
 #define _3char(result,from) ( ((*from) += 3),( ( ( result & 0xF ) << 12 ) | ( ( result & 0x3F00 ) >> 2 ) | ( ( result & 0x3f0000 ) >> 16 )) )
 #define _4char(result,from)  ( ((*from) += 4), ( ( ( result & 0x7 ) << 18 )                             | ( ( result & 0x3F00 ) << 4 )                           | ( ( result & 0x3f0000 ) >> 10 )                            | ( ( result & 0x3f000000 ) >> 24 ) ) )
 // load 4 bytes in a little endian way; might result in a 8 byte variable, but only 4 are valid.
-#define get4Chars(p) ((((TEXTRUNE*) ((uintptr_t)(p) & ~0x3) )[0]                  >> (CHAR_BIT*((uintptr_t)(p) & 0x3)))                         | (( ((uintptr_t)(p)) & 0x3 )                                          ? (((TEXTRUNE*) ((uintptr_t)(p) & ~0x3) )[1]                          << (CHAR_BIT*(4-((uintptr_t)(p) & 0x3))))                     :(TEXTRUNE)0 ))
+#define get4Chars(p) ((((TEXTRUNE*) ((uintptr_t)(p) & ~(sizeof(uint32_t)-1)) )[0]                  >> (CHAR_BIT*((uintptr_t)(p) & (sizeof(uint32_t)-1))))                         | (( ((uintptr_t)(p)) & (sizeof(uint32_t)-1) )                                          ? (((TEXTRUNE*) ((uintptr_t)(p) & ~(sizeof(uint32_t)-1)) )[1]                          << (CHAR_BIT*(4-((uintptr_t)(p) & (sizeof(uint32_t)-1)))))                     :(TEXTRUNE)0 ))
 #define __GetUtfChar( result, from )           ((result = get4Chars(*from)),             ( ( !(result & 0xFF) )              ?_gzero(result,from)         :( ( result & 0x80 )                               ?( ( result & 0xE0 ) == 0xC0 )               ?( ( ( result & 0xC000 ) == 0x8000 ) ?_2char(result,from) : _zero(result,from)  )                :( ( ( result & 0xF0 ) == 0xE0 )                                           ?( ( ( ( result & 0xC000 ) == 0x8000 ) && ( ( result & 0xC00000 ) == 0x800000 ) ) ? _3char(result,from) : _zero(result,from)  )                   :( ( ( result & 0xF8 ) == 0xF0 )                               ? ( ( ( ( result & 0xC000 ) == 0x8000 ) && ( ( result & 0xC00000 ) == 0x800000 ) && ( ( result & 0xC0000000 ) == 0x80000000 ) )                      ?_4char(result,from):_zero(result,from) )                                                                                                                                  :( ( ( result & 0xC0 ) == 0x80 )                                                                                                                      ?_zero(result,from)                                                                                                                                           : ( (*from)++, (result & 0x7F) ) ) ) )                                                                                               : ( (*from)++, (result & 0x7F) ) ) ) )
 #define GetUtfChar(x) __GetUtfChar(c,x)
 static int gatherStringX(struct jsox_parse_state *state, CTEXTSTR msg, CTEXTSTR *msg_input, size_t msglen, TEXTSTR *pmOut, TEXTRUNE start_c
@@ -32163,11 +32027,15 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 					if( state->val.value_type != JSOX_VALUE_UNSET ) {
 						if( state->val.string ) {
 							if( state->val.value_type != JSOX_VALUE_STRING ) {
-								state->val.stringLen = output->pos - state->val.string;
+#ifdef DEBUG_PARSING
+								lprintf( "PReviously set string length: %d %d", state->val.stringLen, output->pos - state->val.string );
+#endif
+								//lprintf( "Of course:%s %d", state->val.string, output->pos - state->val.string );
+								//state->val.stringLen = output->pos - state->val.string;
 #ifdef DEBUG_PARSING
 								lprintf( "STRING2: %s %d", state->val.string, state->val.stringLen );
 #endif
-								(*output->pos++) = 0;
+								//(*output->pos++) = 0;
 							}
 						}
 						pushValue( state, state->elements, &state->val );
@@ -34550,7 +34418,7 @@ PRIORITY_PRELOAD( InitGlobal, DEFAULT_PRELOAD_PRIORITY )
 		ll_lprintf( "Memory allocate logging enabled." );
 	g.bLogAllocateWithHold = SACK_GetProfileIntEx( GetProgramName(), "SACK/Memory Library/Enable Logging Holds", g.bLogAllocateWithHold, TRUE );
 	//USE_CUSTOM_ALLOCER = SACK_GetProfileIntEx( GetProgramName(), "SACK/Memory Library/Custom Allocator", USE_CUSTOM_ALLOCER, TRUE );
-	g.bDisableDebug = SACK_GetProfileIntEx( GetProgramName(), "SACK/Memory Library/Disable Debug", !USE_DEBUG_LOGGING, TRUE );
+	g.bDisableDebug = g.bDisableDebug || SACK_GetProfileIntEx( GetProgramName(), "SACK/Memory Library/Disable Debug", !USE_DEBUG_LOGGING, TRUE );
 #else
 	//g.bLogAllocate = 1;
 #endif
@@ -35432,11 +35300,18 @@ uintptr_t GetFileSize( int fd )
 						  , 0 );
 			if( pMem == (POINTER)-1 )
 			{
+				if( errno == ENODEV ) {
+					pMem = malloc( *dwSize );
+				} else {
 				ll_lprintf( "Something bad about this region sized %" _PTRSZVALfs "(%d)", *dwSize, errno );
 				DebugBreak();
+				}
 			}
-			//ll_lprintf( "Clearing anonymous mmap %p %" _size_f "", pMem, *dwSize );
-			MemSet( pMem, 0, *dwSize );
+			if( pMem != (POINTER)-1 )
+			{
+				//ll_lprintf( "Clearing anonymous mmap %p %" _size_f "", pMem, *dwSize );
+				MemSet( pMem, 0, *dwSize );
+			}
 		}
  // name doesn't matter, same file cannot be called another name
 		else if( pWhere )
@@ -35820,7 +35695,7 @@ uintptr_t GetFileSize( int fd )
 					ll_lprintf( "Expanding file to size requested." );
 #endif
 					didCreate = 1;
-					SetFilePointer( hFile, (LONG)*dwSize, NULL, FILE_BEGIN );
+					SetFilePointer( hFile, (LONG) * (int32_t*)dwSize, (sizeof(dwSize[0])>4)?(PLONG)(((int32_t*)dwSize) + 1):NULL, FILE_BEGIN );
 					SetEndOfFile( hFile );
 				}
 				else
@@ -35836,7 +35711,7 @@ uintptr_t GetFileSize( int fd )
 #ifdef DEBUG_OPEN_SPACE
 				ll_lprintf( "New file, setting size to requested %d", *dwSize );
 #endif
-				SetFilePointer( hFile, (LONG)*dwSize, NULL, FILE_BEGIN );
+				SetFilePointer( hFile, (LONG)*(int32_t*)dwSize, (sizeof( dwSize[0] ) > 4) ? (PLONG)(((int32_t*)dwSize)+1) : NULL, FILE_BEGIN );
 				SetEndOfFile( hFile );
 				didCreate = 1;
 			}
@@ -36136,7 +36011,7 @@ static void DropMemEx( PMEM pMem DBG_PASS )
 	}
 }
 //------------------------------------------------------------------------------------------------------
-POINTER HeapAllocateAlignedEx( PMEM pHeap, uintptr_t dwSize, uint16_t alignment DBG_PASS )
+POINTER HeapAllocateAlignedEx( PMEM pHeap, size_t dwSize, uint16_t alignment DBG_PASS )
 {
    // if a heap is passed, it's a private heap, and allocation is as normal...
 	uint32_t dwAlignPad = 0;
@@ -36164,7 +36039,7 @@ POINTER HeapAllocateAlignedEx( PMEM pHeap, uintptr_t dwSize, uint16_t alignment 
 #  ifdef _DEBUG
 		if( g.bLogAllocate )
 		{
-			ll__lprintf(DBG_RELAY)( "alloc %p(%p) %" _PTRSZVALfs, pc, pc->byData, dwSize );
+			ll__lprintf(DBG_RELAY)( "alloc %p(%p) %zd", pc, pc->byData, dwSize );
 		}
 #  endif
 #endif
@@ -36357,7 +36232,7 @@ POINTER HeapAllocateAlignedEx( PMEM pHeap, uintptr_t dwSize, uint16_t alignment 
 		}
 		if( !(pMem->dwFlags & HEAP_FLAG_NO_DEBUG ) )
 		{
-			if( pc->dwPad < 16 )
+			if( pc->dwPad < 2*sizeof( uintptr_t) )
 				DebugBreak();
 			BLOCK_FILE(pc) = pFile;
 			BLOCK_LINE(pc) = nLine;
@@ -37248,7 +37123,7 @@ void  DebugDumpHeapMemEx ( PMEM pHeap, LOGICAL bVerbose )
 						if( ( pc->dwPad >= minPad ) && ( BLOCK_TAG(pc) != BLOCK_TAG_ID ) )
 						{
 #ifndef NO_LOGGING
-							ll_lprintf( "memory block: %p(%p) %08" TAG_FORMAT_MODIFIER "x instead of %08"TAG_FORMAT_MODIFIER "x", pc, pc->byData, BLOCK_TAG(pc), BLOCK_TAG_ID );
+							ll_lprintf( "memory block: %p(%p) %08" TAG_FORMAT_MODIFIER "x instead of %08" TAG_FORMAT_MODIFIER "x", pc, pc->byData, BLOCK_TAG(pc), BLOCK_TAG_ID );
 							if( !(pMemCheck->dwFlags & HEAP_FLAG_NO_DEBUG ) )
 							{
 								CTEXTSTR file = BLOCK_FILE(pc);

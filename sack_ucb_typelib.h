@@ -80,8 +80,10 @@
 #  define NOMEMMGR
                 // typedef METAFILEPICT
 #  define NOMETAFILE
+#  ifndef NOMINMAX
                   // Macros min(a,b) and max(a,b)
-#  define NOMINMAX
+#    define NOMINMAX
+#  endif
 // #define NOMSG                     // typedef MSG and associated routines
 // #define NOOPENFILE                // OpenFile(), OemToAnsi, AnsiToOem, and OF_*
 // #define NOSCROLL                  // SB_* and scrolling routines
@@ -196,7 +198,7 @@ __declspec(dllimport) DWORD WINAPI timeGetTime(void);
 #    ifdef __ANDROID__
 #      define DebugBreak()
 #    else
-#      ifdef __EMSCRIPTEN__
+#      if defined( __EMSCRIPTEN__ ) || defined( __ARM__ )
 #        define DebugBreak()
 #      else
 #        define DebugBreak()  __asm__("int $3\n" )
@@ -614,7 +616,7 @@ But WHO doesn't have stdint?  BTW is sizeof( size_t ) == sizeof( void* )
 #    define LITERAL_LIB_IMPORT_METHOD __declspec(dllimport)
 #  else
 // MRT:  This is needed.  Need to see what may be defined wrong and fix it.
-#    if defined( __LINUX__ ) || defined( __STATIC__ )
+#    if defined( __LINUX__ ) || defined( __STATIC__ ) || defined( __ANDROID__ )
 #      define EXPORT_METHOD
 #      define IMPORT_METHOD extern
 #      define LITERAL_LIB_EXPORT_METHOD
@@ -636,6 +638,15 @@ But WHO doesn't have stdint?  BTW is sizeof( size_t ) == sizeof( void* )
 #      define LITERAL_LIB_IMPORT_METHOD __declspec(dllimport)
 #    endif
 #  endif
+#endif
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <emscripten/emscripten.h>
+// Emscripten exports just need to be not optimized out.
+#  undef  EXPORT_METHOD
+#  define EXPORT_METHOD                EMSCRIPTEN_KEEPALIVE
+#  undef  LITERAL_LIB_EXPORT_METHOD
+#  define LITERAL_LIB_EXPORT_METHOD    EMSCRIPTEN_KEEPALIVE
 #endif
 // used when the keword specifying a structure is packed
 // needs to prefix the struct keyword.
@@ -3747,6 +3758,8 @@ TYPELIB_PROC size_t TYPELIB_CALLTYPE GetDisplayableCharacterCount( const char *s
 TYPELIB_PROC CTEXTSTR TYPELIB_CALLTYPE GetDisplayableCharactersAtCount( const char *string, size_t character_index );
 TYPELIB_PROC size_t TYPELIB_CALLTYPE  GetDisplayableCharacterBytes( const char *string, size_t character_count );
 /* You Must Deallocate the result */
+TYPELIB_PROC char * TYPELIB_CALLTYPE WcharConvert_v2 ( const wchar_t *wch, size_t len, size_t *outlen DBG_PASS );
+/* You Must Deallocate the result */
 TYPELIB_PROC  char * TYPELIB_CALLTYPE  WcharConvertExx ( const wchar_t *wch, size_t len DBG_PASS );
 /* You Must Deallocate the result */
 TYPELIB_PROC  char * TYPELIB_CALLTYPE  WcharConvertEx ( const wchar_t *wch DBG_PASS );
@@ -5041,6 +5054,7 @@ typedef void (CPROC*TaskOutput)(uintptr_t, PTASK_INFO task, CTEXTSTR buffer, siz
 #define LPP_OPTION_NEW_GROUP             8
 #define LPP_OPTION_NEW_CONSOLE          16
 #define LPP_OPTION_SUSPEND              32
+#define LPP_OPTION_ELEVATE              64
 SYSTEM_PROC( PTASK_INFO, LaunchPeerProgramExx )( CTEXTSTR program, CTEXTSTR path, PCTEXTSTR args
                                                , int flags
                                                , TaskOutput OutputHandler
@@ -5491,7 +5505,7 @@ typedef struct memory_block_tag* PMEM;
 // DigSpace( "Picture Memory", "Picture.mem", 100000 );
 /* <combinewith sack::memory::OpenSpaceExx@CTEXTSTR@CTEXTSTR@uintptr_t@uintptr_t *@uint32_t*>
    \ \                                                                                 */
-MEM_PROC  POINTER MEM_API  OpenSpace ( CTEXTSTR pWhat, CTEXTSTR pWhere, uintptr_t *dwSize );
+MEM_PROC  POINTER MEM_API  OpenSpace ( CTEXTSTR pWhat, CTEXTSTR pWhere, size_t *dwSize );
 /* <unfinished>
    Open a shared memory region. The region may be named with a
    text string (this does not work under linux platforms, and
@@ -5530,7 +5544,7 @@ MEM_PROC  POINTER MEM_API  OpenSpace ( CTEXTSTR pWhat, CTEXTSTR pWhere, uintptr_
    2) Open a file for direct memory access, the file is loaded
    into memory by system paging routines and not any API.         */
 MEM_PROC  POINTER MEM_API  OpenSpaceExx ( CTEXTSTR pWhat, CTEXTSTR pWhere, uintptr_t address
-	, uintptr_t *dwSize, uint32_t* bCreated );
+	, size_t *dwSize, uint32_t* bCreated );
 /* <combine sack::memory::OpenSpaceExx@CTEXTSTR@CTEXTSTR@uintptr_t@uintptr_t *@uint32_t*>
    \ \                                                                             */
 #define OpenSpaceEx( what,where,address,psize) OpenSpaceExx( what,where,address,psize,NULL )
@@ -5560,7 +5574,7 @@ MEM_PROC  uintptr_t MEM_API  GetSpaceSize ( POINTER pMem );
    Parameters
    pMem :    pointer to a memory space to setup as a heap.
    dwSize :  size of the memory space pointed at by pMem.        */
-MEM_PROC  int MEM_API  InitHeap( PMEM pMem, uintptr_t dwSize );
+MEM_PROC  int MEM_API  InitHeap( PMEM pMem, size_t dwSize );
 /* Dumps all blocks into the log.
    Parameters
    pHeap :     Heap to dump. If NULL or unspecified, dump the
@@ -5589,7 +5603,7 @@ MEM_PROC  void MEM_API  DebugDumpHeapMemFile ( PMEM pHeap, CTEXTSTR pFilename );
    \ \                                                        */
 MEM_PROC  void MEM_API  DebugDumpMemFile ( CTEXTSTR pFilename );
 #ifdef __GNUC__
-MEM_PROC  POINTER MEM_API  HeapAllocateAlignedEx ( PMEM pHeap, uintptr_t dwSize, uint16_t alignment DBG_PASS ) __attribute__( (malloc) );
+MEM_PROC  POINTER MEM_API  HeapAllocateAlignedEx ( PMEM pHeap, size_t dwSize, uint16_t alignment DBG_PASS ) __attribute__( (malloc) );
 MEM_PROC  POINTER MEM_API  HeapAllocateEx ( PMEM pHeap, uintptr_t nSize DBG_PASS ) __attribute__((malloc));
 MEM_PROC  POINTER MEM_API  AllocateEx ( uintptr_t nSize DBG_PASS ) __attribute__((malloc));
 #else
@@ -6988,8 +7002,10 @@ using namespace sack::timers;
 #  define NOMEMMGR
                 // typedef METAFILEPICT
 #  define NOMETAFILE
+#  ifndef NOMINMAX
                   // Macros min(a,b) and max(a,b)
-#  define NOMINMAX
+#    define NOMINMAX
+#  endif
 // #define NOMSG                     // typedef MSG and associated routines
 // #define NOOPENFILE                // OpenFile(), OemToAnsi, AnsiToOem, and OF_*
 // #define NOSCROLL                  // SB_* and scrolling routines
@@ -7104,7 +7120,7 @@ __declspec(dllimport) DWORD WINAPI timeGetTime(void);
 #    ifdef __ANDROID__
 #      define DebugBreak()
 #    else
-#      ifdef __EMSCRIPTEN__
+#      if defined( __EMSCRIPTEN__ ) || defined( __ARM__ )
 #        define DebugBreak()
 #      else
 #        define DebugBreak()  __asm__("int $3\n" )
@@ -7523,7 +7539,7 @@ But WHO doesn't have stdint?  BTW is sizeof( size_t ) == sizeof( void* )
 #    define LITERAL_LIB_IMPORT_METHOD __declspec(dllimport)
 #  else
 // MRT:  This is needed.  Need to see what may be defined wrong and fix it.
-#    if defined( __LINUX__ ) || defined( __STATIC__ )
+#    if defined( __LINUX__ ) || defined( __STATIC__ ) || defined( __ANDROID__ )
 #      define EXPORT_METHOD
 #      define IMPORT_METHOD extern
 #      define LITERAL_LIB_EXPORT_METHOD
@@ -7545,6 +7561,15 @@ But WHO doesn't have stdint?  BTW is sizeof( size_t ) == sizeof( void* )
 #      define LITERAL_LIB_IMPORT_METHOD __declspec(dllimport)
 #    endif
 #  endif
+#endif
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <emscripten/emscripten.h>
+// Emscripten exports just need to be not optimized out.
+#  undef  EXPORT_METHOD
+#  define EXPORT_METHOD                EMSCRIPTEN_KEEPALIVE
+#  undef  LITERAL_LIB_EXPORT_METHOD
+#  define LITERAL_LIB_EXPORT_METHOD    EMSCRIPTEN_KEEPALIVE
 #endif
 // used when the keword specifying a structure is packed
 // needs to prefix the struct keyword.
@@ -10656,6 +10681,8 @@ TYPELIB_PROC size_t TYPELIB_CALLTYPE GetDisplayableCharacterCount( const char *s
 TYPELIB_PROC CTEXTSTR TYPELIB_CALLTYPE GetDisplayableCharactersAtCount( const char *string, size_t character_index );
 TYPELIB_PROC size_t TYPELIB_CALLTYPE  GetDisplayableCharacterBytes( const char *string, size_t character_count );
 /* You Must Deallocate the result */
+TYPELIB_PROC char * TYPELIB_CALLTYPE WcharConvert_v2 ( const wchar_t *wch, size_t len, size_t *outlen DBG_PASS );
+/* You Must Deallocate the result */
 TYPELIB_PROC  char * TYPELIB_CALLTYPE  WcharConvertExx ( const wchar_t *wch, size_t len DBG_PASS );
 /* You Must Deallocate the result */
 TYPELIB_PROC  char * TYPELIB_CALLTYPE  WcharConvertEx ( const wchar_t *wch DBG_PASS );
@@ -11950,6 +11977,7 @@ typedef void (CPROC*TaskOutput)(uintptr_t, PTASK_INFO task, CTEXTSTR buffer, siz
 #define LPP_OPTION_NEW_GROUP             8
 #define LPP_OPTION_NEW_CONSOLE          16
 #define LPP_OPTION_SUSPEND              32
+#define LPP_OPTION_ELEVATE              64
 SYSTEM_PROC( PTASK_INFO, LaunchPeerProgramExx )( CTEXTSTR program, CTEXTSTR path, PCTEXTSTR args
                                                , int flags
                                                , TaskOutput OutputHandler
@@ -12400,7 +12428,7 @@ typedef struct memory_block_tag* PMEM;
 // DigSpace( "Picture Memory", "Picture.mem", 100000 );
 /* <combinewith sack::memory::OpenSpaceExx@CTEXTSTR@CTEXTSTR@uintptr_t@uintptr_t *@uint32_t*>
    \ \                                                                                 */
-MEM_PROC  POINTER MEM_API  OpenSpace ( CTEXTSTR pWhat, CTEXTSTR pWhere, uintptr_t *dwSize );
+MEM_PROC  POINTER MEM_API  OpenSpace ( CTEXTSTR pWhat, CTEXTSTR pWhere, size_t *dwSize );
 /* <unfinished>
    Open a shared memory region. The region may be named with a
    text string (this does not work under linux platforms, and
@@ -12439,7 +12467,7 @@ MEM_PROC  POINTER MEM_API  OpenSpace ( CTEXTSTR pWhat, CTEXTSTR pWhere, uintptr_
    2) Open a file for direct memory access, the file is loaded
    into memory by system paging routines and not any API.         */
 MEM_PROC  POINTER MEM_API  OpenSpaceExx ( CTEXTSTR pWhat, CTEXTSTR pWhere, uintptr_t address
-	, uintptr_t *dwSize, uint32_t* bCreated );
+	, size_t *dwSize, uint32_t* bCreated );
 /* <combine sack::memory::OpenSpaceExx@CTEXTSTR@CTEXTSTR@uintptr_t@uintptr_t *@uint32_t*>
    \ \                                                                             */
 #define OpenSpaceEx( what,where,address,psize) OpenSpaceExx( what,where,address,psize,NULL )
@@ -12469,7 +12497,7 @@ MEM_PROC  uintptr_t MEM_API  GetSpaceSize ( POINTER pMem );
    Parameters
    pMem :    pointer to a memory space to setup as a heap.
    dwSize :  size of the memory space pointed at by pMem.        */
-MEM_PROC  int MEM_API  InitHeap( PMEM pMem, uintptr_t dwSize );
+MEM_PROC  int MEM_API  InitHeap( PMEM pMem, size_t dwSize );
 /* Dumps all blocks into the log.
    Parameters
    pHeap :     Heap to dump. If NULL or unspecified, dump the
@@ -12498,7 +12526,7 @@ MEM_PROC  void MEM_API  DebugDumpHeapMemFile ( PMEM pHeap, CTEXTSTR pFilename );
    \ \                                                        */
 MEM_PROC  void MEM_API  DebugDumpMemFile ( CTEXTSTR pFilename );
 #ifdef __GNUC__
-MEM_PROC  POINTER MEM_API  HeapAllocateAlignedEx ( PMEM pHeap, uintptr_t dwSize, uint16_t alignment DBG_PASS ) __attribute__( (malloc) );
+MEM_PROC  POINTER MEM_API  HeapAllocateAlignedEx ( PMEM pHeap, size_t dwSize, uint16_t alignment DBG_PASS ) __attribute__( (malloc) );
 MEM_PROC  POINTER MEM_API  HeapAllocateEx ( PMEM pHeap, uintptr_t nSize DBG_PASS ) __attribute__((malloc));
 MEM_PROC  POINTER MEM_API  AllocateEx ( uintptr_t nSize DBG_PASS ) __attribute__((malloc));
 #else
