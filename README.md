@@ -15,7 +15,7 @@ otherwise forced to C++.
 ## Other amalgamations
  - [Minimal; just types](https://github.com/d3x0r/micro-C-Boost-Types)
  - [System(Tasks) and File System](https://github.com/d3x0r/micro-C-Boost-FileSystem)
- - [Netowrking](https://github.com/d3x0r/micro-C-Boost-Network)
+ - [Networking](https://github.com/d3x0r/micro-C-Boost-Network)
  - [Full Core](https://github.com/d3x0r/micro-C-Boost-Core)
 
 ## Source List

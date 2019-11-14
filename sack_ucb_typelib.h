@@ -314,6 +314,7 @@ But WHO doesn't have stdint?  BTW is sizeof( size_t ) == sizeof( void* )
 #    else
 #      define LIBRARY_DEADSTART
 #    endif
+#define MD5_SOURCE
 #define USE_SACK_FILE_IO
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
@@ -1885,7 +1886,7 @@ TYPELIB_PROC  uintptr_t TYPELIB_CALLTYPE     ForAllLinks    ( PLIST *pList, ForP
    the list for something, then p will be non-null at the end of
    the loop.
                                                                                          */
-#define LIST_FORALL( l, i, t, v )  if(((v)=(t)NULL),(l))                                                        for( ((i)=0); ((i) < ((l)->Cnt))?                                         (((v)=(t)((l)->pNode[i])),1):(((v)=(t)NULL),0); (i)++ )  if( v )
+#define LIST_FORALL( l, i, t, v )  if(((v)=(t)NULL),(l))                                                        for( ((i)=0); ((i) < ((l)->Cnt))?                                         (((v)=(t)(uintptr_t)((l)->pNode[i])),1):(((v)=(t)NULL),0); (i)++ )  if( v )
 /* This can be used to continue iterating through a list after a
    LIST_FORALL has been interrupted.
    Parameters
@@ -5665,7 +5666,7 @@ MEM_PROC  POINTER MEM_API  AllocateEx ( uintptr_t nSize DBG_PASS );
    Returns
    A pointer to type. (this is important, since in C++ it's cast
    correctly to the destination type).                           */
-#define NewArray(type,count) ((type*)HeapAllocate(0,sizeof(type)*(count)))
+#define NewArray(type,count) ((type*)HeapAllocate(0,(uintptr_t)(sizeof(type)*(count))))
 /* Allocate sizeof(type). Will invoke some sort of registered
    initializer
    Parameters
@@ -7236,6 +7237,7 @@ But WHO doesn't have stdint?  BTW is sizeof( size_t ) == sizeof( void* )
 #    else
 #      define LIBRARY_DEADSTART
 #    endif
+#define MD5_SOURCE
 #define USE_SACK_FILE_IO
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
@@ -8808,7 +8810,7 @@ TYPELIB_PROC  uintptr_t TYPELIB_CALLTYPE     ForAllLinks    ( PLIST *pList, ForP
    the list for something, then p will be non-null at the end of
    the loop.
                                                                                          */
-#define LIST_FORALL( l, i, t, v )  if(((v)=(t)NULL),(l))                                                        for( ((i)=0); ((i) < ((l)->Cnt))?                                         (((v)=(t)((l)->pNode[i])),1):(((v)=(t)NULL),0); (i)++ )  if( v )
+#define LIST_FORALL( l, i, t, v )  if(((v)=(t)NULL),(l))                                                        for( ((i)=0); ((i) < ((l)->Cnt))?                                         (((v)=(t)(uintptr_t)((l)->pNode[i])),1):(((v)=(t)NULL),0); (i)++ )  if( v )
 /* This can be used to continue iterating through a list after a
    LIST_FORALL has been interrupted.
    Parameters
@@ -12588,7 +12590,7 @@ MEM_PROC  POINTER MEM_API  AllocateEx ( uintptr_t nSize DBG_PASS );
    Returns
    A pointer to type. (this is important, since in C++ it's cast
    correctly to the destination type).                           */
-#define NewArray(type,count) ((type*)HeapAllocate(0,sizeof(type)*(count)))
+#define NewArray(type,count) ((type*)HeapAllocate(0,(uintptr_t)(sizeof(type)*(count))))
 /* Allocate sizeof(type). Will invoke some sort of registered
    initializer
    Parameters
@@ -14243,6 +14245,7 @@ struct jsox_value_container {
 	PDATALIST *_contains;
   // if VALUE_OBJECT or VALUE_TYPED_ARRAY; this may be non NULL indicating what the class name is.
 	char *className;
+	size_t classNameLen;
 };
 // allocates a JSOX parsing context and is prepared to begin parsing data.
 JSOX_PARSER_PROC( struct jsox_parse_state *, jsox_begin_parse )(void);
