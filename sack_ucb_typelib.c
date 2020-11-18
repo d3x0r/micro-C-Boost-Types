@@ -27,6 +27,9 @@
 #  undef _XOPEN_SOURCE
 #  define _XOPEN_SOURCE 500
 #endif
+#  ifndef _GNU_SOURCE
+#    define _GNU_SOURCE
+#  endif
 #ifndef STANDARD_HEADERS_INCLUDED
 /* multiple inclusion protection symbol */
 #define STANDARD_HEADERS_INCLUDED
@@ -156,18 +159,18 @@
 #    define stricmp _stricmp
 #    define strdup _strdup
 #  endif
-#ifdef WANT_MMSYSTEM
-#  include <mmsystem.h>
-#endif
-#if USE_NATIVE_TIME_GET_TIME
+#  ifdef WANT_MMSYSTEM
+#    include <mmsystem.h>
+#  endif
+#  if USE_NATIVE_TIME_GET_TIME
 //#  include <windowsx.h>
 // we like timeGetTime() instead of GetTickCount()
 //#  include <mmsystem.h>
-#ifdef __cplusplus
+#    ifdef __cplusplus
 extern "C"
-#endif
+#    endif
 __declspec(dllimport) DWORD WINAPI timeGetTime(void);
-#endif
+#  endif
 #  ifdef WIN32
 #    if defined( NEED_SHLAPI )
 #      include <shlwapi.h>
@@ -198,9 +201,6 @@ __declspec(dllimport) DWORD WINAPI timeGetTime(void);
 #  endif
  // ifdef unix/linux
 #else
-#  ifndef _GNU_SOURCE
-#    define _GNU_SOURCE
-#  endif
 #  include <pthread.h>
 #  include <sched.h>
 #  include <unistd.h>
@@ -310,7 +310,7 @@ But WHO doesn't have stdint?  BTW is sizeof( size_t ) == sizeof( void* )
 #    define DeclareThreadLocal static __declspec(thread)
 #    define DeclareThreadVar __declspec(thread)
 #  endif
-#elif !defined( __NO_THREAD_LOCAL__ ) && ( defined( __GNUC__ ) )
+#elif !defined( __NO_THREAD_LOCAL__ ) && ( defined( __GNUC__ ) || defined( __MAC__ ) )
 #    define HAS_TLS 1
 #    ifdef __cplusplus
 #      define DeclareThreadLocal static thread_local
@@ -1377,10 +1377,8 @@ typedef uint64_t THREAD_ID;
 // this is now always the case
 // it's a safer solution anyhow...
 #  ifdef __MAC__
-#    ifndef SYS_thread_selfid
-#      define SYS_thread_selfid                 372
-#    endif
-#    define GetMyThreadID()  (( ((uint64_t)getpid()) << 32 ) | ( (uint64_t)( syscall(SYS_thread_selfid) ) ) )
+     DeclareThreadLocal uint64_t tmpThreadid;
+#    define GetMyThreadID()  ((pthread_threadid_np(NULL, &tmpThreadid)),tmpThreadid)
 #  else
 #    ifndef GETPID_RETURNS_PPID
 #      define GETPID_RETURNS_PPID
@@ -2021,8 +2019,7 @@ TYPELIB_PROC  POINTER TYPELIB_CALLTYPE    SetDataItemEx ( PDATALIST *ppdl, INDEX
 TYPELIB_PROC  POINTER TYPELIB_CALLTYPE    SetDataItemEx ( PDATALIST *ppdl, INDEX idx, POINTER data DBG_PASS );
 /* \Returns a pointer to the data at a specified index.
    Parameters
-   \ \
-   ppdl :  address of a PDATALIST
+   \    ppdl :  address of a PDATALIST
    idx :   index of element to get                      */
 TYPELIB_PROC  POINTER TYPELIB_CALLTYPE    GetDataItem ( PDATALIST *ppdl, INDEX idx );
 /* Removes a data element from the list (moves all other
@@ -2339,17 +2336,24 @@ TYPELIB_PROC  void TYPELIB_CALLTYPE         EmptyDataQueue ( PDATAQUEUE *pplq );
  * reallocated and moved.
  */
 TYPELIB_PROC  LOGICAL TYPELIB_CALLTYPE  PeekDataQueueEx    ( PDATAQUEUE *pplq, POINTER ResultBuffer, INDEX idx );
-/* <combine sack::containers::data_queue::PeekDataQueueEx@PDATAQUEUE *@POINTER@INDEX>
-   \ \                                                                                */
 #define PeekDataQueueEx( q, type, result, idx ) PeekDataQueueEx( q, (POINTER)result, idx )
 /*
  * Result buffer is filled with the last element, and the result is true, otherwise the return
  * value is FALSE, and the data was not filled in.
  */
 TYPELIB_PROC  LOGICAL TYPELIB_CALLTYPE  PeekDataQueue    ( PDATAQUEUE *pplq, POINTER ResultBuffer );
-/* <combine sack::containers::data_queue::PeekDataQueue@PDATAQUEUE *@POINTER>
-   \ \                                                                        */
-#define PeekDataQueue( q, type, result ) PeekDataQueue( q, (POINTER)result )
+#define PeekDataQueue( q, type, result ) PeekDataQueueEx( q, type, result, 0 )
+/*
+ * gets the address a PDATAQUEUE element at index
+ * result buffer is a pointer to the type of structure expected to be
+ * stored within this.  Index from 0 to N indexes from first ( to be dequeued )
+ * to last item in queue.
+ */
+TYPELIB_PROC POINTER TYPELIB_CALLTYPE  PeekDataInQueueEx    ( PDATAQUEUE *pplq, INDEX idx );
+/*
+ * Results with the first item in the queue, else NULL.
+ */
+TYPELIB_PROC POINTER TYPELIB_CALLTYPE  PeekDataInQueue    ( PDATAQUEUE *pplq );
 /* <combine sack::containers::data_queue::CreateDataQueueEx@INDEX size>
    \ \                                                                  */
 #define     CreateDataQueue(size)     CreateDataQueueEx( size DBG_SRC )
@@ -2555,8 +2559,7 @@ _SETS_NAMESPACE
    array that maps usage of the set, and for the set size of
    elements.
    Remarks
-   \ \
-   Summary
+   \    Summary
    Generic sets are good for tracking lots of tiny structures.
    They track slabs of X structures at a time. They allocate a
    slab of X structures with an array of X bits indicating
@@ -2623,13 +2626,13 @@ typedef struct genericset_tag {
 	struct genericset_tag **me;
 	/* number of spots in this set block that are used. */
 	uint32_t nUsed;
- // hmm if I change this here? we're hozed... so.. we'll do it anyhow :) evil - recompile please
+    // this is the size of the bit pool before the pointer pool
 	uint32_t nBias;
- // after this p * unit must be computed
+ // the bit pool starts here (booleanUsed) after a number of
 	uint32_t bUsed[1];
+	                   // bits begins the aligned pointer pool.
 } GENERICSET, *PGENERICSET;
-/* \ \
-   Parameters
+/* \    Parameters
    pSet :      pointer to a generic set
    nMember :   index of the member
    setsize :   number of elements in each block
@@ -2640,13 +2643,11 @@ TYPELIB_PROC  POINTER  TYPELIB_CALLTYPE GetFromSetEx( GENERICSET **pSet, int set
    \ \                                                                             */
 #define GetFromSeta(ps, ss, us, max) GetFromSetPoolEx( NULL, 0, 0, 0, (ps), (ss), (us), (max) DBG_SRC )
 /* <combine sack::containers::sets::GetFromSetEx@GENERICSET **@int@int@int maxcnt>
-   \ \
-   Parameters
+   \    Parameters
    name :  name of type the set contains.
    pSet :  pointer to a set to get an element from.                                */
 #define GetFromSet( name, pset ) (name*)GetFromSeta( (GENERICSET**)(pset), sizeof( name##SET ), sizeof( name ), MAX##name##SPERSET )
-/* \ \
-   Parameters
+/* \    Parameters
    pSet :      pointer to a generic set
    nMember :   index of the member
    setsize :   number of elements in each block
@@ -2662,8 +2663,7 @@ TYPELIB_PROC  PGENERICSET  TYPELIB_CALLTYPE GetFromSetPoolEx( GENERICSET **pSetS
 /* <combine sack::containers::sets::GetFromSetPoolEx@GENERICSET **@int@int@int@GENERICSET **@int@int@int maxcnt>
    \ \                                                                                                           */
 #define GetFromSetPool( name, pool, pset ) (name*)GetFromSetPoola( (GENERICSET**)(pool)	    , sizeof( name##SETSET ), sizeof( name##SET ), MAX##name##SETSPERSET	, (GENERICSET**)(pset), sizeof( name##SET ), sizeof( name ), MAX##name##SPERSET )
-/* \ \
-   Parameters
+/* \    Parameters
    pSet :      pointer to a generic set
    nMember :   index of the member
    setsize :   number of elements in each block
@@ -2676,8 +2676,7 @@ TYPELIB_PROC  POINTER  TYPELIB_CALLTYPE GetSetMemberEx( GENERICSET **pSet, INDEX
 /* <combine sack::containers::sets::GetSetMemberEx@GENERICSET **@INDEX@int@int@int maxcnt>
    \ \                                                                                     */
 #define GetSetMember( name, pset, member ) ((name*)GetSetMembera( (GENERICSET**)(pset), (member), sizeof( name##SET ), sizeof( name ), MAX##name##SPERSET ))
-/* \ \
-   Parameters
+/* \    Parameters
    pSet :      pointer to a generic set
    nMember :   index of the member
    setsize :   number of elements in each block
@@ -2704,8 +2703,7 @@ TYPELIB_PROC  INDEX TYPELIB_CALLTYPE  GetMemberIndex(GENERICSET **set, POINTER u
 /* <combine sack::containers::sets::GetMemberIndex>
    \ \                                              */
 #define GetIndexFromSet( name, pset ) GetMemberIndex( name, pset, GetFromSet( name, pset ) )
-/* \ \
-   Parameters
+/* \    Parameters
    pSet :      pointer to a generic set
    nMember :   index of the member
    setsize :   number of elements in each block
@@ -2785,8 +2783,7 @@ TYPELIB_PROC  void TYPELIB_CALLTYPE  DeleteSet( GENERICSET **ppSet );
    ForAllinSet Callback - callback fucntion used with
    ForAllInSet                                        */
 typedef uintptr_t (CPROC *FAISCallback)(void*,uintptr_t);
-/* \ \
-   Parameters
+/* \    Parameters
    pSet :      poiner to a set
    unitsize :  size of elements in the array
    max :       count of elements per set block
@@ -3292,8 +3289,7 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateEx( size_t nSize DBG_PASS );
    PTEXT text = SegCreate( 10 );
    </code>                                                     */
 #define SegCreate(s) SegCreateEx(s DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromText> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromTextEx( CTEXTSTR text DBG_PASS );
@@ -3303,13 +3299,11 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromTextEx( CTEXTSTR text DBG_PAS
    PTEXT line = SegCreateFromText( "Around the world in a day." );
    </code>                                                         */
 #define SegCreateFromText(t) SegCreateFromTextEx(t DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromChar> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromCharLenEx( const char *text, size_t len DBG_PASS );
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromChar> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromCharEx( const char *text DBG_PASS );
@@ -3319,18 +3313,15 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromCharEx( const char *text DBG_
    PTEXT line = SegCreateFromChar( "Around the world in a day." );
    </code>                                                         */
 #define SegCreateFromChar(t) SegCreateFromCharEx(t DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromChar> */
 #define SegCreateFromCharLen(t,len) SegCreateFromCharLenEx((t),(len) DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromWide> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromWideLenEx( const wchar_t *text, size_t len DBG_PASS );
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromWide> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromWideEx( const wchar_t *text DBG_PASS );
@@ -3340,13 +3331,11 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromWideEx( const wchar_t *text D
    PTEXT line = SegCreateFromWideLen( L"Around the world in a day.", 26 );
    </code>                                                         */
 #define SegCreateFromWideLen(t,len) SegCreateFromWideLenEx((t),(len) DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromWide> */
 #define SegCreateFromWide(t) SegCreateFromWideEx(t DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateIndirect> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateIndirectEx( PTEXT pText DBG_PASS );
@@ -3365,8 +3354,7 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateIndirectEx( PTEXT pText DBG_PASS 
    length buffer for a TEXT segment.
                                                                                   */
 #define SegCreateIndirect(t) SegCreateIndirectEx(t DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegDuplicate> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegDuplicateEx( PTEXT pText DBG_PASS);
@@ -3384,16 +3372,14 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  LineDuplicateEx( PTEXT pText DBG_PASS );
 /* <combine sack::containers::text::LineDuplicateEx@PTEXT pText>
    \ \                                                           */
 #define LineDuplicate(pt) LineDuplicateEx(pt DBG_SRC )
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link TextDuplicate> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  TextDuplicateEx( PTEXT pText, int bSingle DBG_PASS );
 /* Duplicate the whole string of text to another string with
    exactly the same content.                                 */
 #define TextDuplicate(pt,s) TextDuplicateEx(pt,s DBG_SRC )
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromInt> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromIntEx( int value DBG_PASS );
@@ -3409,8 +3395,7 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromIntEx( int value DBG_PASS );
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFrom_64Ex( int64_t value DBG_PASS );
 /* Create a text segment from a uint64_t bit value. (long long int) */
 #define SegCreateFrom_64(v) SegCreateFrom_64Ex( v DBG_SRC )
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromFloat> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromFloatEx( float value DBG_PASS );
@@ -3459,7 +3444,7 @@ TYPELIB_PROC  void TYPELIB_CALLTYPE   LineReleaseEx (PTEXT line DBG_PASS );
    Any segment in the line may be passed, the first segment is
    found, and then all segments in the line are deleted.       */
 #define LineRelease(l) LineReleaseEx(l DBG_SRC )
-/* \ \
+/* \
    <b>See Also</b>
    <link DBG_PASS>
    <link SegRelease> */
@@ -3538,15 +3523,13 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegGrab     (PTEXT segment);
    Returns
    \Returns the '_this' that was substituted.                     */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegSubst    ( PTEXT _this, PTEXT that );
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegSplit> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegSplitEx( PTEXT *pLine, INDEX nPos DBG_PASS);
 /* Split a PTEXT segment.
    Example
-   \ \
-   <code lang="c++">
+   \    <code lang="c++">
    PTEXT result = SegSplit( &amp;old_string, 5 );
    </code>
    Returns
@@ -3656,8 +3639,7 @@ TYPELIB_PROC  INDEX TYPELIB_CALLTYPE  LineLengthExx( PTEXT pt, LOGICAL bSingle,P
 /* <combine sack::containers::text::LineLengthExEx@PTEXT@LOGICAL@int@PTEXT>
    \ \                                                                      */
 #define LineLengthExx(pt,single,eol) LineLengthExEx( pt,single,8,eol)
-/* \ \
-   Parameters
+/* \    Parameters
    Text segment :  PTEXT line or segment to get the length of
    single :        boolean, if set then only a single segment is
                    measured, otherwise all segments from this to
@@ -3704,8 +3686,7 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  BuildLineExx( PTEXT pt, LOGICAL bSingle, P
    \ \                                                                          */
 #define BuildLineEx(from,single) BuildLineExEx( from,single,8,NULL DBG_SRC )
 /* <combine sack::containers::text::BuildLineExEx@PTEXT@LOGICAL@int@PTEXT pEOL>
-   \ \
-    Flattens all segments in a line to a single segment result.
+   \     Flattens all segments in a line to a single segment result.
 */
 #define BuildLine(from) BuildLineExEx( from, FALSE,8,NULL DBG_SRC )
 //
@@ -3888,8 +3869,7 @@ TYPELIB_PROC  void TYPELIB_CALLTYPE  VarTextEmptyEx( PVARTEXT pvt DBG_PASS);
 #define VarTextEmpty(pvt) VarTextEmptyEx( (pvt) DBG_SRC )
 /* Add a single character to a vartext collector.
    Note
-   \ \
-   Parameters
+   \    Parameters
    pvt :       PVARTEXT to add character to
    c :         character to add
    DBG_PASS :  optional debug information         */
@@ -4213,8 +4193,7 @@ TYPELIB_PROC  PTREEROOT TYPELIB_CALLTYPE  CreateBinaryTreeExtended( uint32_t fla
    PTREEROOT tree = CreateBinaryTree();
    </code>                                                      */
 #define CreateBinaryTree() CreateBinaryTreeEx( NULL, NULL )
-/* \ \
-   Example
+/* \    Example
    <code lang="c++">
    PTREEROOT tree = CreateBinaryTree();
    DestroyBinaryTree( tree );
@@ -4222,8 +4201,7 @@ TYPELIB_PROC  PTREEROOT TYPELIB_CALLTYPE  CreateBinaryTreeExtended( uint32_t fla
    </code>                              */
 TYPELIB_PROC  void TYPELIB_CALLTYPE  DestroyBinaryTree( PTREEROOT root );
 /* Drops all the nodes in a tree so it becomes empty...
-   \ \
-   Example
+   \    Example
    <code lang="c++">
    PTREEROOT tree = CreateBinaryTree();
    ResetBinaryTree( tree );
@@ -4242,8 +4220,7 @@ TYPELIB_PROC  void TYPELIB_CALLTYPE  ResetBinaryTree( PTREEROOT root );
    BalanceBinaryTree( tree );
    </code>                                                        */
 TYPELIB_PROC  void TYPELIB_CALLTYPE  BalanceBinaryTree( PTREEROOT root );
-/* \ \
-   See Also
+/* \    See Also
    <link AddBinaryNode>
    <link DBG_PASS>
                         */
@@ -4386,8 +4363,7 @@ TYPELIB_PROC  CPOINTER TYPELIB_CALLTYPE  GetParentNode( PTREEROOT root );
    Binary Trees have a 'current' cursor. These operations may be
    used to browse the tree.
    Example
-   \ \
-   <code>
+   \    <code>
    // this assumes you have a tree, and it's fairly populated, then this demonstrates
    // all steps of browsing.
    POINTER my_data;
@@ -7077,6 +7053,9 @@ namespace sack {
 #  undef _XOPEN_SOURCE
 #  define _XOPEN_SOURCE 500
 #endif
+#  ifndef _GNU_SOURCE
+#    define _GNU_SOURCE
+#  endif
 #ifndef STANDARD_HEADERS_INCLUDED
 /* multiple inclusion protection symbol */
 #define STANDARD_HEADERS_INCLUDED
@@ -7206,18 +7185,18 @@ namespace sack {
 #    define stricmp _stricmp
 #    define strdup _strdup
 #  endif
-#ifdef WANT_MMSYSTEM
-#  include <mmsystem.h>
-#endif
-#if USE_NATIVE_TIME_GET_TIME
+#  ifdef WANT_MMSYSTEM
+#    include <mmsystem.h>
+#  endif
+#  if USE_NATIVE_TIME_GET_TIME
 //#  include <windowsx.h>
 // we like timeGetTime() instead of GetTickCount()
 //#  include <mmsystem.h>
-#ifdef __cplusplus
+#    ifdef __cplusplus
 extern "C"
-#endif
+#    endif
 __declspec(dllimport) DWORD WINAPI timeGetTime(void);
-#endif
+#  endif
 #  ifdef WIN32
 #    if defined( NEED_SHLAPI )
 #      include <shlwapi.h>
@@ -7248,9 +7227,6 @@ __declspec(dllimport) DWORD WINAPI timeGetTime(void);
 #  endif
  // ifdef unix/linux
 #else
-#  ifndef _GNU_SOURCE
-#    define _GNU_SOURCE
-#  endif
 #  include <pthread.h>
 #  include <sched.h>
 #  include <unistd.h>
@@ -7360,7 +7336,7 @@ But WHO doesn't have stdint?  BTW is sizeof( size_t ) == sizeof( void* )
 #    define DeclareThreadLocal static __declspec(thread)
 #    define DeclareThreadVar __declspec(thread)
 #  endif
-#elif !defined( __NO_THREAD_LOCAL__ ) && ( defined( __GNUC__ ) )
+#elif !defined( __NO_THREAD_LOCAL__ ) && ( defined( __GNUC__ ) || defined( __MAC__ ) )
 #    define HAS_TLS 1
 #    ifdef __cplusplus
 #      define DeclareThreadLocal static thread_local
@@ -8428,10 +8404,8 @@ typedef uint64_t THREAD_ID;
 // this is now always the case
 // it's a safer solution anyhow...
 #  ifdef __MAC__
-#    ifndef SYS_thread_selfid
-#      define SYS_thread_selfid                 372
-#    endif
-#    define GetMyThreadID()  (( ((uint64_t)getpid()) << 32 ) | ( (uint64_t)( syscall(SYS_thread_selfid) ) ) )
+     DeclareThreadLocal uint64_t tmpThreadid;
+#    define GetMyThreadID()  ((pthread_threadid_np(NULL, &tmpThreadid)),tmpThreadid)
 #  else
 #    ifndef GETPID_RETURNS_PPID
 #      define GETPID_RETURNS_PPID
@@ -9072,8 +9046,7 @@ TYPELIB_PROC  POINTER TYPELIB_CALLTYPE    SetDataItemEx ( PDATALIST *ppdl, INDEX
 TYPELIB_PROC  POINTER TYPELIB_CALLTYPE    SetDataItemEx ( PDATALIST *ppdl, INDEX idx, POINTER data DBG_PASS );
 /* \Returns a pointer to the data at a specified index.
    Parameters
-   \ \
-   ppdl :  address of a PDATALIST
+   \    ppdl :  address of a PDATALIST
    idx :   index of element to get                      */
 TYPELIB_PROC  POINTER TYPELIB_CALLTYPE    GetDataItem ( PDATALIST *ppdl, INDEX idx );
 /* Removes a data element from the list (moves all other
@@ -9390,17 +9363,24 @@ TYPELIB_PROC  void TYPELIB_CALLTYPE         EmptyDataQueue ( PDATAQUEUE *pplq );
  * reallocated and moved.
  */
 TYPELIB_PROC  LOGICAL TYPELIB_CALLTYPE  PeekDataQueueEx    ( PDATAQUEUE *pplq, POINTER ResultBuffer, INDEX idx );
-/* <combine sack::containers::data_queue::PeekDataQueueEx@PDATAQUEUE *@POINTER@INDEX>
-   \ \                                                                                */
 #define PeekDataQueueEx( q, type, result, idx ) PeekDataQueueEx( q, (POINTER)result, idx )
 /*
  * Result buffer is filled with the last element, and the result is true, otherwise the return
  * value is FALSE, and the data was not filled in.
  */
 TYPELIB_PROC  LOGICAL TYPELIB_CALLTYPE  PeekDataQueue    ( PDATAQUEUE *pplq, POINTER ResultBuffer );
-/* <combine sack::containers::data_queue::PeekDataQueue@PDATAQUEUE *@POINTER>
-   \ \                                                                        */
-#define PeekDataQueue( q, type, result ) PeekDataQueue( q, (POINTER)result )
+#define PeekDataQueue( q, type, result ) PeekDataQueueEx( q, type, result, 0 )
+/*
+ * gets the address a PDATAQUEUE element at index
+ * result buffer is a pointer to the type of structure expected to be
+ * stored within this.  Index from 0 to N indexes from first ( to be dequeued )
+ * to last item in queue.
+ */
+TYPELIB_PROC POINTER TYPELIB_CALLTYPE  PeekDataInQueueEx    ( PDATAQUEUE *pplq, INDEX idx );
+/*
+ * Results with the first item in the queue, else NULL.
+ */
+TYPELIB_PROC POINTER TYPELIB_CALLTYPE  PeekDataInQueue    ( PDATAQUEUE *pplq );
 /* <combine sack::containers::data_queue::CreateDataQueueEx@INDEX size>
    \ \                                                                  */
 #define     CreateDataQueue(size)     CreateDataQueueEx( size DBG_SRC )
@@ -9606,8 +9586,7 @@ _SETS_NAMESPACE
    array that maps usage of the set, and for the set size of
    elements.
    Remarks
-   \ \
-   Summary
+   \    Summary
    Generic sets are good for tracking lots of tiny structures.
    They track slabs of X structures at a time. They allocate a
    slab of X structures with an array of X bits indicating
@@ -9674,13 +9653,13 @@ typedef struct genericset_tag {
 	struct genericset_tag **me;
 	/* number of spots in this set block that are used. */
 	uint32_t nUsed;
- // hmm if I change this here? we're hozed... so.. we'll do it anyhow :) evil - recompile please
+    // this is the size of the bit pool before the pointer pool
 	uint32_t nBias;
- // after this p * unit must be computed
+ // the bit pool starts here (booleanUsed) after a number of
 	uint32_t bUsed[1];
+	                   // bits begins the aligned pointer pool.
 } GENERICSET, *PGENERICSET;
-/* \ \
-   Parameters
+/* \    Parameters
    pSet :      pointer to a generic set
    nMember :   index of the member
    setsize :   number of elements in each block
@@ -9691,13 +9670,11 @@ TYPELIB_PROC  POINTER  TYPELIB_CALLTYPE GetFromSetEx( GENERICSET **pSet, int set
    \ \                                                                             */
 #define GetFromSeta(ps, ss, us, max) GetFromSetPoolEx( NULL, 0, 0, 0, (ps), (ss), (us), (max) DBG_SRC )
 /* <combine sack::containers::sets::GetFromSetEx@GENERICSET **@int@int@int maxcnt>
-   \ \
-   Parameters
+   \    Parameters
    name :  name of type the set contains.
    pSet :  pointer to a set to get an element from.                                */
 #define GetFromSet( name, pset ) (name*)GetFromSeta( (GENERICSET**)(pset), sizeof( name##SET ), sizeof( name ), MAX##name##SPERSET )
-/* \ \
-   Parameters
+/* \    Parameters
    pSet :      pointer to a generic set
    nMember :   index of the member
    setsize :   number of elements in each block
@@ -9713,8 +9690,7 @@ TYPELIB_PROC  PGENERICSET  TYPELIB_CALLTYPE GetFromSetPoolEx( GENERICSET **pSetS
 /* <combine sack::containers::sets::GetFromSetPoolEx@GENERICSET **@int@int@int@GENERICSET **@int@int@int maxcnt>
    \ \                                                                                                           */
 #define GetFromSetPool( name, pool, pset ) (name*)GetFromSetPoola( (GENERICSET**)(pool)	    , sizeof( name##SETSET ), sizeof( name##SET ), MAX##name##SETSPERSET	, (GENERICSET**)(pset), sizeof( name##SET ), sizeof( name ), MAX##name##SPERSET )
-/* \ \
-   Parameters
+/* \    Parameters
    pSet :      pointer to a generic set
    nMember :   index of the member
    setsize :   number of elements in each block
@@ -9727,8 +9703,7 @@ TYPELIB_PROC  POINTER  TYPELIB_CALLTYPE GetSetMemberEx( GENERICSET **pSet, INDEX
 /* <combine sack::containers::sets::GetSetMemberEx@GENERICSET **@INDEX@int@int@int maxcnt>
    \ \                                                                                     */
 #define GetSetMember( name, pset, member ) ((name*)GetSetMembera( (GENERICSET**)(pset), (member), sizeof( name##SET ), sizeof( name ), MAX##name##SPERSET ))
-/* \ \
-   Parameters
+/* \    Parameters
    pSet :      pointer to a generic set
    nMember :   index of the member
    setsize :   number of elements in each block
@@ -9755,8 +9730,7 @@ TYPELIB_PROC  INDEX TYPELIB_CALLTYPE  GetMemberIndex(GENERICSET **set, POINTER u
 /* <combine sack::containers::sets::GetMemberIndex>
    \ \                                              */
 #define GetIndexFromSet( name, pset ) GetMemberIndex( name, pset, GetFromSet( name, pset ) )
-/* \ \
-   Parameters
+/* \    Parameters
    pSet :      pointer to a generic set
    nMember :   index of the member
    setsize :   number of elements in each block
@@ -9836,8 +9810,7 @@ TYPELIB_PROC  void TYPELIB_CALLTYPE  DeleteSet( GENERICSET **ppSet );
    ForAllinSet Callback - callback fucntion used with
    ForAllInSet                                        */
 typedef uintptr_t (CPROC *FAISCallback)(void*,uintptr_t);
-/* \ \
-   Parameters
+/* \    Parameters
    pSet :      poiner to a set
    unitsize :  size of elements in the array
    max :       count of elements per set block
@@ -10343,8 +10316,7 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateEx( size_t nSize DBG_PASS );
    PTEXT text = SegCreate( 10 );
    </code>                                                     */
 #define SegCreate(s) SegCreateEx(s DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromText> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromTextEx( CTEXTSTR text DBG_PASS );
@@ -10354,13 +10326,11 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromTextEx( CTEXTSTR text DBG_PAS
    PTEXT line = SegCreateFromText( "Around the world in a day." );
    </code>                                                         */
 #define SegCreateFromText(t) SegCreateFromTextEx(t DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromChar> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromCharLenEx( const char *text, size_t len DBG_PASS );
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromChar> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromCharEx( const char *text DBG_PASS );
@@ -10370,18 +10340,15 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromCharEx( const char *text DBG_
    PTEXT line = SegCreateFromChar( "Around the world in a day." );
    </code>                                                         */
 #define SegCreateFromChar(t) SegCreateFromCharEx(t DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromChar> */
 #define SegCreateFromCharLen(t,len) SegCreateFromCharLenEx((t),(len) DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromWide> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromWideLenEx( const wchar_t *text, size_t len DBG_PASS );
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromWide> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromWideEx( const wchar_t *text DBG_PASS );
@@ -10391,13 +10358,11 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromWideEx( const wchar_t *text D
    PTEXT line = SegCreateFromWideLen( L"Around the world in a day.", 26 );
    </code>                                                         */
 #define SegCreateFromWideLen(t,len) SegCreateFromWideLenEx((t),(len) DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromWide> */
 #define SegCreateFromWide(t) SegCreateFromWideEx(t DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateIndirect> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateIndirectEx( PTEXT pText DBG_PASS );
@@ -10416,8 +10381,7 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateIndirectEx( PTEXT pText DBG_PASS 
    length buffer for a TEXT segment.
                                                                                   */
 #define SegCreateIndirect(t) SegCreateIndirectEx(t DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegDuplicate> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegDuplicateEx( PTEXT pText DBG_PASS);
@@ -10435,16 +10399,14 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  LineDuplicateEx( PTEXT pText DBG_PASS );
 /* <combine sack::containers::text::LineDuplicateEx@PTEXT pText>
    \ \                                                           */
 #define LineDuplicate(pt) LineDuplicateEx(pt DBG_SRC )
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link TextDuplicate> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  TextDuplicateEx( PTEXT pText, int bSingle DBG_PASS );
 /* Duplicate the whole string of text to another string with
    exactly the same content.                                 */
 #define TextDuplicate(pt,s) TextDuplicateEx(pt,s DBG_SRC )
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromInt> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromIntEx( int value DBG_PASS );
@@ -10460,8 +10422,7 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromIntEx( int value DBG_PASS );
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFrom_64Ex( int64_t value DBG_PASS );
 /* Create a text segment from a uint64_t bit value. (long long int) */
 #define SegCreateFrom_64(v) SegCreateFrom_64Ex( v DBG_SRC )
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromFloat> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromFloatEx( float value DBG_PASS );
@@ -10510,7 +10471,7 @@ TYPELIB_PROC  void TYPELIB_CALLTYPE   LineReleaseEx (PTEXT line DBG_PASS );
    Any segment in the line may be passed, the first segment is
    found, and then all segments in the line are deleted.       */
 #define LineRelease(l) LineReleaseEx(l DBG_SRC )
-/* \ \
+/* \
    <b>See Also</b>
    <link DBG_PASS>
    <link SegRelease> */
@@ -10589,15 +10550,13 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegGrab     (PTEXT segment);
    Returns
    \Returns the '_this' that was substituted.                     */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegSubst    ( PTEXT _this, PTEXT that );
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegSplit> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegSplitEx( PTEXT *pLine, INDEX nPos DBG_PASS);
 /* Split a PTEXT segment.
    Example
-   \ \
-   <code lang="c++">
+   \    <code lang="c++">
    PTEXT result = SegSplit( &amp;old_string, 5 );
    </code>
    Returns
@@ -10707,8 +10666,7 @@ TYPELIB_PROC  INDEX TYPELIB_CALLTYPE  LineLengthExx( PTEXT pt, LOGICAL bSingle,P
 /* <combine sack::containers::text::LineLengthExEx@PTEXT@LOGICAL@int@PTEXT>
    \ \                                                                      */
 #define LineLengthExx(pt,single,eol) LineLengthExEx( pt,single,8,eol)
-/* \ \
-   Parameters
+/* \    Parameters
    Text segment :  PTEXT line or segment to get the length of
    single :        boolean, if set then only a single segment is
                    measured, otherwise all segments from this to
@@ -10755,8 +10713,7 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  BuildLineExx( PTEXT pt, LOGICAL bSingle, P
    \ \                                                                          */
 #define BuildLineEx(from,single) BuildLineExEx( from,single,8,NULL DBG_SRC )
 /* <combine sack::containers::text::BuildLineExEx@PTEXT@LOGICAL@int@PTEXT pEOL>
-   \ \
-    Flattens all segments in a line to a single segment result.
+   \     Flattens all segments in a line to a single segment result.
 */
 #define BuildLine(from) BuildLineExEx( from, FALSE,8,NULL DBG_SRC )
 //
@@ -10939,8 +10896,7 @@ TYPELIB_PROC  void TYPELIB_CALLTYPE  VarTextEmptyEx( PVARTEXT pvt DBG_PASS);
 #define VarTextEmpty(pvt) VarTextEmptyEx( (pvt) DBG_SRC )
 /* Add a single character to a vartext collector.
    Note
-   \ \
-   Parameters
+   \    Parameters
    pvt :       PVARTEXT to add character to
    c :         character to add
    DBG_PASS :  optional debug information         */
@@ -11264,8 +11220,7 @@ TYPELIB_PROC  PTREEROOT TYPELIB_CALLTYPE  CreateBinaryTreeExtended( uint32_t fla
    PTREEROOT tree = CreateBinaryTree();
    </code>                                                      */
 #define CreateBinaryTree() CreateBinaryTreeEx( NULL, NULL )
-/* \ \
-   Example
+/* \    Example
    <code lang="c++">
    PTREEROOT tree = CreateBinaryTree();
    DestroyBinaryTree( tree );
@@ -11273,8 +11228,7 @@ TYPELIB_PROC  PTREEROOT TYPELIB_CALLTYPE  CreateBinaryTreeExtended( uint32_t fla
    </code>                              */
 TYPELIB_PROC  void TYPELIB_CALLTYPE  DestroyBinaryTree( PTREEROOT root );
 /* Drops all the nodes in a tree so it becomes empty...
-   \ \
-   Example
+   \    Example
    <code lang="c++">
    PTREEROOT tree = CreateBinaryTree();
    ResetBinaryTree( tree );
@@ -11293,8 +11247,7 @@ TYPELIB_PROC  void TYPELIB_CALLTYPE  ResetBinaryTree( PTREEROOT root );
    BalanceBinaryTree( tree );
    </code>                                                        */
 TYPELIB_PROC  void TYPELIB_CALLTYPE  BalanceBinaryTree( PTREEROOT root );
-/* \ \
-   See Also
+/* \    See Also
    <link AddBinaryNode>
    <link DBG_PASS>
                         */
@@ -11437,8 +11390,7 @@ TYPELIB_PROC  CPOINTER TYPELIB_CALLTYPE  GetParentNode( PTREEROOT root );
    Binary Trees have a 'current' cursor. These operations may be
    used to browse the tree.
    Example
-   \ \
-   <code>
+   \    <code>
    // this assumes you have a tree, and it's fairly populated, then this demonstrates
    // all steps of browsing.
    POINTER my_data;
@@ -16540,6 +16492,43 @@ PDATAQUEUE  CreateLargeDataQueueEx( INDEX size, INDEX entries, INDEX expand DBG_
 {
 	return PeekDataQueueEx( ppdq, result, 0 );
 }
+// zero is the first,
+POINTER  PeekDataInQueueEx ( PDATAQUEUE *ppdq, INDEX idx )
+{
+	INDEX top;
+	if( ppdq && *ppdq )
+		while( LockedExchange( data_queue_local_lock, 1 ) )
+			Relinquish();
+	else
+		return 0;
+	// cannot get invalid id.
+	if( idx != INVALID_INDEX )
+	{
+		for( top = (*ppdq)->Bottom;
+			 idx != INVALID_INDEX && top != (*ppdq)->Top
+			 ; )
+		{
+			idx--;
+			if( idx != INVALID_INDEX )
+			{
+				top++;
+				if( (top) >= (*ppdq)->Cnt )
+					top = top-(*ppdq)->Cnt;
+			}
+		}
+		if( idx == INVALID_INDEX )
+		{
+			data_queue_local_lock[0] = 0;
+			return (*ppdq)->data + top * (*ppdq)->Size;
+		}
+	}
+	data_queue_local_lock[0] = 0;
+	return NULL;
+}
+POINTER  PeekDataInQueue ( PDATAQUEUE *ppdq )
+{
+	return PeekDataInQueueEx( ppdq, 0 );
+}
 void  EmptyDataQueue ( PDATAQUEUE *ppdq )
 {
 	if( ppdq && *ppdq )
@@ -20780,7 +20769,7 @@ void RecallUserInput( PUSER_INPUT_BUFFER pci, int bUp )
 			LineRelease( pci->CollectionBuffer );
 				pci->CollectionBuffer = NULL;
 			pci->CollectionIndex = 0;
-			pci->nHistory = INVALID_INDEX;
+			pci->nHistory = -1;
 			return;
 		}
 	}
@@ -31001,8 +30990,9 @@ enum jsox_word_char_states {
 	JSOX_WORD_POS_UNDEFINED_7,
 	JSOX_WORD_POS_UNDEFINED_8,
 	//JSOX_WORD_POS_UNDEFINED_9, // instead of stepping to this value here, go to RESET
-	JSOX_WORD_POS_NAN_1,
   // 20
+	JSOX_WORD_POS_NAN_1,
+  // 21
 	JSOX_WORD_POS_NAN_2,
 	//JSOX_WORD_POS_NAN_3,// instead of stepping to this value here, go to RESET
 	JSOX_WORD_POS_INFINITY_1,
@@ -31014,8 +31004,9 @@ enum jsox_word_char_states {
 	JSOX_WORD_POS_INFINITY_7,
 	//JSOX_WORD_POS_INFINITY_8,// instead of stepping to this value here, go to RESET
 	JSOX_WORD_POS_FIELD,
+  // 30
 	JSOX_WORD_POS_AFTER_FIELD,
- // 30
+ // 31
 	JSOX_WORD_POS_DOT_OPERATOR,
 	JSOX_WORD_POS_PROPER_NAME,
 	JSOX_WORD_POS_AFTER_PROPER_NAME,
@@ -31751,14 +31742,11 @@ static LOGICAL openArray( struct jsox_parse_state *state, struct jsox_output_buf
 		vtprintf( state->pvtError, "Fault while parsing; colon expected after field name %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 		state->status = FALSE;
 		return FALSE;
-	}
-	if( state->word > JSOX_WORD_POS_RESET && state->word < JSOX_WORD_POS_FIELD )
- // don't pass C; otherwise array opens.
-		recoverIdent(state,output,0);
+        }
 	if( state->val.value_type == JSOX_VALUE_STRING ) {
 		state->val.className = state->val.string;
 #ifdef DEBUG_CLASS_STATES
-		lprintf( "SET class: %s", state->val.className );
+		lprintf( "SET class: %.*s %d", state->val.stringLen, state->val.className, state->val.stringLen );
 #endif
 		state->val.classNameLen = state->val.stringLen;
 		state->val.string = NULL;
@@ -31801,6 +31789,7 @@ static LOGICAL openArray( struct jsox_parse_state *state, struct jsox_output_buf
 		}else {
 			if( !state->pvtError ) state->pvtError = VarTextCreate();
 			vtprintf( state->pvtError, "Fault while parsing; while getting field name unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+			vtprintf( state->pvtError, "\nError: word state: %d %d", state->parse_context, state->objectContext );
 			state->status = FALSE;
 			return FALSE;
 		}
@@ -32106,17 +32095,17 @@ int recoverIdent( struct jsox_parse_state *state, struct jsox_output_buffer* out
 		openObject( state, output, cInt );
 /*'['*/
 	else if( cInt == 91 )
-		openArray( state, output, cInt );
+		openArray( state, output, 0 );
 /*':'*/
 	else if( cInt == 58 ) {
  // well.. it is.  It's already a fairly commited value.
 		state->word = JSOX_WORD_POS_RESET;
 		if( !state->completedString ) {
 			state->completedString = TRUE;
-			state->val.stringLen = output->pos - state->val.string;
+                        state->val.stringLen = output->pos - state->val.string;
 		}
 #ifdef DEBUG_STRING_LENGTH
-		lprintf( "Update stringLen  '%c'  :%d", cInt, state->val.stringLen );
+                lprintf( "Update stringLen  '%c'  :%d", cInt?cInt:'?', state->val.stringLen );
 #endif
 /*','*/
 	} else if( cInt == 44 ) {
@@ -32127,7 +32116,7 @@ int recoverIdent( struct jsox_parse_state *state, struct jsox_output_buffer* out
 			state->val.stringLen = output->pos - state->val.string;
 		}
 #ifdef DEBUG_STRING_LENGTH
-		lprintf( "Update stringLen  '%c'  :%d", cInt, state->val.stringLen );
+		lprintf( "Update stringLen  '%c'  :%d", cInt?cInt:'~', state->val.stringLen );
 #endif
 	} else if( cInt >= 0 ) {
 		// ignore white space.
@@ -32430,7 +32419,9 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 				openObject( state, output, c );
 				break;
 			case '[':
-				openArray( state, output, c );
+  // gather any preceeding string.
+				recoverIdent(state,output,c);
+				//openArray( state, output, c );
 				break;
 			case ':':
 				recoverIdent(state,output,c);
@@ -32472,7 +32463,10 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 			case '}':
 				{
 					int emitObject;
-					emitObject = TRUE;
+                                        emitObject = TRUE;
+                                        if( state->word == JSOX_WORD_POS_AFTER_FIELD ) {
+						state->word = JSOX_WORD_POS_RESET;
+                                        }
 					if( state->word == JSOX_WORD_POS_END ) {
 						// allow starting a new word
 						state->word = JSOX_WORD_POS_RESET;
@@ -32529,15 +32523,19 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 							pushValue( state, state->elements, &state->val );
 						else {
 							if( !state->pvtError ) state->pvtError = VarTextCreate();
-							vtprintf( state->pvtError, "Fault while parsing; unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+							vtprintf( state->pvtError, "Fault while parsing(2); unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 							state->status = FALSE;
 						}
 					}
 					else {
+                                            if( state->val.value_type != JSOX_VALUE_UNSET ) {
+                                                //pushValue( state, state->elements, &state->val );
+                                            } else {
 						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, "Fault while parsing; unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
-						state->status = FALSE;
+						vtprintf( state->pvtError, "Fault while parsing(3); unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+                                                state->status = FALSE;
 						break;
+                                            }
 					}
 					{
 						struct jsox_parse_context* old_context = ( struct jsox_parse_context* )PopLink( state->context_stack );
@@ -32546,7 +32544,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 						state->val._contains = state->elements;
  // this will restore as IN_ARRAY or OBJECT_FIELD
 						state->parse_context = old_context->context;
-					// lose current class in the pop; have; have to report completed status before popping.
+                                                // lose current class in the pop; have; have to report completed status before popping.
 						if( state->parse_context == JSOX_CONTEXT_UNKNOWN ) {
 							if( !state->current_class )
 								state->completed = TRUE;
@@ -32788,7 +32786,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 					if( state->val.string )
 						lprintf( "gathering object field:%c  %d %.*s", c, output->pos- state->val.string, output->pos - state->val.string, state->val.string );
 					else
-						lprintf( "Gathering, but no string yet?" );
+						lprintf( "Gathering, but no string yet? %c", c );
 #endif
 					switch( c )
 					{
@@ -32898,6 +32896,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 						if( state->word == JSOX_WORD_POS_AFTER_FIELD ) {
 							state->status = FALSE;
 							if( !state->pvtError ) state->pvtError = VarTextCreate();
+							//lprintf( "Val is:%s", state->val.string );
 	// fault
 							vtprintf( state->pvtError, "fault while parsing; second string in field name at %" _size_f "  %" _size_f ":%" _size_f, state->n, state->line, state->col );
 							break;
@@ -38980,7 +38979,7 @@ Double quote	"""	222
      */
 #  endif
 // if any key...
-#if !defined( KEY_1 )
+#if 1 || !defined( KEY_1 )
 #  if defined( __ANDROID__ )
 #    include <android/keycodes.h>
 #    define KEY_SHIFT        AKEYCODE_SHIFT_LEFT
@@ -39149,15 +39148,64 @@ Double quote	"""	222
 #    define KEY_X   AKEYCODE_X
 #    define KEY_Y   AKEYCODE_Y
 #    define KEY_Z   AKEYCODE_Z
-#  elif defined( __LINUX__ )
+#  elif defined( __LINUX__ ) && !defined( __MAC__ ) && !defined( __ANDROID__ )
+#include <linux/input-event-codes.h>
+#undef BTN_START
+#define KEY_ESCAPE KEY_ESC
+#define KEY_PGDN KEY_PAGEDOWN
+#define KEY_PAGE_DOWN  KEY_PAGEDOWN
+#define KEY_PGUP KEY_PAGEUP
+#define KEY_PAGE_UP  KEY_PAGEUP
+#define KEY_DASH KEY_MINUS
+#define KEY_QUOTE KEY_APOSTROPHE
+#define KEY_PAD_PLUS KEY_KPPLUS
+#define KEY_PAD_ENTER KEY_KPENTER
+#define KEY_PAD_MINUS KEY_KPMINUS
+#define KEY_PAD_DOT   KEY_KPDOT
+#define KEY_PAD_DIV   KEY_KPSLASH
+//#define KEY_DASH
+#define KEY_LEFT_BRACKET KEY_LEFTBRACE
+#define KEY_RIGHT_BRACKET KEY_RIGHTBRACE
+#define KEY_PAD_MULT  KEY_KPASTERISK
+#define KEY_PAD_9   KEY_KP9
+#define KEY_PAD_8   KEY_KP8
+#define KEY_PAD_7   KEY_KP7
+#define KEY_PAD_6   KEY_KP6
+#define KEY_PAD_5   KEY_KP5
+#define KEY_PAD_4   KEY_KP4
+#define KEY_PAD_3   KEY_KP3
+#define KEY_PAD_2   KEY_KP2
+#define KEY_PAD_1   KEY_KP1
+#define KEY_PAD_0   KEY_KP0
+#define KEY_CENTER  KEY_KPPLUSMINUS
+#define KEY_LESS   KEY_COMMA
+#define KEY_PAD_DELETE KEY_KPDOT
+#define KEY_GREY_INSERT KEY_INSERT
+#define KEY_GREY_DELETE KEY_DELETE
+#define KEY_PERIOD KEY_DOT
+#define KEY_CAPS_LOCK KEY_CAPSLOCK
+#define KEY_LEFT_SHIFT KEY_LEFTSHIFT
+#define KEY_RIGHT_SHIFT KEY_RIGHTSHIFT
+#define KEY_ALT KEY_LEFTALT
+#define KEY_LEFT_ALT KEY_LEFTALT
+#define KEY_RIGHT_ALT KEY_RIGHTALT
+#define KEY_CTRL KEY_LEFTCTRL
+#define KEY_LEFT_CONTROL KEY_LEFTCTRL
+#define KEY_RIGHT_CONTROL KEY_RIGHTCTRL
+#define KEY_SCROLL_LOCK KEY_SCROLLLOCK
+#define KEY_SHIFT KEY_LEFTSHIFT
+#define KEY_DEL KEY_BACKSPACE
+//#define
+#define KEY_ACCENT KEY_GRAVE
 	  //#define USE_SDL_KEYSYM
 // ug - KEYSYMS are too wide...
 // so - we fall back to x scancode tables - and translate sym to these
 // since the scancodes which come from X are not the same as from console Raw
 // but - perhaps we should re-translate these to REAL scancodes... but in either
 // case - these fall to under 256 characters, and can therefore be used...
-#    define USE_X_RAW_SCANCODES
+//#    define USE_X_RAW_SCANCODES
 #    ifdef USE_X_RAW_SCANCODES
+//#pragma message( "XRAW")
 #      define KEY_SHIFT        0xFF
 #      define KEY_LEFT_SHIFT   50
  // maybe?
@@ -39242,6 +39290,7 @@ Double quote	"""	222
 #      define KEY_WINDOW_1      115
  // windows keys keys
 #      define KEY_WINDOW_2      117
+//#pragma message("GOOD DEFINE")
 #      define KEY_TAB           23
 #      define KEY_SLASH         61
 #      define KEY_BACKSPACE     22
@@ -39647,6 +39696,7 @@ Double quote	"""	222
 #      define KEY_MINUS     0x0C
 #      define KEY_PLUS         0x0D
 #      define  KEY_BKSP        0x0E
+#pragma error BAD DEFINE
 #      define KEY_TAB       0x0F
 #      define KEY_Q         0x10
 #      define KEY_W         0x11
@@ -44038,6 +44088,13 @@ enum ButtonFlags {
 // please do validate that the code gives them to you all the way
 // from the initial mouse message through all layers to the final
 // application handler.
+enum sizeDisplayValues {
+	wrsdv_one  = 0,
+	wrsdv_top = 1,
+	wrsdv_bottom = 2,
+	wrsdv_left = 4,
+	wrsdv_right = 8,
+};
 //----------------------------------------------------------
 enum DisplayAttributes {
    /* when used by the Display Lib manager, this describes how to manage the subsurface */
@@ -44104,8 +44161,7 @@ enum DisplayAttributes {
        See Also
        <link sack::image::render::GetDisplaySizeEx@int@int32_t *@int32_t *@uint32_t *@uint32_t *, GetDisplaySizeEx> */
     RENDER_PROC( void , GetDisplaySize)      ( uint32_t *width, uint32_t *height );
-	 /* \ \
-	    Parameters
+	 /* \	     Parameters
 	    nDisplay :  display to get the coordinates of. 0 is the
 	                default display from GetDesktopWindow(). 1\-n are
 	                displays for multiple display systems, 1,2,3,4
@@ -44445,8 +44501,7 @@ enum DisplayAttributes {
        display :  display to check the key state in
        key :      KEY_ symbol to check.                    */
     RENDER_PROC( uint32_t, IsKeyDown )              ( PRENDERER display, int key );
-    /* \ \
-       Parameters
+    /* \        Parameters
        display :  display to test the key status in
        key :      KEY_ symbol to check if the key is pressed
        Returns
@@ -45020,6 +45075,12 @@ struct render_interface_tag
 	RENDER_PROC_PTR( void, ReplyCloseDisplay )( void );
 		/* Clipboard Callback */
 	RENDER_PROC_PTR( void, SetClipboardEventCallback )(PRENDERER pRenderer, ClipboardCallback callback, uintptr_t psv);
+	// where ever the current mouse is, lock the mouse to the window, and allow the mouse to move it.
+	//
+	RENDER_PROC_PTR( void, BeginMoveDisplay )(PRENDERER pRenderer );
+	// where ever the current mouse is, lock the mouse to the window, and allow the mouse to move it.
+	//
+	RENDER_PROC_PTR( void, BeginSizeDisplay )(PRENDERER pRenderer, enum sizeDisplayValues sizeFrom );
 };
 #ifdef DEFINE_DEFAULT_RENDER_INTERFACE
 #define USE_RENDER_INTERFACE GetDisplayInterface()
@@ -45138,6 +45199,8 @@ typedef int check_this_variable;
 #define RenderIsInstanced()       ((USE_RENDER_INTERFACE)?((USE_RENDER_INTERFACE)->_RenderIsInstanced)?(USE_RENDER_INTERFACE)->_RenderIsInstanced():0:0)
 #define SetDisplayCursor(n)           {if((USE_RENDER_INTERFACE)&&(USE_RENDER_INTERFACE)->_SetDisplayCursor)REND_PROC_ALIAS(SetDisplayCursor)(n);}
 #define IsDisplayRedrawForced(r)    ((USE_RENDER_INTERFACE)?((USE_RENDER_INTERFACE)->_IsDisplayRedrawForced)?(USE_RENDER_INTERFACE)->_IsDisplayRedrawForced(r):0:0)
+#define BeginMoveDisplay(r)   ((USE_RENDER_INTERFACE)?((USE_RENDER_INTERFACE)->_BeginMoveDisplay)?((USE_RENDER_INTERFACE)->_BeginMoveDisplay(r),1):0:0)
+#define BeginSizeDisplay(r,m)   ((USE_RENDER_INTERFACE)?((USE_RENDER_INTERFACE)->_BeginSizeDisplay)?((USE_RENDER_INTERFACE)->_BeginSizeDisplay(r,m),1):0:0)
 #endif
 	_INTERFACE_NAMESPACE_END
 #ifdef __cplusplus
