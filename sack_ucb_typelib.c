@@ -7,6 +7,7 @@
 #define __STATIC__
 #define __NO_OPTIONS__
 #define __NO_ODBC__
+#define __NO_IDLE__
 #define NO_FILEOP_ALIAS
 #define SACK_BAG_EXPORTS
 #define __STATIC_GLOBALS__
@@ -26,9 +27,18 @@
 #  undef _XOPEN_SOURCE
 #  define _XOPEN_SOURCE 500
 #endif
+#  ifndef _GNU_SOURCE
+#    define _GNU_SOURCE
+#  endif
 #ifndef STANDARD_HEADERS_INCLUDED
 /* multiple inclusion protection symbol */
 #define STANDARD_HEADERS_INCLUDED
+#if _POSIX_C_SOURCE < 200112L
+#  ifdef _POSIX_C_SOURCE
+#    undef _POSIX_C_SOURCE
+#  endif
+#  define _POSIX_C_SOURCE 200112L
+#endif
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -145,24 +155,30 @@
 #    include <shlobj.h>
 #  endif
 #  if _MSC_VER > 1500
-#    define mkdir _mkdir
 #    define fileno _fileno
 #    define stricmp _stricmp
 #    define strdup _strdup
 #  endif
+#  ifdef WANT_MMSYSTEM
+#    include <mmsystem.h>
+#  endif
+#  if USE_NATIVE_TIME_GET_TIME
 //#  include <windowsx.h>
 // we like timeGetTime() instead of GetTickCount()
 //#  include <mmsystem.h>
-#ifdef __cplusplus
+#    ifdef __cplusplus
 extern "C"
-#endif
+#    endif
 __declspec(dllimport) DWORD WINAPI timeGetTime(void);
-#  if defined( NEED_SHLAPI )
-#    include <shlwapi.h>
-#    include <shellapi.h>
 #  endif
-#  ifdef NEED_V4W
-#    include <vfw.h>
+#  ifdef WIN32
+#    if defined( NEED_SHLAPI )
+#      include <shlwapi.h>
+#      include <shellapi.h>
+#    endif
+#    ifdef NEED_V4W
+#      include <vfw.h>
+#    endif
 #  endif
 #  if defined( HAVE_ENVIRONMENT )
 #    define getenv(name)       OSALOT_GetEnvironmentVariable(name)
@@ -189,7 +205,6 @@ __declspec(dllimport) DWORD WINAPI timeGetTime(void);
 #  include <sched.h>
 #  include <unistd.h>
 #  include <sys/time.h>
-#  include <errno.h>
 #  if defined( __ARM__ )
 #    define DebugBreak()
 #  else
@@ -224,6 +239,7 @@ extern __sighandler_t bsd_signal(int, __sighandler_t);
 #  define GetCurrentThreadId() ((uint32_t)getpid())
   // end if( !__LINUX__ )
 #endif
+#include <errno.h>
 #ifndef NEED_MIN_MAX
 #  ifndef NO_MIN_MAX_MACROS
 #    define NO_MIN_MAX_MACROS
@@ -287,13 +303,24 @@ But WHO doesn't have stdint?  BTW is sizeof( size_t ) == sizeof( void* )
 #endif
 #if !defined( __NO_THREAD_LOCAL__ ) && ( defined( _MSC_VER ) || defined( __WATCOMC__ ) )
 #  define HAS_TLS 1
-#  define DeclareThreadLocal static __declspec(thread)
-#  define DeclareThreadVar __declspec(thread)
-#elif !defined( __NO_THREAD_LOCAL__ ) && ( defined( __GNUC__ ) )
-#  define HAS_TLS 1
-#  define DeclareThreadLocal static __thread
-#  define DeclareThreadVar __thread
+#  ifdef __cplusplus
+#    define DeclareThreadLocal static thread_local
+#    define DeclareThreadVar  thread_local
+#  else
+#    define DeclareThreadLocal static __declspec(thread)
+#    define DeclareThreadVar __declspec(thread)
+#  endif
+#elif !defined( __NO_THREAD_LOCAL__ ) && ( defined( __GNUC__ ) || defined( __MAC__ ) )
+#    define HAS_TLS 1
+#    ifdef __cplusplus
+#      define DeclareThreadLocal static thread_local
+#      define DeclareThreadVar thread_local
+#    else
+#    define DeclareThreadLocal static __thread
+#    define DeclareThreadVar __thread
+#  endif
 #else
+// if no HAS_TLS
 #  define DeclareThreadLocal static
 #  define DeclareThreadVar
 #endif
@@ -315,16 +342,11 @@ But WHO doesn't have stdint?  BTW is sizeof( size_t ) == sizeof( void* )
 //#ifndef TARGETNAME
 //#  define TARGETNAME "sack_bag.dll"  //$(TargetFileName)
 //#endif
-#    ifndef __cplusplus_cli
-// cli mode, we use this directly, and build the exports in sack_bag.dll directly
-#    else
-#      define LIBRARY_DEADSTART
-#    endif
-#define MD5_SOURCE
-#define USE_SACK_FILE_IO
+#    define MD5_SOURCE
+#    define USE_SACK_FILE_IO
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define MEM_LIBRARY_SOURCE
+#    define MEM_LIBRARY_SOURCE
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
 #define SYSLOG_SOURCE
@@ -369,70 +391,60 @@ But WHO doesn't have stdint?  BTW is sizeof( size_t ) == sizeof( void* )
 #define SHA1_SOURCE
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define CONSTRUCT_SOURCE
+#    define CONSTRUCT_SOURCE
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define PROCREG_SOURCE
+#    define PROCREG_SOURCE
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define SQLPROXY_LIBRARY_SOURCE
+#    define SQLPROXY_LIBRARY_SOURCE
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define TYPELIB_SOURCE
+#      define TYPELIB_SOURCE
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define JSON_EMITTER_SOURCE
+#      define JSON_EMITTER_SOURCE
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define SERVICE_SOURCE
-#  ifndef __NO_SQL__
-#    ifndef __NO_OPTIONS__
+#    define SERVICE_SOURCE
+#    ifndef __NO_SQL__
+#      ifndef __NO_OPTIONS__
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.    and not NO_SQL and not NO_OPTIONS   */
-#      define SQLGETOPTION_SOURCE
+#        define SQLGETOPTION_SOURCE
+#      endif
 #    endif
-#  endif
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define PSI_SOURCE
-#  ifdef _MSC_VER
-#    ifndef JPEG_SOURCE
-//wouldn't matter... the external things wouldn't need to define this
-//#error projects were not generated with CMAKE, and JPEG_SORUCE needs to be defined
-#    endif
-//#define JPEG_SOURCE
-//#define __PNG_LIBRARY_SOURCE__
-//#define FT2_BUILD_LIBRARY   // freetype is internal
-//#define FREETYPE_SOURCE		// build Dll Export
-#  endif
+#    define PSI_SOURCE
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define MNG_BUILD_DLL
+#    define MNG_BUILD_DLL
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define BAGIMAGE_EXPORTS
+#    define BAGIMAGE_EXPORTS
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
  individual library module once upon a time.           */
-#ifndef IMAGE_LIBRARY_SOURCE
-#  define IMAGE_LIBRARY_SOURCE
-#endif
+#    ifndef IMAGE_LIBRARY_SOURCE
+#      define IMAGE_LIBRARY_SOURCE
+#    endif
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define SYSTRAY_LIBRARAY
+#    define SYSTRAY_LIBRARAY
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define SOURCE_PSI2
+#    define SOURCE_PSI2
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define VIDEO_LIBRARY_SOURCE
+#    define VIDEO_LIBRARY_SOURCE
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
 	/* define RENDER SOURCE when building monolithic. */
-#     ifndef RENDER_LIBRARY_SOURCE
-#       define RENDER_LIBRARY_SOURCE
-#     endif
+#    ifndef RENDER_LIBRARY_SOURCE
+#      define RENDER_LIBRARY_SOURCE
+#    endif
 // define a type that is a public name struct type...
 // good thing that typedef and struct were split
 // during the process of port to /clr option.
@@ -449,9 +461,8 @@ But WHO doesn't have stdint?  BTW is sizeof( size_t ) == sizeof( void* )
 #include <sys/types.h>
 #include <sys/stat.h>
 #if !defined( _WIN32 ) && !defined( __MAC__ )
-#  include <syscall.h>
-#elif defined( __MAC__ )
 #  include <sys/syscall.h>
+#elif defined( __MAC__ )
 #endif
 #ifndef MY_TYPES_INCLUDED
 #  define MY_TYPES_INCLUDED
@@ -472,11 +483,6 @@ But WHO doesn't have stdint?  BTW is sizeof( size_t ) == sizeof( void* )
 #    include <dlfcn.h>
 #  endif
 #  if defined( _MSC_VER )
-// disable pointer conversion warnings - wish I could disable this
-// according to types...
-//#pragma warning( disable:4312; disable:4311 )
-// disable deprication warnings of snprintf, et al.
-//#pragma warning( disable:4996 )
 #    define EMPTY_STRUCT struct { char nothing[]; }
 #  endif
 #  if defined( __WATCOMC__ )
@@ -1144,8 +1150,11 @@ typedef char            TEXTCHAR;
 /* a character rune.  Strings should be interpreted as UTF-8 or 16 depending on UNICODE compile option.
    GetUtfChar() from strings.  */
 typedef uint32_t             TEXTRUNE;
-/* Used to handle returned values that are invalid runes; past end or beginning of string for instance */
-#define INVALID_RUNE  0x80000000
+/* Used to handle returned values that are past end or beginning of string for instance */
+#define RUNE_AFTER_END     0x8000000
+#define RUNE_BEFORE_START  0x8000001
+/* Used to handle returned values that are invalid utf8 encodings. */
+#define BADUTF8            0xFFFD
 //typedef enum { FALSE, TRUE } LOGICAL; // smallest information
 #ifndef FALSE
 #define FALSE 0
@@ -1168,7 +1177,9 @@ SACK_NAMESPACE_END
 //------------------------------------------------------
 // formatting macro defintions for [vsf]printf output of the above types
 #if !defined( _MSC_VER ) || ( _MSC_VER >= 1900 )
-#define __STDC_FORMAT_MACROS
+#ifndef __STDC_FORMAT_MACROS
+#  define __STDC_FORMAT_MACROS
+#endif
 #include <inttypes.h>
 #endif
 SACK_NAMESPACE
@@ -1366,7 +1377,8 @@ typedef uint64_t THREAD_ID;
 // this is now always the case
 // it's a safer solution anyhow...
 #  ifdef __MAC__
-#    define GetMyThreadID()  (( ((uint64_t)getpid()) << 32 ) | ( (uint64_t)( syscall(SYS_thread_selfid) ) ) )
+     DeclareThreadLocal uint64_t tmpThreadid;
+#    define GetMyThreadID()  ((pthread_threadid_np(NULL, &tmpThreadid)),tmpThreadid)
 #  else
 #    ifndef GETPID_RETURNS_PPID
 #      define GETPID_RETURNS_PPID
@@ -1558,7 +1570,7 @@ typedef uint64_t THREAD_ID;
 /* the mast in the dword shifted to the left to overlap the field in the word */
 #define MASK_MASK(n,length)   (MASK_TOP_MASK(length) << (((n)*(length)) & (sizeof(MASKSET_READTYPE) - 1) ) )
 // masks value with the mask size, then applies that mask back to the correct word indexing
-#define MASK_MASK_VAL(n,length,val)   (MASK_TOP_MASK_VAL(length,val) << (((n)*(length))&0x7) )
+#define MASK_MASK_VAL(n,length,val)   (MASK_TOP_MASK_VAL(length,val) << (((n)*(length))&(sizeof(MASKSET_READTYPE) - 1)) )
 /* declare a mask set.
  MASKSET( maskVariableName
         , 32 //number of items
@@ -1568,15 +1580,18 @@ typedef uint64_t THREAD_ID;
 	uint8_t maskVariableName[ (32*5 +(CHAR_BIT-1))/CHAR_BIT ];  //data array used for storage.
    const int askVariableName_mask_size = 5;  // used aautomatically by macros
 */
-#define MASKSET(v,n,r)  MASKSETTYPE  (v)[(((n)*(r))+MASK_MAX_ROUND())/MASKTYPEBITS(MASKSETTYPE)]; const int v##_mask_size = r;
+#define MASKSET(v,n,r)  MASKSETTYPE  (v)[(((n)*(r))+MASK_MAX_ROUND())/MASKTYPEBITS(MASKSETTYPE)]; const int v##_mask_size = r
+#define MASKSET_(v,n,r)  MASKSETTYPE  (v)[(((n)*(r))+MASK_MAX_ROUND())/MASKTYPEBITS(MASKSETTYPE)]
 /* set a field index to a value
     SETMASK( askVariableName, 3, 13 );  // set set member 3 to the value '13'
  */
 #define SETMASK(v,n,val)    (((MASKSET_READTYPE*)((v)+((n)*(v##_mask_size))/MASKTYPEBITS((v)[0])))[0] =    ( ((MASKSET_READTYPE*)((v)+((n)*(v##_mask_size))/MASKTYPEBITS(uint8_t)))[0]                                  & (~(MASK_MASK(n,v##_mask_size))) )	                                                                           | MASK_MASK_VAL(n,v##_mask_size,val) )
+#define SETMASK_(v,v2,n,val)    (((MASKSET_READTYPE*)((v)+((n)*(v2##_mask_size))/MASKTYPEBITS((v)[0])))[0] =    ( ((MASKSET_READTYPE*)((v)+((n)*(v2##_mask_size))/MASKTYPEBITS(uint8_t)))[0]                                  & (~(MASK_MASK(n,v2##_mask_size))) )	                                                                           | MASK_MASK_VAL(n,v2##_mask_size,val) )
 /* get the value of a field
      GETMASK( maskVariableName, 3 );   // returns '13' given the SETMASK() example code.
  */
-#define GETMASK(v,n)  ( ( ((MASKSET_READTYPE*)((v)+((n)*(v##_mask_size))/MASKTYPEBITS((v)[0])))[0]         & MASK_MASK(n,v##_mask_size) )	                                                                           >> (((n)*(v##_mask_size))&0x7))
+#define GETMASK(v,n)  ( ( ((MASKSET_READTYPE*)((v)+((n)*(v##_mask_size))/MASKTYPEBITS((v)[0])))[0]         & MASK_MASK(n,v##_mask_size) )	                                                                           >> (((n)*(v##_mask_size))&(sizeof(MASKSET_READTYPE) - 1)))
+#define GETMASK_(v,v2,n)  ( ( ((MASKSET_READTYPE*)((v)+((n)*(v2##_mask_size))/MASKTYPEBITS((v)[0])))[0]         & MASK_MASK(n,v2##_mask_size) )	                                                                           >> (((n)*(v2##_mask_size))&(sizeof(MASKSET_READTYPE) - 1)))
 /* This type stores data, it has a self-contained length in
    bytes of the data stored.  Length is in characters       */
 _CONTAINER_NAMESPACE
@@ -2004,8 +2019,7 @@ TYPELIB_PROC  POINTER TYPELIB_CALLTYPE    SetDataItemEx ( PDATALIST *ppdl, INDEX
 TYPELIB_PROC  POINTER TYPELIB_CALLTYPE    SetDataItemEx ( PDATALIST *ppdl, INDEX idx, POINTER data DBG_PASS );
 /* \Returns a pointer to the data at a specified index.
    Parameters
-   \ \
-   ppdl :  address of a PDATALIST
+   \    ppdl :  address of a PDATALIST
    idx :   index of element to get                      */
 TYPELIB_PROC  POINTER TYPELIB_CALLTYPE    GetDataItem ( PDATALIST *ppdl, INDEX idx );
 /* Removes a data element from the list (moves all other
@@ -2322,17 +2336,24 @@ TYPELIB_PROC  void TYPELIB_CALLTYPE         EmptyDataQueue ( PDATAQUEUE *pplq );
  * reallocated and moved.
  */
 TYPELIB_PROC  LOGICAL TYPELIB_CALLTYPE  PeekDataQueueEx    ( PDATAQUEUE *pplq, POINTER ResultBuffer, INDEX idx );
-/* <combine sack::containers::data_queue::PeekDataQueueEx@PDATAQUEUE *@POINTER@INDEX>
-   \ \                                                                                */
 #define PeekDataQueueEx( q, type, result, idx ) PeekDataQueueEx( q, (POINTER)result, idx )
 /*
  * Result buffer is filled with the last element, and the result is true, otherwise the return
  * value is FALSE, and the data was not filled in.
  */
 TYPELIB_PROC  LOGICAL TYPELIB_CALLTYPE  PeekDataQueue    ( PDATAQUEUE *pplq, POINTER ResultBuffer );
-/* <combine sack::containers::data_queue::PeekDataQueue@PDATAQUEUE *@POINTER>
-   \ \                                                                        */
-#define PeekDataQueue( q, type, result ) PeekDataQueue( q, (POINTER)result )
+#define PeekDataQueue( q, type, result ) PeekDataQueueEx( q, type, result, 0 )
+/*
+ * gets the address a PDATAQUEUE element at index
+ * result buffer is a pointer to the type of structure expected to be
+ * stored within this.  Index from 0 to N indexes from first ( to be dequeued )
+ * to last item in queue.
+ */
+TYPELIB_PROC POINTER TYPELIB_CALLTYPE  PeekDataInQueueEx    ( PDATAQUEUE *pplq, INDEX idx );
+/*
+ * Results with the first item in the queue, else NULL.
+ */
+TYPELIB_PROC POINTER TYPELIB_CALLTYPE  PeekDataInQueue    ( PDATAQUEUE *pplq );
 /* <combine sack::containers::data_queue::CreateDataQueueEx@INDEX size>
    \ \                                                                  */
 #define     CreateDataQueue(size)     CreateDataQueueEx( size DBG_SRC )
@@ -2538,8 +2559,7 @@ _SETS_NAMESPACE
    array that maps usage of the set, and for the set size of
    elements.
    Remarks
-   \ \
-   Summary
+   \    Summary
    Generic sets are good for tracking lots of tiny structures.
    They track slabs of X structures at a time. They allocate a
    slab of X structures with an array of X bits indicating
@@ -2606,13 +2626,13 @@ typedef struct genericset_tag {
 	struct genericset_tag **me;
 	/* number of spots in this set block that are used. */
 	uint32_t nUsed;
- // hmm if I change this here? we're hozed... so.. we'll do it anyhow :) evil - recompile please
+    // this is the size of the bit pool before the pointer pool
 	uint32_t nBias;
- // after this p * unit must be computed
+ // the bit pool starts here (booleanUsed) after a number of
 	uint32_t bUsed[1];
+	                   // bits begins the aligned pointer pool.
 } GENERICSET, *PGENERICSET;
-/* \ \
-   Parameters
+/* \    Parameters
    pSet :      pointer to a generic set
    nMember :   index of the member
    setsize :   number of elements in each block
@@ -2623,13 +2643,11 @@ TYPELIB_PROC  POINTER  TYPELIB_CALLTYPE GetFromSetEx( GENERICSET **pSet, int set
    \ \                                                                             */
 #define GetFromSeta(ps, ss, us, max) GetFromSetPoolEx( NULL, 0, 0, 0, (ps), (ss), (us), (max) DBG_SRC )
 /* <combine sack::containers::sets::GetFromSetEx@GENERICSET **@int@int@int maxcnt>
-   \ \
-   Parameters
+   \    Parameters
    name :  name of type the set contains.
    pSet :  pointer to a set to get an element from.                                */
 #define GetFromSet( name, pset ) (name*)GetFromSeta( (GENERICSET**)(pset), sizeof( name##SET ), sizeof( name ), MAX##name##SPERSET )
-/* \ \
-   Parameters
+/* \    Parameters
    pSet :      pointer to a generic set
    nMember :   index of the member
    setsize :   number of elements in each block
@@ -2645,8 +2663,7 @@ TYPELIB_PROC  PGENERICSET  TYPELIB_CALLTYPE GetFromSetPoolEx( GENERICSET **pSetS
 /* <combine sack::containers::sets::GetFromSetPoolEx@GENERICSET **@int@int@int@GENERICSET **@int@int@int maxcnt>
    \ \                                                                                                           */
 #define GetFromSetPool( name, pool, pset ) (name*)GetFromSetPoola( (GENERICSET**)(pool)	    , sizeof( name##SETSET ), sizeof( name##SET ), MAX##name##SETSPERSET	, (GENERICSET**)(pset), sizeof( name##SET ), sizeof( name ), MAX##name##SPERSET )
-/* \ \
-   Parameters
+/* \    Parameters
    pSet :      pointer to a generic set
    nMember :   index of the member
    setsize :   number of elements in each block
@@ -2659,8 +2676,7 @@ TYPELIB_PROC  POINTER  TYPELIB_CALLTYPE GetSetMemberEx( GENERICSET **pSet, INDEX
 /* <combine sack::containers::sets::GetSetMemberEx@GENERICSET **@INDEX@int@int@int maxcnt>
    \ \                                                                                     */
 #define GetSetMember( name, pset, member ) ((name*)GetSetMembera( (GENERICSET**)(pset), (member), sizeof( name##SET ), sizeof( name ), MAX##name##SPERSET ))
-/* \ \
-   Parameters
+/* \    Parameters
    pSet :      pointer to a generic set
    nMember :   index of the member
    setsize :   number of elements in each block
@@ -2687,8 +2703,7 @@ TYPELIB_PROC  INDEX TYPELIB_CALLTYPE  GetMemberIndex(GENERICSET **set, POINTER u
 /* <combine sack::containers::sets::GetMemberIndex>
    \ \                                              */
 #define GetIndexFromSet( name, pset ) GetMemberIndex( name, pset, GetFromSet( name, pset ) )
-/* \ \
-   Parameters
+/* \    Parameters
    pSet :      pointer to a generic set
    nMember :   index of the member
    setsize :   number of elements in each block
@@ -2768,8 +2783,7 @@ TYPELIB_PROC  void TYPELIB_CALLTYPE  DeleteSet( GENERICSET **ppSet );
    ForAllinSet Callback - callback fucntion used with
    ForAllInSet                                        */
 typedef uintptr_t (CPROC *FAISCallback)(void*,uintptr_t);
-/* \ \
-   Parameters
+/* \    Parameters
    pSet :      poiner to a set
    unitsize :  size of elements in the array
    max :       count of elements per set block
@@ -3275,8 +3289,7 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateEx( size_t nSize DBG_PASS );
    PTEXT text = SegCreate( 10 );
    </code>                                                     */
 #define SegCreate(s) SegCreateEx(s DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromText> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromTextEx( CTEXTSTR text DBG_PASS );
@@ -3286,13 +3299,11 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromTextEx( CTEXTSTR text DBG_PAS
    PTEXT line = SegCreateFromText( "Around the world in a day." );
    </code>                                                         */
 #define SegCreateFromText(t) SegCreateFromTextEx(t DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromChar> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromCharLenEx( const char *text, size_t len DBG_PASS );
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromChar> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromCharEx( const char *text DBG_PASS );
@@ -3302,18 +3313,15 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromCharEx( const char *text DBG_
    PTEXT line = SegCreateFromChar( "Around the world in a day." );
    </code>                                                         */
 #define SegCreateFromChar(t) SegCreateFromCharEx(t DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromChar> */
 #define SegCreateFromCharLen(t,len) SegCreateFromCharLenEx((t),(len) DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromWide> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromWideLenEx( const wchar_t *text, size_t len DBG_PASS );
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromWide> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromWideEx( const wchar_t *text DBG_PASS );
@@ -3323,13 +3331,11 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromWideEx( const wchar_t *text D
    PTEXT line = SegCreateFromWideLen( L"Around the world in a day.", 26 );
    </code>                                                         */
 #define SegCreateFromWideLen(t,len) SegCreateFromWideLenEx((t),(len) DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromWide> */
 #define SegCreateFromWide(t) SegCreateFromWideEx(t DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateIndirect> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateIndirectEx( PTEXT pText DBG_PASS );
@@ -3348,8 +3354,7 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateIndirectEx( PTEXT pText DBG_PASS 
    length buffer for a TEXT segment.
                                                                                   */
 #define SegCreateIndirect(t) SegCreateIndirectEx(t DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegDuplicate> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegDuplicateEx( PTEXT pText DBG_PASS);
@@ -3367,16 +3372,14 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  LineDuplicateEx( PTEXT pText DBG_PASS );
 /* <combine sack::containers::text::LineDuplicateEx@PTEXT pText>
    \ \                                                           */
 #define LineDuplicate(pt) LineDuplicateEx(pt DBG_SRC )
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link TextDuplicate> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  TextDuplicateEx( PTEXT pText, int bSingle DBG_PASS );
 /* Duplicate the whole string of text to another string with
    exactly the same content.                                 */
 #define TextDuplicate(pt,s) TextDuplicateEx(pt,s DBG_SRC )
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromInt> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromIntEx( int value DBG_PASS );
@@ -3392,8 +3395,7 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromIntEx( int value DBG_PASS );
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFrom_64Ex( int64_t value DBG_PASS );
 /* Create a text segment from a uint64_t bit value. (long long int) */
 #define SegCreateFrom_64(v) SegCreateFrom_64Ex( v DBG_SRC )
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromFloat> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromFloatEx( float value DBG_PASS );
@@ -3442,7 +3444,7 @@ TYPELIB_PROC  void TYPELIB_CALLTYPE   LineReleaseEx (PTEXT line DBG_PASS );
    Any segment in the line may be passed, the first segment is
    found, and then all segments in the line are deleted.       */
 #define LineRelease(l) LineReleaseEx(l DBG_SRC )
-/* \ \
+/* \
    <b>See Also</b>
    <link DBG_PASS>
    <link SegRelease> */
@@ -3521,15 +3523,13 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegGrab     (PTEXT segment);
    Returns
    \Returns the '_this' that was substituted.                     */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegSubst    ( PTEXT _this, PTEXT that );
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegSplit> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegSplitEx( PTEXT *pLine, INDEX nPos DBG_PASS);
 /* Split a PTEXT segment.
    Example
-   \ \
-   <code lang="c++">
+   \    <code lang="c++">
    PTEXT result = SegSplit( &amp;old_string, 5 );
    </code>
    Returns
@@ -3639,8 +3639,7 @@ TYPELIB_PROC  INDEX TYPELIB_CALLTYPE  LineLengthExx( PTEXT pt, LOGICAL bSingle,P
 /* <combine sack::containers::text::LineLengthExEx@PTEXT@LOGICAL@int@PTEXT>
    \ \                                                                      */
 #define LineLengthExx(pt,single,eol) LineLengthExEx( pt,single,8,eol)
-/* \ \
-   Parameters
+/* \    Parameters
    Text segment :  PTEXT line or segment to get the length of
    single :        boolean, if set then only a single segment is
                    measured, otherwise all segments from this to
@@ -3687,8 +3686,7 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  BuildLineExx( PTEXT pt, LOGICAL bSingle, P
    \ \                                                                          */
 #define BuildLineEx(from,single) BuildLineExEx( from,single,8,NULL DBG_SRC )
 /* <combine sack::containers::text::BuildLineExEx@PTEXT@LOGICAL@int@PTEXT pEOL>
-   \ \
-    Flattens all segments in a line to a single segment result.
+   \     Flattens all segments in a line to a single segment result.
 */
 #define BuildLine(from) BuildLineExEx( from, FALSE,8,NULL DBG_SRC )
 //
@@ -3871,8 +3869,7 @@ TYPELIB_PROC  void TYPELIB_CALLTYPE  VarTextEmptyEx( PVARTEXT pvt DBG_PASS);
 #define VarTextEmpty(pvt) VarTextEmptyEx( (pvt) DBG_SRC )
 /* Add a single character to a vartext collector.
    Note
-   \ \
-   Parameters
+   \    Parameters
    pvt :       PVARTEXT to add character to
    c :         character to add
    DBG_PASS :  optional debug information         */
@@ -4196,8 +4193,7 @@ TYPELIB_PROC  PTREEROOT TYPELIB_CALLTYPE  CreateBinaryTreeExtended( uint32_t fla
    PTREEROOT tree = CreateBinaryTree();
    </code>                                                      */
 #define CreateBinaryTree() CreateBinaryTreeEx( NULL, NULL )
-/* \ \
-   Example
+/* \    Example
    <code lang="c++">
    PTREEROOT tree = CreateBinaryTree();
    DestroyBinaryTree( tree );
@@ -4205,8 +4201,7 @@ TYPELIB_PROC  PTREEROOT TYPELIB_CALLTYPE  CreateBinaryTreeExtended( uint32_t fla
    </code>                              */
 TYPELIB_PROC  void TYPELIB_CALLTYPE  DestroyBinaryTree( PTREEROOT root );
 /* Drops all the nodes in a tree so it becomes empty...
-   \ \
-   Example
+   \    Example
    <code lang="c++">
    PTREEROOT tree = CreateBinaryTree();
    ResetBinaryTree( tree );
@@ -4225,8 +4220,7 @@ TYPELIB_PROC  void TYPELIB_CALLTYPE  ResetBinaryTree( PTREEROOT root );
    BalanceBinaryTree( tree );
    </code>                                                        */
 TYPELIB_PROC  void TYPELIB_CALLTYPE  BalanceBinaryTree( PTREEROOT root );
-/* \ \
-   See Also
+/* \    See Also
    <link AddBinaryNode>
    <link DBG_PASS>
                         */
@@ -4369,8 +4363,7 @@ TYPELIB_PROC  CPOINTER TYPELIB_CALLTYPE  GetParentNode( PTREEROOT root );
    Binary Trees have a 'current' cursor. These operations may be
    used to browse the tree.
    Example
-   \ \
-   <code>
+   \    <code>
    // this assumes you have a tree, and it's fairly populated, then this demonstrates
    // all steps of browsing.
    POINTER my_data;
@@ -4684,7 +4677,8 @@ SYSLOG_PROC  CTEXTSTR SYSLOG_API  GetPackedTime ( void );
 //    uint64_t epoch_milliseconds : 56;
 //    int64_t timezone : 8; divided by 15... hours * 60 / 15
 // }
-SYSLOG_PROC  int64_t SYSLOG_API GetTimeOfDay( void );
+// returns the nanosecond of the day (since UNIX Epoch) and timezone/15
+SYSLOG_PROC  int64_t SYSLOG_API GetTimeOfDay( uint64_t* tick, int8_t* ptz );
 // binary little endian order; somewhat
 typedef struct sack_expanded_time_tag
 {
@@ -4979,11 +4973,16 @@ LOGGING_NAMESPACE_END
 using namespace sack::logging;
 #endif
 #endif
-#if defined( _MSC_VER ) || (1)
-// huh, apparently all compiles are messed the hell up.
-#  define COMPILER_THROWS_SIGNED_UNSIGNED_MISMATCH
-#endif
-#ifdef COMPILER_THROWS_SIGNED_UNSIGNED_MISMATCH
+// these macros test the the range of integer and unsigned
+// such that an unsigned > integer range is true if it is more than an maxint
+// and signed integer < 0 is less than any unsigned value.
+// the macro prefix SUS  or USS is the comparison type
+// Signed-UnSigned and UnSigned-Signed  depending on the
+// operand order.
+// the arguments passed are variable a and b and the respective types of those
+// if( SUS_GT( 324, int, 545, unsigned int ) ) {
+//    is >
+// }
 #  define SUS_GT(a,at,b,bt)   (((a)<0)?0:(((bt)a)>(b)))
 #  define USS_GT(a,at,b,bt)   (((b)<0)?1:((a)>((at)b)))
 #  define SUS_LT(a,at,b,bt)   (((a)<0)?1:(((bt)a)<(b)))
@@ -4992,7 +4991,8 @@ using namespace sack::logging;
 #  define USS_GTE(a,at,b,bt)  (((b)<0)?1:((a)>=((at)b)))
 #  define SUS_LTE(a,at,b,bt)  (((a)<0)?1:(((bt)a)<=(b)))
 #  define USS_LTE(a,at,b,bt)  (((b)<0)?0:((a)<=((at)b)))
-#else
+#if 0
+// simplified meanings of the macros
 #  define SUS_GT(a,at,b,bt)   ((a)>(b))
 #  define USS_GT(a,at,b,bt)   ((a)>(b))
 #  define SUS_LT(a,at,b,bt)   ((a)<(b))
@@ -5171,8 +5171,16 @@ SYSTEM_PROC( void, OSALOT_PrependEnvironmentVariable )(CTEXTSTR name, CTEXTSTR v
  * Otherwise, the command line needs to have the program name, and arguments passed in the string
  * the parameter to winmain has the program name skipped
  */
-SYSTEM_PROC( void, ParseIntoArgs )( TEXTCHAR *lpCmdLine, int *pArgc, TEXTCHAR ***pArgv );
+SYSTEM_PROC( void, ParseIntoArgs )( TEXTCHAR const *lpCmdLine, int *pArgc, TEXTCHAR ***pArgv );
 #define UnloadFunction(p) UnloadFunctionEx(p DBG_SRC )
+/*
+   Check if task spawning is allowed...
+*/
+SYSTEM_PROC( LOGICAL, sack_system_allow_spawn )( void );
+/*
+   Disallow task spawning.
+*/
+SYSTEM_PROC( void, sack_system_disallow_spawn )( void );
 SACK_SYSTEM_NAMESPACE_END
 #ifdef __cplusplus
 using namespace sack::system;
@@ -5316,7 +5324,6 @@ typedef struct win_sockaddr_in SOCKADDR_IN;
 #else
 //#include "loadsock.h"
 #endif
-//#include <stdlib.h>
 #ifdef __CYGWIN__
  // provided by -lgcc
 // lots of things end up including 'setjmp.h' which lacks sigset_t defined here.
@@ -6465,6 +6472,14 @@ typedef uintptr_t (CPROC*ThreadStartProc)( PTHREAD );
 /* Function signature for a thread entry point passed to
    ThreadToSimple.                                             */
 typedef uintptr_t (*ThreadSimpleStartProc)( POINTER );
+/*
+  OnThreadCreate allows registering a procedure to run
+  when a thread is created.  (Or an existing thread becomes
+  tracked within this library, via MakeThread() ).
+  It is called once per thread, for each thread created
+  after registering the callback.
+*/
+TIMER_PROC( void, OnThreadCreate )( void ( *v )( void ) );
 /* Create a separate thread that starts in the routine
    specified. The uintptr_t value (something that might be a
    pointer), is passed in the PTHREAD structure. (See
@@ -6505,27 +6520,6 @@ TIMER_PROC( PTHREAD, ThreadToSimpleEx )( ThreadSimpleStartProc proc, POINTER par
    thread. If this thread already has this structure created,
    the same one results on subsequent MakeThread calls.        */
 TIMER_PROC( PTHREAD, MakeThread )( void );
-/* Releases resources associated with a PTHREAD. For purposes of
-   waking a thread, and providing a wakeable point for the
-   thread, a system blocking event object is allocated, named
-   with the THREAD_ID so it can be referenced by other
-   processes. This is only allowed to be done by the thread
-   itself.
-   Parameters
-   Param1 :  \Description
-   Param2 :  \Description
-   Example
-   <code lang="c++">
-   int main( void )
-   {
-       PTHREAD myself = MakeThread();
-       // create threads, do stuff...
-       UnmakeThread();
-       At this point the pointer in 'myself' is invalid, and should be cleared.
-       myself = NULL;
-   }
-   </code>                                                                      */
-TIMER_PROC( void, UnmakeThread )( void );
 /* This returns the parameter passed as user data to ThreadTo.
    Parameters
    thread :  thread to get the parameter from.
@@ -6683,7 +6677,8 @@ TIMER_PROC( LOGICAL, EnterCriticalSecEx )( PCRITICALSECTION pcs DBG_PASS );
 TIMER_PROC( LOGICAL, LeaveCriticalSecEx )( PCRITICALSECTION pcs DBG_PASS );
 /* Does nothing. There are no extra resources required for
    critical sections, and the memory is allocated by the
-   application.
+	application; native windows criticalsections allocate an
+   external object; this should be called typically.
    Parameters
    pcs :  pointer to critical section to do nothing with.  */
 TIMER_PROC( void, DeleteCriticalSec )( PCRITICALSECTION pcs );
@@ -6799,6 +6794,32 @@ using namespace sack::timers;
 #    define EndSaneWinMain() } }
 #  endif
 #endif
+/**
+ * https://stackoverflow.com/questions/3585583/convert-unix-linux-time-to-windows-filetime
+ * number of seconds from 1 Jan. 1601 00:00 to 1 Jan 1970 00:00 UTC
+ * subtract from FILETIME to get timespec
+ * add to timespec to get FILETIME ticks.
+ * * 1000000000
+ */
+#define EPOCH_DIFF 11644473600ULL
+#define EPOCH_DIFF_MS 11644473600000ULL
+#define EPOCH_DIFF_NS 11644473600000000000ULL
+#ifdef WIN32
+DeclareThreadLocal FILETIME ft;
+// we want this as fast as possible, so inline always.
+#define timeGetTime64ns( ) ( GetSystemTimeAsFileTime( &ft ),((uint64_t*)&ft)[0]*100-EPOCH_DIFF_NS )
+#define timeGetTime64( ) ( GetSystemTimeAsFileTime( &ft ),((uint64_t*)&ft)[0]/10000-EPOCH_DIFF_MS )
+#define timeGetTime() (uint32_t)(timeGetTime64())
+#else
+DeclareThreadLocal struct timespec global_static_time_ts;
+#define timeGetTime64ns( ) ( clock_gettime(CLOCK_REALTIME, &global_static_time_ts), (uint64_t)global_static_time_ts.tv_sec*(uint64_t)1000000000 + (uint64_t)global_static_time_ts.tv_nsec )
+#define timeGetTime64( ) ( clock_gettime(CLOCK_REALTIME, &global_static_time_ts), (uint64_t)global_static_time_ts.tv_sec*(uint64_t)1000 + (uint64_t)global_static_time_ts.tv_nsec/1000000 )
+#define timeGetTime() (uint32_t)(timeGetTime64())
+#endif
+#define tickToTimeSpec(ts,tick) (((ts).tv_sec = (tick) / 1000ULL),((ts).tv_nsec=((tick)%1000ULL)*1000000ULL))
+#define tickToFileTime(ft,tick) ((((ft).highPart).tv_sec = ((tick*10000)+EPOCH_DIFF_MS)>>32 ),(((ft).lowPart)=((tick*10000)+EPOCH_DIFF_MS) & 0XFFFFFFFF ))
+#define tickNsToTimeSpec(ts,tick) (((ts).tv_sec = (tick) / 1000000000ULL),((ts).tv_nsec=(tick)%1000000000ULL))
+#define tickNsToFileTime(ft,tick) ((((ft).highPart).tv_sec = ((tick)+EPOCH_DIFF_NS)>>32 ),(((ft).lowPart)=((tick)+EPOCH_DIFF_NS) & 0XFFFFFFFF ))
 //  these are rude defines overloading otherwise very practical types
 // but - they have to be dispatched after all standard headers.
 #ifndef FINAL_TYPES
@@ -6940,10 +6961,66 @@ using namespace sack::timers;
 namespace sack {
    namespace logging {
 #endif
-      INDEX real_lprintf( char const* f,... ) { va_list va; int n; va_start(va,f); n = vprintf(f ,va); puts(""); return n; }
-      INDEX null_lprintf( char const* f,... ) { return 0; }
-      RealLogFunction _xlprintf(uint32_t level DBG_PASS) { return real_lprintf; };
-      void SystemLog( char const* f ) { puts( f ); puts( "ZZZZ\n" ); }
+		INDEX real_lprintf( char const* f,... ) { va_list va; int n; va_start(va,f); n = vprintf(f ,va); puts(""); return n; }
+		INDEX null_lprintf( char const* f,... ) { return 0; }
+		RealLogFunction _xlprintf(uint32_t level DBG_PASS) { return real_lprintf; };
+#undef SystemLog
+		void SystemLog( char const* f ) { puts( f ); puts( "\n" ); }
+#if defined( _DEBUG ) || defined( _DEBUG_INFO )
+#define SystemLog(buf)    SystemLogFL(buf DBG_SRC )
+#endif
+		void SystemLogFL( const char *f FILELINE_PASS ) { printf( "%s(%d):", pFile, nLine ); puts( f); puts("\n"); }
+		void SYSLOG_API LogBinaryFL ( const uint8_t* buffer, size_t size FILELINE_PASS )
+		{
+			size_t nOut = size;
+			const uint8_t* data = buffer;
+			if( pFile )
+			{
+				CTEXTSTR p;
+				for( p = pFile + (pFile?StrLen(pFile) -1:0);p > pFile;p-- )
+					if( p[0] == '/' || p[0] == '\\' )
+					{
+						pFile = p+1;break;
+					}
+			}
+			// should make this expression something in signed_usigned_comparison...
+			while( nOut && !( nOut & ( ((size_t)1) << ( ( sizeof( nOut ) * CHAR_BIT ) - 1 ) ) ) )
+			{
+				TEXTCHAR cOut[96];
+				size_t ofs = 0;
+				size_t x;
+				ofs = 0;
+				for ( x=0; x<nOut && x<16; x++ )
+					ofs += tnprintf( cOut+ofs, sizeof(cOut)/sizeof(TEXTCHAR)-ofs, "%02X ", (unsigned char)data[x] );
+				// space fill last partial buffer
+				for( ; x < 16; x++ )
+					ofs += tnprintf( cOut+ofs, sizeof(cOut)/sizeof(TEXTCHAR)-ofs, "   " );
+				for ( x=0; x<nOut && x<16; x++ )
+				{
+					if( data[x] >= 32 && data[x] < 127 )
+						ofs += tnprintf( cOut+ofs, sizeof(cOut)/sizeof(TEXTCHAR)-ofs, "%c", (unsigned char)data[x] );
+					else
+						ofs += tnprintf( cOut+ofs, sizeof(cOut)/sizeof(TEXTCHAR)-ofs, "." );
+				}
+				SystemLogFL( cOut FILELINE_RELAY );
+				nOut -= x;
+				data += x;
+			}
+		}
+		void  LogBinaryEx ( const uint8_t* buffer, size_t size DBG_PASS )
+		{
+#ifdef _DEBUG
+			LogBinaryFL( buffer,size DBG_RELAY );
+#else
+			LogBinaryFL( buffer,size FILELINE_NULL );
+#endif
+		}
+#undef LogBinary
+		void  LogBinary ( const uint8_t* buffer, size_t size )
+#define LogBinary(buf,sz) LogBinary((uint8_t*)(buf),sz )
+		{
+			LogBinaryFL( buffer,size, NULL, 0 );
+		}
 #ifdef __cplusplus
    }
 }
@@ -6976,9 +7053,18 @@ namespace sack {
 #  undef _XOPEN_SOURCE
 #  define _XOPEN_SOURCE 500
 #endif
+#  ifndef _GNU_SOURCE
+#    define _GNU_SOURCE
+#  endif
 #ifndef STANDARD_HEADERS_INCLUDED
 /* multiple inclusion protection symbol */
 #define STANDARD_HEADERS_INCLUDED
+#if _POSIX_C_SOURCE < 200112L
+#  ifdef _POSIX_C_SOURCE
+#    undef _POSIX_C_SOURCE
+#  endif
+#  define _POSIX_C_SOURCE 200112L
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -7095,24 +7181,30 @@ namespace sack {
 #    include <shlobj.h>
 #  endif
 #  if _MSC_VER > 1500
-#    define mkdir _mkdir
 #    define fileno _fileno
 #    define stricmp _stricmp
 #    define strdup _strdup
 #  endif
+#  ifdef WANT_MMSYSTEM
+#    include <mmsystem.h>
+#  endif
+#  if USE_NATIVE_TIME_GET_TIME
 //#  include <windowsx.h>
 // we like timeGetTime() instead of GetTickCount()
 //#  include <mmsystem.h>
-#ifdef __cplusplus
+#    ifdef __cplusplus
 extern "C"
-#endif
+#    endif
 __declspec(dllimport) DWORD WINAPI timeGetTime(void);
-#  if defined( NEED_SHLAPI )
-#    include <shlwapi.h>
-#    include <shellapi.h>
 #  endif
-#  ifdef NEED_V4W
-#    include <vfw.h>
+#  ifdef WIN32
+#    if defined( NEED_SHLAPI )
+#      include <shlwapi.h>
+#      include <shellapi.h>
+#    endif
+#    ifdef NEED_V4W
+#      include <vfw.h>
+#    endif
 #  endif
 #  if defined( HAVE_ENVIRONMENT )
 #    define getenv(name)       OSALOT_GetEnvironmentVariable(name)
@@ -7139,7 +7231,6 @@ __declspec(dllimport) DWORD WINAPI timeGetTime(void);
 #  include <sched.h>
 #  include <unistd.h>
 #  include <sys/time.h>
-#  include <errno.h>
 #  if defined( __ARM__ )
 #    define DebugBreak()
 #  else
@@ -7174,6 +7265,7 @@ extern __sighandler_t bsd_signal(int, __sighandler_t);
 #  define GetCurrentThreadId() ((uint32_t)getpid())
   // end if( !__LINUX__ )
 #endif
+#include <errno.h>
 #ifndef NEED_MIN_MAX
 #  ifndef NO_MIN_MAX_MACROS
 #    define NO_MIN_MAX_MACROS
@@ -7237,13 +7329,24 @@ But WHO doesn't have stdint?  BTW is sizeof( size_t ) == sizeof( void* )
 #endif
 #if !defined( __NO_THREAD_LOCAL__ ) && ( defined( _MSC_VER ) || defined( __WATCOMC__ ) )
 #  define HAS_TLS 1
-#  define DeclareThreadLocal static __declspec(thread)
-#  define DeclareThreadVar __declspec(thread)
-#elif !defined( __NO_THREAD_LOCAL__ ) && ( defined( __GNUC__ ) )
-#  define HAS_TLS 1
-#  define DeclareThreadLocal static __thread
-#  define DeclareThreadVar __thread
+#  ifdef __cplusplus
+#    define DeclareThreadLocal static thread_local
+#    define DeclareThreadVar  thread_local
+#  else
+#    define DeclareThreadLocal static __declspec(thread)
+#    define DeclareThreadVar __declspec(thread)
+#  endif
+#elif !defined( __NO_THREAD_LOCAL__ ) && ( defined( __GNUC__ ) || defined( __MAC__ ) )
+#    define HAS_TLS 1
+#    ifdef __cplusplus
+#      define DeclareThreadLocal static thread_local
+#      define DeclareThreadVar thread_local
+#    else
+#    define DeclareThreadLocal static __thread
+#    define DeclareThreadVar __thread
+#  endif
 #else
+// if no HAS_TLS
 #  define DeclareThreadLocal static
 #  define DeclareThreadVar
 #endif
@@ -7265,16 +7368,11 @@ But WHO doesn't have stdint?  BTW is sizeof( size_t ) == sizeof( void* )
 //#ifndef TARGETNAME
 //#  define TARGETNAME "sack_bag.dll"  //$(TargetFileName)
 //#endif
-#    ifndef __cplusplus_cli
-// cli mode, we use this directly, and build the exports in sack_bag.dll directly
-#    else
-#      define LIBRARY_DEADSTART
-#    endif
-#define MD5_SOURCE
-#define USE_SACK_FILE_IO
+#    define MD5_SOURCE
+#    define USE_SACK_FILE_IO
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define MEM_LIBRARY_SOURCE
+#    define MEM_LIBRARY_SOURCE
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
 #define SYSLOG_SOURCE
@@ -7319,70 +7417,60 @@ But WHO doesn't have stdint?  BTW is sizeof( size_t ) == sizeof( void* )
 #define SHA1_SOURCE
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define CONSTRUCT_SOURCE
+#    define CONSTRUCT_SOURCE
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define PROCREG_SOURCE
+#    define PROCREG_SOURCE
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define SQLPROXY_LIBRARY_SOURCE
+#    define SQLPROXY_LIBRARY_SOURCE
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define TYPELIB_SOURCE
+#      define TYPELIB_SOURCE
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define JSON_EMITTER_SOURCE
+#      define JSON_EMITTER_SOURCE
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define SERVICE_SOURCE
-#  ifndef __NO_SQL__
-#    ifndef __NO_OPTIONS__
+#    define SERVICE_SOURCE
+#    ifndef __NO_SQL__
+#      ifndef __NO_OPTIONS__
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.    and not NO_SQL and not NO_OPTIONS   */
-#      define SQLGETOPTION_SOURCE
+#        define SQLGETOPTION_SOURCE
+#      endif
 #    endif
-#  endif
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define PSI_SOURCE
-#  ifdef _MSC_VER
-#    ifndef JPEG_SOURCE
-//wouldn't matter... the external things wouldn't need to define this
-//#error projects were not generated with CMAKE, and JPEG_SORUCE needs to be defined
-#    endif
-//#define JPEG_SOURCE
-//#define __PNG_LIBRARY_SOURCE__
-//#define FT2_BUILD_LIBRARY   // freetype is internal
-//#define FREETYPE_SOURCE		// build Dll Export
-#  endif
+#    define PSI_SOURCE
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define MNG_BUILD_DLL
+#    define MNG_BUILD_DLL
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define BAGIMAGE_EXPORTS
+#    define BAGIMAGE_EXPORTS
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
  individual library module once upon a time.           */
-#ifndef IMAGE_LIBRARY_SOURCE
-#  define IMAGE_LIBRARY_SOURCE
-#endif
+#    ifndef IMAGE_LIBRARY_SOURCE
+#      define IMAGE_LIBRARY_SOURCE
+#    endif
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define SYSTRAY_LIBRARAY
+#    define SYSTRAY_LIBRARAY
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define SOURCE_PSI2
+#    define SOURCE_PSI2
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
-#define VIDEO_LIBRARY_SOURCE
+#    define VIDEO_LIBRARY_SOURCE
 /* Defined when SACK_BAG_EXPORTS is defined. This was an
    individual library module once upon a time.           */
 	/* define RENDER SOURCE when building monolithic. */
-#     ifndef RENDER_LIBRARY_SOURCE
-#       define RENDER_LIBRARY_SOURCE
-#     endif
+#    ifndef RENDER_LIBRARY_SOURCE
+#      define RENDER_LIBRARY_SOURCE
+#    endif
 // define a type that is a public name struct type...
 // good thing that typedef and struct were split
 // during the process of port to /clr option.
@@ -7399,9 +7487,8 @@ But WHO doesn't have stdint?  BTW is sizeof( size_t ) == sizeof( void* )
 #include <sys/types.h>
 #include <sys/stat.h>
 #if !defined( _WIN32 ) && !defined( __MAC__ )
-#  include <syscall.h>
-#elif defined( __MAC__ )
 #  include <sys/syscall.h>
+#elif defined( __MAC__ )
 #endif
 #ifndef MY_TYPES_INCLUDED
 #  define MY_TYPES_INCLUDED
@@ -7423,11 +7510,6 @@ But WHO doesn't have stdint?  BTW is sizeof( size_t ) == sizeof( void* )
 #    include <dlfcn.h>
 #  endif
 #  if defined( _MSC_VER )
-// disable pointer conversion warnings - wish I could disable this
-// according to types...
-//#pragma warning( disable:4312; disable:4311 )
-// disable deprication warnings of snprintf, et al.
-//#pragma warning( disable:4996 )
 #    define EMPTY_STRUCT struct { char nothing[]; }
 #  endif
 #  if defined( __WATCOMC__ )
@@ -8095,8 +8177,11 @@ typedef char            TEXTCHAR;
 /* a character rune.  Strings should be interpreted as UTF-8 or 16 depending on UNICODE compile option.
    GetUtfChar() from strings.  */
 typedef uint32_t             TEXTRUNE;
-/* Used to handle returned values that are invalid runes; past end or beginning of string for instance */
-#define INVALID_RUNE  0x80000000
+/* Used to handle returned values that are past end or beginning of string for instance */
+#define RUNE_AFTER_END     0x8000000
+#define RUNE_BEFORE_START  0x8000001
+/* Used to handle returned values that are invalid utf8 encodings. */
+#define BADUTF8            0xFFFD
 //typedef enum { FALSE, TRUE } LOGICAL; // smallest information
 #ifndef FALSE
 #define FALSE 0
@@ -8119,7 +8204,9 @@ SACK_NAMESPACE_END
 //------------------------------------------------------
 // formatting macro defintions for [vsf]printf output of the above types
 #if !defined( _MSC_VER ) || ( _MSC_VER >= 1900 )
-#define __STDC_FORMAT_MACROS
+#ifndef __STDC_FORMAT_MACROS
+#  define __STDC_FORMAT_MACROS
+#endif
 #include <inttypes.h>
 #endif
 SACK_NAMESPACE
@@ -8317,7 +8404,8 @@ typedef uint64_t THREAD_ID;
 // this is now always the case
 // it's a safer solution anyhow...
 #  ifdef __MAC__
-#    define GetMyThreadID()  (( ((uint64_t)getpid()) << 32 ) | ( (uint64_t)( syscall(SYS_thread_selfid) ) ) )
+     DeclareThreadLocal uint64_t tmpThreadid;
+#    define GetMyThreadID()  ((pthread_threadid_np(NULL, &tmpThreadid)),tmpThreadid)
 #  else
 #    ifndef GETPID_RETURNS_PPID
 #      define GETPID_RETURNS_PPID
@@ -8509,7 +8597,7 @@ typedef uint64_t THREAD_ID;
 /* the mast in the dword shifted to the left to overlap the field in the word */
 #define MASK_MASK(n,length)   (MASK_TOP_MASK(length) << (((n)*(length)) & (sizeof(MASKSET_READTYPE) - 1) ) )
 // masks value with the mask size, then applies that mask back to the correct word indexing
-#define MASK_MASK_VAL(n,length,val)   (MASK_TOP_MASK_VAL(length,val) << (((n)*(length))&0x7) )
+#define MASK_MASK_VAL(n,length,val)   (MASK_TOP_MASK_VAL(length,val) << (((n)*(length))&(sizeof(MASKSET_READTYPE) - 1)) )
 /* declare a mask set.
  MASKSET( maskVariableName
         , 32 //number of items
@@ -8519,15 +8607,18 @@ typedef uint64_t THREAD_ID;
 	uint8_t maskVariableName[ (32*5 +(CHAR_BIT-1))/CHAR_BIT ];  //data array used for storage.
    const int askVariableName_mask_size = 5;  // used aautomatically by macros
 */
-#define MASKSET(v,n,r)  MASKSETTYPE  (v)[(((n)*(r))+MASK_MAX_ROUND())/MASKTYPEBITS(MASKSETTYPE)]; const int v##_mask_size = r;
+#define MASKSET(v,n,r)  MASKSETTYPE  (v)[(((n)*(r))+MASK_MAX_ROUND())/MASKTYPEBITS(MASKSETTYPE)]; const int v##_mask_size = r
+#define MASKSET_(v,n,r)  MASKSETTYPE  (v)[(((n)*(r))+MASK_MAX_ROUND())/MASKTYPEBITS(MASKSETTYPE)]
 /* set a field index to a value
     SETMASK( askVariableName, 3, 13 );  // set set member 3 to the value '13'
  */
 #define SETMASK(v,n,val)    (((MASKSET_READTYPE*)((v)+((n)*(v##_mask_size))/MASKTYPEBITS((v)[0])))[0] =    ( ((MASKSET_READTYPE*)((v)+((n)*(v##_mask_size))/MASKTYPEBITS(uint8_t)))[0]                                  & (~(MASK_MASK(n,v##_mask_size))) )	                                                                           | MASK_MASK_VAL(n,v##_mask_size,val) )
+#define SETMASK_(v,v2,n,val)    (((MASKSET_READTYPE*)((v)+((n)*(v2##_mask_size))/MASKTYPEBITS((v)[0])))[0] =    ( ((MASKSET_READTYPE*)((v)+((n)*(v2##_mask_size))/MASKTYPEBITS(uint8_t)))[0]                                  & (~(MASK_MASK(n,v2##_mask_size))) )	                                                                           | MASK_MASK_VAL(n,v2##_mask_size,val) )
 /* get the value of a field
      GETMASK( maskVariableName, 3 );   // returns '13' given the SETMASK() example code.
  */
-#define GETMASK(v,n)  ( ( ((MASKSET_READTYPE*)((v)+((n)*(v##_mask_size))/MASKTYPEBITS((v)[0])))[0]         & MASK_MASK(n,v##_mask_size) )	                                                                           >> (((n)*(v##_mask_size))&0x7))
+#define GETMASK(v,n)  ( ( ((MASKSET_READTYPE*)((v)+((n)*(v##_mask_size))/MASKTYPEBITS((v)[0])))[0]         & MASK_MASK(n,v##_mask_size) )	                                                                           >> (((n)*(v##_mask_size))&(sizeof(MASKSET_READTYPE) - 1)))
+#define GETMASK_(v,v2,n)  ( ( ((MASKSET_READTYPE*)((v)+((n)*(v2##_mask_size))/MASKTYPEBITS((v)[0])))[0]         & MASK_MASK(n,v2##_mask_size) )	                                                                           >> (((n)*(v2##_mask_size))&(sizeof(MASKSET_READTYPE) - 1)))
 /* This type stores data, it has a self-contained length in
    bytes of the data stored.  Length is in characters       */
 _CONTAINER_NAMESPACE
@@ -8955,8 +9046,7 @@ TYPELIB_PROC  POINTER TYPELIB_CALLTYPE    SetDataItemEx ( PDATALIST *ppdl, INDEX
 TYPELIB_PROC  POINTER TYPELIB_CALLTYPE    SetDataItemEx ( PDATALIST *ppdl, INDEX idx, POINTER data DBG_PASS );
 /* \Returns a pointer to the data at a specified index.
    Parameters
-   \ \
-   ppdl :  address of a PDATALIST
+   \    ppdl :  address of a PDATALIST
    idx :   index of element to get                      */
 TYPELIB_PROC  POINTER TYPELIB_CALLTYPE    GetDataItem ( PDATALIST *ppdl, INDEX idx );
 /* Removes a data element from the list (moves all other
@@ -9273,17 +9363,24 @@ TYPELIB_PROC  void TYPELIB_CALLTYPE         EmptyDataQueue ( PDATAQUEUE *pplq );
  * reallocated and moved.
  */
 TYPELIB_PROC  LOGICAL TYPELIB_CALLTYPE  PeekDataQueueEx    ( PDATAQUEUE *pplq, POINTER ResultBuffer, INDEX idx );
-/* <combine sack::containers::data_queue::PeekDataQueueEx@PDATAQUEUE *@POINTER@INDEX>
-   \ \                                                                                */
 #define PeekDataQueueEx( q, type, result, idx ) PeekDataQueueEx( q, (POINTER)result, idx )
 /*
  * Result buffer is filled with the last element, and the result is true, otherwise the return
  * value is FALSE, and the data was not filled in.
  */
 TYPELIB_PROC  LOGICAL TYPELIB_CALLTYPE  PeekDataQueue    ( PDATAQUEUE *pplq, POINTER ResultBuffer );
-/* <combine sack::containers::data_queue::PeekDataQueue@PDATAQUEUE *@POINTER>
-   \ \                                                                        */
-#define PeekDataQueue( q, type, result ) PeekDataQueue( q, (POINTER)result )
+#define PeekDataQueue( q, type, result ) PeekDataQueueEx( q, type, result, 0 )
+/*
+ * gets the address a PDATAQUEUE element at index
+ * result buffer is a pointer to the type of structure expected to be
+ * stored within this.  Index from 0 to N indexes from first ( to be dequeued )
+ * to last item in queue.
+ */
+TYPELIB_PROC POINTER TYPELIB_CALLTYPE  PeekDataInQueueEx    ( PDATAQUEUE *pplq, INDEX idx );
+/*
+ * Results with the first item in the queue, else NULL.
+ */
+TYPELIB_PROC POINTER TYPELIB_CALLTYPE  PeekDataInQueue    ( PDATAQUEUE *pplq );
 /* <combine sack::containers::data_queue::CreateDataQueueEx@INDEX size>
    \ \                                                                  */
 #define     CreateDataQueue(size)     CreateDataQueueEx( size DBG_SRC )
@@ -9489,8 +9586,7 @@ _SETS_NAMESPACE
    array that maps usage of the set, and for the set size of
    elements.
    Remarks
-   \ \
-   Summary
+   \    Summary
    Generic sets are good for tracking lots of tiny structures.
    They track slabs of X structures at a time. They allocate a
    slab of X structures with an array of X bits indicating
@@ -9557,13 +9653,13 @@ typedef struct genericset_tag {
 	struct genericset_tag **me;
 	/* number of spots in this set block that are used. */
 	uint32_t nUsed;
- // hmm if I change this here? we're hozed... so.. we'll do it anyhow :) evil - recompile please
+    // this is the size of the bit pool before the pointer pool
 	uint32_t nBias;
- // after this p * unit must be computed
+ // the bit pool starts here (booleanUsed) after a number of
 	uint32_t bUsed[1];
+	                   // bits begins the aligned pointer pool.
 } GENERICSET, *PGENERICSET;
-/* \ \
-   Parameters
+/* \    Parameters
    pSet :      pointer to a generic set
    nMember :   index of the member
    setsize :   number of elements in each block
@@ -9574,13 +9670,11 @@ TYPELIB_PROC  POINTER  TYPELIB_CALLTYPE GetFromSetEx( GENERICSET **pSet, int set
    \ \                                                                             */
 #define GetFromSeta(ps, ss, us, max) GetFromSetPoolEx( NULL, 0, 0, 0, (ps), (ss), (us), (max) DBG_SRC )
 /* <combine sack::containers::sets::GetFromSetEx@GENERICSET **@int@int@int maxcnt>
-   \ \
-   Parameters
+   \    Parameters
    name :  name of type the set contains.
    pSet :  pointer to a set to get an element from.                                */
 #define GetFromSet( name, pset ) (name*)GetFromSeta( (GENERICSET**)(pset), sizeof( name##SET ), sizeof( name ), MAX##name##SPERSET )
-/* \ \
-   Parameters
+/* \    Parameters
    pSet :      pointer to a generic set
    nMember :   index of the member
    setsize :   number of elements in each block
@@ -9596,8 +9690,7 @@ TYPELIB_PROC  PGENERICSET  TYPELIB_CALLTYPE GetFromSetPoolEx( GENERICSET **pSetS
 /* <combine sack::containers::sets::GetFromSetPoolEx@GENERICSET **@int@int@int@GENERICSET **@int@int@int maxcnt>
    \ \                                                                                                           */
 #define GetFromSetPool( name, pool, pset ) (name*)GetFromSetPoola( (GENERICSET**)(pool)	    , sizeof( name##SETSET ), sizeof( name##SET ), MAX##name##SETSPERSET	, (GENERICSET**)(pset), sizeof( name##SET ), sizeof( name ), MAX##name##SPERSET )
-/* \ \
-   Parameters
+/* \    Parameters
    pSet :      pointer to a generic set
    nMember :   index of the member
    setsize :   number of elements in each block
@@ -9610,8 +9703,7 @@ TYPELIB_PROC  POINTER  TYPELIB_CALLTYPE GetSetMemberEx( GENERICSET **pSet, INDEX
 /* <combine sack::containers::sets::GetSetMemberEx@GENERICSET **@INDEX@int@int@int maxcnt>
    \ \                                                                                     */
 #define GetSetMember( name, pset, member ) ((name*)GetSetMembera( (GENERICSET**)(pset), (member), sizeof( name##SET ), sizeof( name ), MAX##name##SPERSET ))
-/* \ \
-   Parameters
+/* \    Parameters
    pSet :      pointer to a generic set
    nMember :   index of the member
    setsize :   number of elements in each block
@@ -9638,8 +9730,7 @@ TYPELIB_PROC  INDEX TYPELIB_CALLTYPE  GetMemberIndex(GENERICSET **set, POINTER u
 /* <combine sack::containers::sets::GetMemberIndex>
    \ \                                              */
 #define GetIndexFromSet( name, pset ) GetMemberIndex( name, pset, GetFromSet( name, pset ) )
-/* \ \
-   Parameters
+/* \    Parameters
    pSet :      pointer to a generic set
    nMember :   index of the member
    setsize :   number of elements in each block
@@ -9719,8 +9810,7 @@ TYPELIB_PROC  void TYPELIB_CALLTYPE  DeleteSet( GENERICSET **ppSet );
    ForAllinSet Callback - callback fucntion used with
    ForAllInSet                                        */
 typedef uintptr_t (CPROC *FAISCallback)(void*,uintptr_t);
-/* \ \
-   Parameters
+/* \    Parameters
    pSet :      poiner to a set
    unitsize :  size of elements in the array
    max :       count of elements per set block
@@ -10226,8 +10316,7 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateEx( size_t nSize DBG_PASS );
    PTEXT text = SegCreate( 10 );
    </code>                                                     */
 #define SegCreate(s) SegCreateEx(s DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromText> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromTextEx( CTEXTSTR text DBG_PASS );
@@ -10237,13 +10326,11 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromTextEx( CTEXTSTR text DBG_PAS
    PTEXT line = SegCreateFromText( "Around the world in a day." );
    </code>                                                         */
 #define SegCreateFromText(t) SegCreateFromTextEx(t DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromChar> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromCharLenEx( const char *text, size_t len DBG_PASS );
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromChar> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromCharEx( const char *text DBG_PASS );
@@ -10253,18 +10340,15 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromCharEx( const char *text DBG_
    PTEXT line = SegCreateFromChar( "Around the world in a day." );
    </code>                                                         */
 #define SegCreateFromChar(t) SegCreateFromCharEx(t DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromChar> */
 #define SegCreateFromCharLen(t,len) SegCreateFromCharLenEx((t),(len) DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromWide> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromWideLenEx( const wchar_t *text, size_t len DBG_PASS );
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromWide> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromWideEx( const wchar_t *text DBG_PASS );
@@ -10274,13 +10358,11 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromWideEx( const wchar_t *text D
    PTEXT line = SegCreateFromWideLen( L"Around the world in a day.", 26 );
    </code>                                                         */
 #define SegCreateFromWideLen(t,len) SegCreateFromWideLenEx((t),(len) DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromWide> */
 #define SegCreateFromWide(t) SegCreateFromWideEx(t DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateIndirect> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateIndirectEx( PTEXT pText DBG_PASS );
@@ -10299,8 +10381,7 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateIndirectEx( PTEXT pText DBG_PASS 
    length buffer for a TEXT segment.
                                                                                   */
 #define SegCreateIndirect(t) SegCreateIndirectEx(t DBG_SRC)
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegDuplicate> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegDuplicateEx( PTEXT pText DBG_PASS);
@@ -10318,16 +10399,14 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  LineDuplicateEx( PTEXT pText DBG_PASS );
 /* <combine sack::containers::text::LineDuplicateEx@PTEXT pText>
    \ \                                                           */
 #define LineDuplicate(pt) LineDuplicateEx(pt DBG_SRC )
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link TextDuplicate> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  TextDuplicateEx( PTEXT pText, int bSingle DBG_PASS );
 /* Duplicate the whole string of text to another string with
    exactly the same content.                                 */
 #define TextDuplicate(pt,s) TextDuplicateEx(pt,s DBG_SRC )
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromInt> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromIntEx( int value DBG_PASS );
@@ -10343,8 +10422,7 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromIntEx( int value DBG_PASS );
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFrom_64Ex( int64_t value DBG_PASS );
 /* Create a text segment from a uint64_t bit value. (long long int) */
 #define SegCreateFrom_64(v) SegCreateFrom_64Ex( v DBG_SRC )
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegCreateFromFloat> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegCreateFromFloatEx( float value DBG_PASS );
@@ -10393,7 +10471,7 @@ TYPELIB_PROC  void TYPELIB_CALLTYPE   LineReleaseEx (PTEXT line DBG_PASS );
    Any segment in the line may be passed, the first segment is
    found, and then all segments in the line are deleted.       */
 #define LineRelease(l) LineReleaseEx(l DBG_SRC )
-/* \ \
+/* \
    <b>See Also</b>
    <link DBG_PASS>
    <link SegRelease> */
@@ -10472,15 +10550,13 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegGrab     (PTEXT segment);
    Returns
    \Returns the '_this' that was substituted.                     */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegSubst    ( PTEXT _this, PTEXT that );
-/* \ \
-   See Also
+/* \    See Also
    <link DBG_PASS>
    <link SegSplit> */
 TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  SegSplitEx( PTEXT *pLine, INDEX nPos DBG_PASS);
 /* Split a PTEXT segment.
    Example
-   \ \
-   <code lang="c++">
+   \    <code lang="c++">
    PTEXT result = SegSplit( &amp;old_string, 5 );
    </code>
    Returns
@@ -10590,8 +10666,7 @@ TYPELIB_PROC  INDEX TYPELIB_CALLTYPE  LineLengthExx( PTEXT pt, LOGICAL bSingle,P
 /* <combine sack::containers::text::LineLengthExEx@PTEXT@LOGICAL@int@PTEXT>
    \ \                                                                      */
 #define LineLengthExx(pt,single,eol) LineLengthExEx( pt,single,8,eol)
-/* \ \
-   Parameters
+/* \    Parameters
    Text segment :  PTEXT line or segment to get the length of
    single :        boolean, if set then only a single segment is
                    measured, otherwise all segments from this to
@@ -10638,8 +10713,7 @@ TYPELIB_PROC  PTEXT TYPELIB_CALLTYPE  BuildLineExx( PTEXT pt, LOGICAL bSingle, P
    \ \                                                                          */
 #define BuildLineEx(from,single) BuildLineExEx( from,single,8,NULL DBG_SRC )
 /* <combine sack::containers::text::BuildLineExEx@PTEXT@LOGICAL@int@PTEXT pEOL>
-   \ \
-    Flattens all segments in a line to a single segment result.
+   \     Flattens all segments in a line to a single segment result.
 */
 #define BuildLine(from) BuildLineExEx( from, FALSE,8,NULL DBG_SRC )
 //
@@ -10822,8 +10896,7 @@ TYPELIB_PROC  void TYPELIB_CALLTYPE  VarTextEmptyEx( PVARTEXT pvt DBG_PASS);
 #define VarTextEmpty(pvt) VarTextEmptyEx( (pvt) DBG_SRC )
 /* Add a single character to a vartext collector.
    Note
-   \ \
-   Parameters
+   \    Parameters
    pvt :       PVARTEXT to add character to
    c :         character to add
    DBG_PASS :  optional debug information         */
@@ -11147,8 +11220,7 @@ TYPELIB_PROC  PTREEROOT TYPELIB_CALLTYPE  CreateBinaryTreeExtended( uint32_t fla
    PTREEROOT tree = CreateBinaryTree();
    </code>                                                      */
 #define CreateBinaryTree() CreateBinaryTreeEx( NULL, NULL )
-/* \ \
-   Example
+/* \    Example
    <code lang="c++">
    PTREEROOT tree = CreateBinaryTree();
    DestroyBinaryTree( tree );
@@ -11156,8 +11228,7 @@ TYPELIB_PROC  PTREEROOT TYPELIB_CALLTYPE  CreateBinaryTreeExtended( uint32_t fla
    </code>                              */
 TYPELIB_PROC  void TYPELIB_CALLTYPE  DestroyBinaryTree( PTREEROOT root );
 /* Drops all the nodes in a tree so it becomes empty...
-   \ \
-   Example
+   \    Example
    <code lang="c++">
    PTREEROOT tree = CreateBinaryTree();
    ResetBinaryTree( tree );
@@ -11176,8 +11247,7 @@ TYPELIB_PROC  void TYPELIB_CALLTYPE  ResetBinaryTree( PTREEROOT root );
    BalanceBinaryTree( tree );
    </code>                                                        */
 TYPELIB_PROC  void TYPELIB_CALLTYPE  BalanceBinaryTree( PTREEROOT root );
-/* \ \
-   See Also
+/* \    See Also
    <link AddBinaryNode>
    <link DBG_PASS>
                         */
@@ -11320,8 +11390,7 @@ TYPELIB_PROC  CPOINTER TYPELIB_CALLTYPE  GetParentNode( PTREEROOT root );
    Binary Trees have a 'current' cursor. These operations may be
    used to browse the tree.
    Example
-   \ \
-   <code>
+   \    <code>
    // this assumes you have a tree, and it's fairly populated, then this demonstrates
    // all steps of browsing.
    POINTER my_data;
@@ -11635,7 +11704,8 @@ SYSLOG_PROC  CTEXTSTR SYSLOG_API  GetPackedTime ( void );
 //    uint64_t epoch_milliseconds : 56;
 //    int64_t timezone : 8; divided by 15... hours * 60 / 15
 // }
-SYSLOG_PROC  int64_t SYSLOG_API GetTimeOfDay( void );
+// returns the nanosecond of the day (since UNIX Epoch) and timezone/15
+SYSLOG_PROC  int64_t SYSLOG_API GetTimeOfDay( uint64_t* tick, int8_t* ptz );
 // binary little endian order; somewhat
 typedef struct sack_expanded_time_tag
 {
@@ -11930,11 +12000,16 @@ LOGGING_NAMESPACE_END
 using namespace sack::logging;
 #endif
 #endif
-#if defined( _MSC_VER ) || (1)
-// huh, apparently all compiles are messed the hell up.
-#  define COMPILER_THROWS_SIGNED_UNSIGNED_MISMATCH
-#endif
-#ifdef COMPILER_THROWS_SIGNED_UNSIGNED_MISMATCH
+// these macros test the the range of integer and unsigned
+// such that an unsigned > integer range is true if it is more than an maxint
+// and signed integer < 0 is less than any unsigned value.
+// the macro prefix SUS  or USS is the comparison type
+// Signed-UnSigned and UnSigned-Signed  depending on the
+// operand order.
+// the arguments passed are variable a and b and the respective types of those
+// if( SUS_GT( 324, int, 545, unsigned int ) ) {
+//    is >
+// }
 #  define SUS_GT(a,at,b,bt)   (((a)<0)?0:(((bt)a)>(b)))
 #  define USS_GT(a,at,b,bt)   (((b)<0)?1:((a)>((at)b)))
 #  define SUS_LT(a,at,b,bt)   (((a)<0)?1:(((bt)a)<(b)))
@@ -11943,7 +12018,8 @@ using namespace sack::logging;
 #  define USS_GTE(a,at,b,bt)  (((b)<0)?1:((a)>=((at)b)))
 #  define SUS_LTE(a,at,b,bt)  (((a)<0)?1:(((bt)a)<=(b)))
 #  define USS_LTE(a,at,b,bt)  (((b)<0)?0:((a)<=((at)b)))
-#else
+#if 0
+// simplified meanings of the macros
 #  define SUS_GT(a,at,b,bt)   ((a)>(b))
 #  define USS_GT(a,at,b,bt)   ((a)>(b))
 #  define SUS_LT(a,at,b,bt)   ((a)<(b))
@@ -12122,8 +12198,16 @@ SYSTEM_PROC( void, OSALOT_PrependEnvironmentVariable )(CTEXTSTR name, CTEXTSTR v
  * Otherwise, the command line needs to have the program name, and arguments passed in the string
  * the parameter to winmain has the program name skipped
  */
-SYSTEM_PROC( void, ParseIntoArgs )( TEXTCHAR *lpCmdLine, int *pArgc, TEXTCHAR ***pArgv );
+SYSTEM_PROC( void, ParseIntoArgs )( TEXTCHAR const *lpCmdLine, int *pArgc, TEXTCHAR ***pArgv );
 #define UnloadFunction(p) UnloadFunctionEx(p DBG_SRC )
+/*
+   Check if task spawning is allowed...
+*/
+SYSTEM_PROC( LOGICAL, sack_system_allow_spawn )( void );
+/*
+   Disallow task spawning.
+*/
+SYSTEM_PROC( void, sack_system_disallow_spawn )( void );
 SACK_SYSTEM_NAMESPACE_END
 #ifdef __cplusplus
 using namespace sack::system;
@@ -12267,7 +12351,6 @@ typedef struct win_sockaddr_in SOCKADDR_IN;
 #else
 //#include "loadsock.h"
 #endif
-//#include <stdlib.h>
 #ifdef __CYGWIN__
  // provided by -lgcc
 // lots of things end up including 'setjmp.h' which lacks sigset_t defined here.
@@ -13416,6 +13499,14 @@ typedef uintptr_t (CPROC*ThreadStartProc)( PTHREAD );
 /* Function signature for a thread entry point passed to
    ThreadToSimple.                                             */
 typedef uintptr_t (*ThreadSimpleStartProc)( POINTER );
+/*
+  OnThreadCreate allows registering a procedure to run
+  when a thread is created.  (Or an existing thread becomes
+  tracked within this library, via MakeThread() ).
+  It is called once per thread, for each thread created
+  after registering the callback.
+*/
+TIMER_PROC( void, OnThreadCreate )( void ( *v )( void ) );
 /* Create a separate thread that starts in the routine
    specified. The uintptr_t value (something that might be a
    pointer), is passed in the PTHREAD structure. (See
@@ -13456,27 +13547,6 @@ TIMER_PROC( PTHREAD, ThreadToSimpleEx )( ThreadSimpleStartProc proc, POINTER par
    thread. If this thread already has this structure created,
    the same one results on subsequent MakeThread calls.        */
 TIMER_PROC( PTHREAD, MakeThread )( void );
-/* Releases resources associated with a PTHREAD. For purposes of
-   waking a thread, and providing a wakeable point for the
-   thread, a system blocking event object is allocated, named
-   with the THREAD_ID so it can be referenced by other
-   processes. This is only allowed to be done by the thread
-   itself.
-   Parameters
-   Param1 :  \Description
-   Param2 :  \Description
-   Example
-   <code lang="c++">
-   int main( void )
-   {
-       PTHREAD myself = MakeThread();
-       // create threads, do stuff...
-       UnmakeThread();
-       At this point the pointer in 'myself' is invalid, and should be cleared.
-       myself = NULL;
-   }
-   </code>                                                                      */
-TIMER_PROC( void, UnmakeThread )( void );
 /* This returns the parameter passed as user data to ThreadTo.
    Parameters
    thread :  thread to get the parameter from.
@@ -13634,7 +13704,8 @@ TIMER_PROC( LOGICAL, EnterCriticalSecEx )( PCRITICALSECTION pcs DBG_PASS );
 TIMER_PROC( LOGICAL, LeaveCriticalSecEx )( PCRITICALSECTION pcs DBG_PASS );
 /* Does nothing. There are no extra resources required for
    critical sections, and the memory is allocated by the
-   application.
+	application; native windows criticalsections allocate an
+   external object; this should be called typically.
    Parameters
    pcs :  pointer to critical section to do nothing with.  */
 TIMER_PROC( void, DeleteCriticalSec )( PCRITICALSECTION pcs );
@@ -13750,6 +13821,32 @@ using namespace sack::timers;
 #    define EndSaneWinMain() } }
 #  endif
 #endif
+/**
+ * https://stackoverflow.com/questions/3585583/convert-unix-linux-time-to-windows-filetime
+ * number of seconds from 1 Jan. 1601 00:00 to 1 Jan 1970 00:00 UTC
+ * subtract from FILETIME to get timespec
+ * add to timespec to get FILETIME ticks.
+ * * 1000000000
+ */
+#define EPOCH_DIFF 11644473600ULL
+#define EPOCH_DIFF_MS 11644473600000ULL
+#define EPOCH_DIFF_NS 11644473600000000000ULL
+#ifdef WIN32
+DeclareThreadLocal FILETIME ft;
+// we want this as fast as possible, so inline always.
+#define timeGetTime64ns( ) ( GetSystemTimeAsFileTime( &ft ),((uint64_t*)&ft)[0]*100-EPOCH_DIFF_NS )
+#define timeGetTime64( ) ( GetSystemTimeAsFileTime( &ft ),((uint64_t*)&ft)[0]/10000-EPOCH_DIFF_MS )
+#define timeGetTime() (uint32_t)(timeGetTime64())
+#else
+DeclareThreadLocal struct timespec global_static_time_ts;
+#define timeGetTime64ns( ) ( clock_gettime(CLOCK_REALTIME, &global_static_time_ts), (uint64_t)global_static_time_ts.tv_sec*(uint64_t)1000000000 + (uint64_t)global_static_time_ts.tv_nsec )
+#define timeGetTime64( ) ( clock_gettime(CLOCK_REALTIME, &global_static_time_ts), (uint64_t)global_static_time_ts.tv_sec*(uint64_t)1000 + (uint64_t)global_static_time_ts.tv_nsec/1000000 )
+#define timeGetTime() (uint32_t)(timeGetTime64())
+#endif
+#define tickToTimeSpec(ts,tick) (((ts).tv_sec = (tick) / 1000ULL),((ts).tv_nsec=((tick)%1000ULL)*1000000ULL))
+#define tickToFileTime(ft,tick) ((((ft).highPart).tv_sec = ((tick*10000)+EPOCH_DIFF_MS)>>32 ),(((ft).lowPart)=((tick*10000)+EPOCH_DIFF_MS) & 0XFFFFFFFF ))
+#define tickNsToTimeSpec(ts,tick) (((ts).tv_sec = (tick) / 1000000000ULL),((ts).tv_nsec=(tick)%1000000000ULL))
+#define tickNsToFileTime(ft,tick) ((((ft).highPart).tv_sec = ((tick)+EPOCH_DIFF_NS)>>32 ),(((ft).lowPart)=((tick)+EPOCH_DIFF_NS) & 0XFFFFFFFF ))
 //  these are rude defines overloading otherwise very practical types
 // but - they have to be dispatched after all standard headers.
 #ifndef FINAL_TYPES
@@ -13969,14 +14066,20 @@ SACK_NAMESPACE
    external things linking here are _import.               */
 #    define DEADSTART_PROC IMPORT_METHOD
 #  endif
+     // 28 (thread ID for critical sections used to allocate memory)
+#define TIMER_MODULE_PRELOAD_PRIORITY  (CONFIG_SCRIPT_PRELOAD_PRIORITY-3)
+     // 30 specify where to load external resources from... like the option database
+#define VIRTUAL_FILESYSTEM_PRELOAD_PRIORITY (CONFIG_SCRIPT_PRELOAD_PRIORITY-1)
    /* this is just a global space initializer (shared, named
       region, allows static link plugins to share information)
       Allocates its shared memory global region, so if this library
       is built statically and referenced in multiple plugins
       ConfigScript can share the same symbol tables. This also
-      provides sharing between C++ and C.                           */
+		provides sharing between C++ and C.                           */
+         // 31
 #define CONFIG_SCRIPT_PRELOAD_PRIORITY    (SQL_PRELOAD_PRIORITY-3)
-   // this is just a global space initializer (shared, named region, allows static link plugins to share information)
+			// this is just a global space initializer (shared, named region, allows static link plugins to share information)
+         // 34
 #define SQL_PRELOAD_PRIORITY    (SYSLOG_PRELOAD_PRIORITY-1)
 /* Level at which logging is initialized. Nothing under this
    should be doing logging, if it does, the behavior is not as
@@ -14119,10 +14222,10 @@ DEADSTART_PROC  void DEADSTART_CALLTYPE  DispelDeadstart ( void );
    </code>
    See Also
    <link sack::app::deadstart, deadstart Namespace>                         */
-#define PRIORITY_PRELOAD(name,priority) static void CPROC name(void);    static class pastejunk(schedule_,name) {        public:pastejunk(schedule_,name)() {	    RegisterPriorityStartupProc( name,TOSTR(name),priority,(void*)this DBG_SRC);	  }	  } pastejunk(do_schedule_,name);	     static void name(void)
+#define PRIORITY_PRELOAD(name,priority) static void CPROC name(void);	 namespace { static class pastejunk(schedule_,name) {        public:pastejunk(schedule_,name)() {	    RegisterPriorityStartupProc( name,TOSTR(name),priority,(void*)this DBG_SRC);	  }	  } pastejunk(do_schedule_,name);   }	  static void name(void)
 /* This is used once in deadstart_prog.c which is used to invoke
    startups when the program finishes loading.                   */
-#define MAGIC_PRIORITY_PRELOAD(name,priority) static void CPROC name(void);    static class pastejunk(schedule_,name) {	     public:pastejunk(schedule_,name)() {	  name();	    }	  } pastejunk(do_schedul_,name);	     static void name(void)
+#define MAGIC_PRIORITY_PRELOAD(name,priority) static void CPROC name(void);	 namespace { static class pastejunk(schedule_,name) {	     public:pastejunk(schedule_,name)() {	  name();	    }	  } pastejunk(do_schedul_,name);   }	  static void name(void)
 /* A macro to define some code to run during program shutdown. An
    additional priority may be specified if the order matters. Higher
    numbers are called first.
@@ -14290,12 +14393,12 @@ struct rt_init
 #ifdef __MANUAL_PRELOAD__
 #define PRIORITY_PRELOAD(name,pr) static void name(void);	 RTINIT_STATIC struct rt_init pastejunk(name,_ctor_label)		__attribute__((section(DEADSTART_SECTION))) __attribute__((used))	 =	 {0,0,pr INIT_PADDING, __LINE__, name PASS_FILENAME	, TOSTR(name) JUNKINIT(name)} ;	 void name(void);	 void pastejunk(registerStartup,name)(void) __attribute__((constructor));	 void pastejunk(registerStartup,name)(void) {	 RegisterPriorityStartupProc(name,TOSTR(name),pr,NULL DBG_SRC); }	 void name(void)
 #else
-#if defined( _WIN32 ) && defined( __GNUC__ )
+#if defined( _WIN32 ) || defined( __GNUC__ )
 #  define HIDDEN_VISIBILITY
 #else
 #  define HIDDEN_VISIBILITY  __attribute__((visibility("hidden")))
 #endif
-#define PRIORITY_PRELOAD(name,pr) static void name(void);	         RTINIT_STATIC struct rt_init pastejunk(name,_ctor_label)	         __attribute__((section(DEADSTART_SECTION))) __attribute__((used)) HIDDEN_VISIBILITY	 ={0,0,pr INIT_PADDING	                                           ,__LINE__,name	                                                 PASS_FILENAME	                                                 ,TOSTR(name)	                                                   JUNKINIT(name)};	                                               static void name(void) __attribute__((used)) HIDDEN_VISIBILITY;	 void name(void)
+#define PRIORITY_PRELOAD(name,pr) static void name(void);	         RTINIT_STATIC struct rt_init pastejunk(name,_ctor_label)	         __attribute__((section(DEADSTART_SECTION))) __attribute__((used))	  ={0,0,pr INIT_PADDING	                                           ,__LINE__,name	                                                 PASS_FILENAME	                                                 ,TOSTR(name)	                                                   JUNKINIT(name)};	                                               static void name(void) __attribute__((used));	 void name(void)
 #endif
 typedef void(*atexit_priority_proc)(void (*)(void),CTEXTSTR,int DBG_PASS);
 #define PRIORITY_ATEXIT(name,priority) static void name(void);           static void pastejunk(atexit,name)(void) __attribute__((constructor));   void pastejunk(atexit,name)(void)                                        {	                                                                        RegisterPriorityShutdownProc(name,TOSTR(name),priority,NULL DBG_SRC); }                                                                        void name(void)
@@ -15441,11 +15544,11 @@ PDATALIST ExpandDataListEx( PDATALIST *ppdl, INDEX entries DBG_PASS )
 POINTER SetDataItemEx( PDATALIST *ppdl, INDEX idx, POINTER data DBG_PASS )
 {
 	POINTER p = NULL;
-	if( !ppdl || !(*ppdl) || idx > 0x100000 )
+	if( !ppdl || !(*ppdl) || idx > 0x1000000 )
 		return NULL;
 	if( idx >= (*ppdl)->Avail )
 	{
-		ExpandDataListEx( ppdl, (idx-(*ppdl)->Avail)+32 DBG_RELAY );
+		ExpandDataListEx( ppdl, idx+32 DBG_RELAY );
 	}
 	p = (*ppdl)->data + ( (*ppdl)->Size * idx );
 	MemCpy( p, data, (*ppdl)->Size );
@@ -16389,6 +16492,43 @@ PDATAQUEUE  CreateLargeDataQueueEx( INDEX size, INDEX entries, INDEX expand DBG_
 {
 	return PeekDataQueueEx( ppdq, result, 0 );
 }
+// zero is the first,
+POINTER  PeekDataInQueueEx ( PDATAQUEUE *ppdq, INDEX idx )
+{
+	INDEX top;
+	if( ppdq && *ppdq )
+		while( LockedExchange( data_queue_local_lock, 1 ) )
+			Relinquish();
+	else
+		return 0;
+	// cannot get invalid id.
+	if( idx != INVALID_INDEX )
+	{
+		for( top = (*ppdq)->Bottom;
+			 idx != INVALID_INDEX && top != (*ppdq)->Top
+			 ; )
+		{
+			idx--;
+			if( idx != INVALID_INDEX )
+			{
+				top++;
+				if( (top) >= (*ppdq)->Cnt )
+					top = top-(*ppdq)->Cnt;
+			}
+		}
+		if( idx == INVALID_INDEX )
+		{
+			data_queue_local_lock[0] = 0;
+			return (*ppdq)->data + top * (*ppdq)->Size;
+		}
+	}
+	data_queue_local_lock[0] = 0;
+	return NULL;
+}
+POINTER  PeekDataInQueue ( PDATAQUEUE *ppdq )
+{
+	return PeekDataInQueueEx( ppdq, 0 );
+}
 void  EmptyDataQueue ( PDATAQUEUE *ppdq )
 {
 	if( ppdq && *ppdq )
@@ -16616,10 +16756,17 @@ PRIORITY_PRELOAD( InitLocals, NAMESPACE_PRELOAD_PRIORITY + 1 )
  *
  */
 #define NO_UNICODE_C
- // derefecing NULL pointers; the function wouldn't be called with a NULL.
- // and partial expressions in lower precision
+#ifdef _MSC_VER
+// derefecing NULL pointers; the function wouldn't be called with a NULL.
+// and partial expressions in lower precision
 // and NULL math because never NULL.
-#pragma warning( disable:6011 26451 28182)
+#  pragma warning( disable:6011 26451 28182)
+//Warning C26451: Arithmetic overflow: Using operator '%operator%'
+// on a %size1% byte value and then casting the result to a
+// %size2% byte value. Cast the value to the wider type
+// before calling operator '%operator%' to avoid overflow
+#  pragma warning( disable:26451 )
+#endif
 #ifdef __cplusplus
 namespace sack {
 namespace containers {
@@ -16628,7 +16775,6 @@ namespace text {
 	using namespace sack::logging;
 	using namespace sack::containers::queue;
 #endif
-#pragma warning( disable:26451 )
 typedef PTEXT (CPROC*GetTextOfProc)( uintptr_t, POINTER );
 typedef struct text_exension_tag {
 	uint32_t bits;
@@ -17204,18 +17350,20 @@ PTEXT SegSplitEx( PTEXT *pLine, INDEX nPos  DBG_PASS)
 	return here;
 }
 //----------------------------------------------------------------------
-TEXTCHAR NextCharEx( PTEXT input, size_t idx )
+TEXTRUNE NextCharEx( PTEXT input, size_t idx )
 {
 	if( ( ++idx ) >= input->data.size )
 	{
 		idx -= input->data.size;
 		input = NEXTLINE( input );
 	}
-	if( input )
-		return input->data.data[idx];
+	if( input ) {
+		return GetUtfCharIndexed( input->data.data, &idx, input->data.size );
+		//return input->data.data[idx];
+	}
 	return 0;
 }
-#define NextChar() NextCharEx( input, index )
+#define NextChar() NextCharEx( input, tempText-tempText_ )
 //----------------------------------------------------------------------
 // In this final implementation - it was decided that for a general
 // library, that expressions, escapes of expressions, apostrophes
@@ -17235,12 +17383,11 @@ PTEXT TextParse( PTEXT input, CTEXTSTR punctuation, CTEXTSTR filter_space, int b
 	VARTEXT out;
 	PTEXT outdata=(PTEXT)NULL,
 	      word;
-	TEXTSTR tempText;
+	TEXTSTR tempText, tempText_;
 	int has_minus = -1;
 	int has_plus = -1;
-	uint32_t index;
 	INDEX size;
-	TEXTCHAR character;
+	TEXTRUNE character;
 	uint32_t elipses = FALSE,
 	   spaces = 0, tabs = 0;
         // if nothing new to process- return nothing processed.
@@ -17263,7 +17410,7 @@ PTEXT TextParse( PTEXT input, CTEXTSTR punctuation, CTEXTSTR filter_space, int b
 			continue;
 		}
   // point to the data to process...
-		tempText = GetText(input);
+		tempText_ = tempText = GetText(input);
 		size = GetTextSize(input);
 		if( input->format.position.offset.spaces || input->format.position.offset.tabs )
 		{
@@ -17277,9 +17424,9 @@ PTEXT TextParse( PTEXT input, CTEXTSTR punctuation, CTEXTSTR filter_space, int b
 		spaces += input->format.position.offset.spaces;
 		tabs += input->format.position.offset.tabs;
 		//Log1( "Assuming %d spaces... ", spaces );
-		for (index=0;(character = tempText[index]),
+		for (;(character = GetUtfChar( (char const**)&tempText ) ),
  // while not at the
-                   (index < size); index++)
+                   ((tempText-tempText_) <= (int)size); )
                                          // end of the line.
 		{
 			if( elipses && character != '.' )
@@ -17300,7 +17447,7 @@ PTEXT TextParse( PTEXT input, CTEXTSTR punctuation, CTEXTSTR filter_space, int b
  // elipses and character is . - continue
 			else if( elipses )
 			{
-				VarTextAddCharacterEx( &out, character DBG_OVERRIDE );
+				VarTextAddRuneEx( &out, character, FALSE DBG_OVERRIDE );
 				continue;
 			}
 		if( StrChr( filter_space, character ) )
@@ -17313,13 +17460,13 @@ PTEXT TextParse( PTEXT input, CTEXTSTR punctuation, CTEXTSTR filter_space, int b
 			{
 				outdata = SegAppend( outdata, word );
 				SET_SPACES();
-				VarTextAddCharacterEx( &out, character DBG_OVERRIDE );
+				VarTextAddRuneEx( &out, character, FALSE DBG_OVERRIDE );
 				word = VarTextGetEx( &out DBG_OVERRIDE );
 				outdata = SegAppend( outdata, word );
 			}
 			else
 			{
-				VarTextAddCharacterEx( &out, character DBG_OVERRIDE );
+				VarTextAddRuneEx( &out, character, FALSE DBG_OVERRIDE );
 				word = VarTextGetEx( &out DBG_OVERRIDE );
 				SET_SPACES();
 				outdata = SegAppend( outdata, word );
@@ -17337,6 +17484,8 @@ PTEXT TextParse( PTEXT input, CTEXTSTR punctuation, CTEXTSTR filter_space, int b
 			outdata = SegAppend( outdata, SegCreate( 0 ) );
 			break;
 		case ' ':
+// case '\xa0': // &nbsp;
+		case 160 :
 			if( bSpaces )
 			{
 			is_a_space:
@@ -17401,7 +17550,7 @@ PTEXT TextParse( PTEXT input, CTEXTSTR punctuation, CTEXTSTR filter_space, int b
 							( c >= '0' && c <= '9' ) )
 						{
 							// gather together as a floating point number...
-							VarTextAddCharacterEx( &out, character DBG_OVERRIDE );
+							VarTextAddRuneEx( &out, character, FALSE DBG_OVERRIDE );
 							break;
 						}
 					}
@@ -17442,7 +17591,7 @@ PTEXT TextParse( PTEXT input, CTEXTSTR punctuation, CTEXTSTR filter_space, int b
 							SET_SPACES();
 							// gather together as a sign indication on a number.
 						}
-						VarTextAddCharacterEx( &out, character DBG_OVERRIDE );
+						VarTextAddRuneEx( &out, character, FALSE DBG_OVERRIDE );
 						break;
 					}
 				}
@@ -17451,13 +17600,13 @@ PTEXT TextParse( PTEXT input, CTEXTSTR punctuation, CTEXTSTR filter_space, int b
 				{
 					outdata = SegAppend( outdata, word );
 					SET_SPACES();
-					VarTextAddCharacterEx( &out, character DBG_OVERRIDE );
+					VarTextAddRuneEx( &out, character, FALSE DBG_OVERRIDE );
 					word = VarTextGetEx( &out DBG_OVERRIDE );
 					outdata = SegAppend( outdata, word );
 				}
 				else
 				{
-					VarTextAddCharacterEx( &out, character DBG_OVERRIDE );
+					VarTextAddRuneEx( &out, character, FALSE DBG_OVERRIDE );
 					word = VarTextGetEx( &out DBG_OVERRIDE );
 					SET_SPACES();
 					outdata = SegAppend( outdata, word );
@@ -17474,7 +17623,7 @@ PTEXT TextParse( PTEXT input, CTEXTSTR punctuation, CTEXTSTR filter_space, int b
 					}
 					elipses = FALSE;
 				}
-				VarTextAddCharacterEx( &out, character DBG_OVERRIDE );
+				VarTextAddRuneEx( &out, character, FALSE DBG_OVERRIDE );
 				break;
 			}
 		}
@@ -17500,10 +17649,9 @@ PTEXT burstEx( PTEXT input DBG_PASS )
 	VARTEXT out;
 	PTEXT outdata=(PTEXT)NULL,
 			word;
-	TEXTSTR tempText;
-	uint32_t index;
+	TEXTSTR tempText, tempText_;
 	size_t size;
-	TEXTCHAR character;
+	TEXTRUNE character;
 	uint32_t elipses = FALSE,
 		spaces = 0, tabs = 0;
 		  // if nothing new to process- return nothing processed.
@@ -17526,7 +17674,7 @@ PTEXT burstEx( PTEXT input DBG_PASS )
 			continue;
 		}
   // point to the data to process...
-		tempText = GetText(input);
+		tempText_ = tempText = GetText(input);
 		size = GetTextSize(input);
 		if( input->format.position.offset.spaces || input->format.position.offset.tabs )
 		{
@@ -17540,9 +17688,9 @@ PTEXT burstEx( PTEXT input DBG_PASS )
 		spaces += input->format.position.offset.spaces;
 		tabs += input->format.position.offset.tabs;
 		//Log1( "Assuming %d spaces... ", spaces );
-		for (index=0;(character = tempText[index]),
+		for (;(character = GetUtfChar( (char const**)&tempText ) ),
  // while not at the
-		             (index < size); index++)
+		             ((tempText-tempText_) <= (int)size); )
 		                                      // end of the line.
 		{
 			if( elipses && character != '.' )
@@ -17563,7 +17711,7 @@ PTEXT burstEx( PTEXT input DBG_PASS )
  // elipses and character is . - continue
 			else if( elipses )
 			{
-				VarTextAddCharacterEx( &out, character DBG_OVERRIDE );
+				VarTextAddRuneEx( &out, character, FALSE DBG_OVERRIDE );
 				continue;
 			}
 			switch(character)
@@ -17578,6 +17726,8 @@ PTEXT burstEx( PTEXT input DBG_PASS )
 				outdata = SegAppend( outdata, SegCreate( 0 ) );
 				break;
 			case ' ':
+// '\xa0': // nbsp
+			case 160 :
 				if( ( word = VarTextGetEx( &out DBG_OVERRIDE ) ) )
 				{
 					SET_SPACES();
@@ -17628,7 +17778,7 @@ PTEXT burstEx( PTEXT input DBG_PASS )
 						 ( c >= '0' && c <= '9' ) )
 					{
 						// gather together as a floating point number...
-						VarTextAddCharacterEx( &out, character DBG_OVERRIDE );
+						VarTextAddRuneEx( &out, character, FALSE DBG_OVERRIDE );
 						break;
 					}
 				}
@@ -17646,7 +17796,7 @@ PTEXT burstEx( PTEXT input DBG_PASS )
 							SET_SPACES();
 						}
 						// gather together as a sign indication on a number.
-						VarTextAddCharacterEx( &out, character DBG_OVERRIDE );
+						VarTextAddRuneEx( &out, character, FALSE DBG_OVERRIDE );
 						break;
 					}
 				}
@@ -17689,13 +17839,13 @@ PTEXT burstEx( PTEXT input DBG_PASS )
 				{
 					outdata = SegAppend( outdata, word );
 					SET_SPACES();
-					VarTextAddCharacterEx( &out, character DBG_OVERRIDE );
+					VarTextAddRuneEx( &out, character, FALSE DBG_OVERRIDE );
 					word = VarTextGetEx( &out DBG_OVERRIDE );
 					outdata = SegAppend( outdata, word );
 				}
 				else
 				{
-					VarTextAddCharacterEx( &out, character DBG_OVERRIDE );
+					VarTextAddRuneEx( &out, character, FALSE DBG_OVERRIDE );
 					word = VarTextGetEx( &out DBG_OVERRIDE );
 					SET_SPACES();
 					outdata = SegAppend( outdata, word );
@@ -17711,7 +17861,7 @@ PTEXT burstEx( PTEXT input DBG_PASS )
 					}
 					elipses = FALSE;
 				}
-				VarTextAddCharacterEx( &out, character DBG_OVERRIDE );
+				VarTextAddRuneEx( &out, character, FALSE DBG_OVERRIDE );
 				break;
 			}
 		}
@@ -18271,7 +18421,7 @@ int64_t IntCreateFromTextRef( CTEXTSTR *p_ )
 		}
 		else
 		{
-			if( ( !altBase ) && (*p == '0') ) { altBase = TRUE; base = 8; }
+			if( ( !altBase ) && (*p == '0') ) { altBase = TRUE; base = 10; }
 			else { if( (*p - '0') >= base ) { break; } altBase = TRUE; }
 			num *= base;
 			num += *p - '0';
@@ -19202,7 +19352,7 @@ int ConvertToUTF8( char *output, TEXTRUNE rune )
 	else if( !( rune & 0xFFE00000 ) )
 	{
 		// 21 bits
-		(*output++) = 0xF0 | ( ( ( rune & 0x1C0000 ) >> 15 ) & 0xFF );
+		(*output++) = 0xF0 | ( ( ( rune & 0x1C0000 ) >> 18 ) & 0xFF );
 		goto plus3;
 	}
 	else if( !( rune & 0xFC000000 ) )
@@ -19250,7 +19400,7 @@ int ConvertToUTF8Ex( char *output, TEXTRUNE rune, LOGICAL overlong )
 	else if( !(rune & 0xFFFF0000) )
 	{
 		// 21 bits
-		(*output++) = 0xF0 | (((rune & 0x1C0000) >> 15) & 0xFF);
+		(*output++) = 0xF0 | (((rune & 0x1C0000) >> 18) & 0xFF);
 		goto plus3;
 	}
 	else if( !(rune & 0xFFE00000) )
@@ -19763,7 +19913,7 @@ TEXTRUNE GetPriorUtfCharIndexed( const char *pc, size_t *n )
 			return result;
 		}
 	}
-	return INVALID_RUNE;
+	return RUNE_BEFORE_START;
 }
 //---------------------------------------------------------------------------
 TEXTRUNE GetUtfCharW( const wchar_t * *from )
@@ -19953,13 +20103,13 @@ static TEXTCHAR u8xor_table[256][256];
 static TEXTCHAR b64xor_table2[256][256];
 static TEXTCHAR u8xor_table2[256][256];
 PRELOAD( initTables ) {
-	int n, m;
+	size_t n, m;
 	for( n = 0; n < (sizeof( encodings )-1); n++ )
 		for( m = 0; m < (sizeof( encodings )-1); m++ ) {
 			b64xor_table[(uint8_t)encodings[n]][(uint8_t)encodings[m]] = encodings[n^m];
-			u8xor_table[n][(uint8_t)encodings[m]] = n^m;
+			u8xor_table[n][(uint8_t)encodings[m]] = (TEXTCHAR)(n^m);
 			b64xor_table2[(uint8_t)encodings2[n]][(uint8_t)encodings2[m]] = encodings2[n^m];
-			u8xor_table2[n][(uint8_t)encodings2[m]] = n^m;
+			u8xor_table2[n][(uint8_t)encodings2[m]] = (TEXTCHAR)(n^m);
 	}
 	//LogBinary( (uint8_t*)u8xor_table[0], sizeof( u8xor_table ) );
 	b64xor_table['=']['='] = '=';
@@ -20003,7 +20153,8 @@ char * u8xor( const char *a, size_t alen, const char *b, size_t blen, int *ofs )
 		else if( (v & 0xFE) == 0xFC ) { if( l )
   // 6(4) + 2 + 0 == 26 //-V640
 			lprintf( "short utf8 sequence found" ); l = 5; mask = 0;  _mask = 0x03; }
-		char bchar = b[(n+o)%(keylen)];
+		// B is a base64 key; it would never be > 128 so char index is OK.
+		char bchar = b[(n+o)%(keylen)]&0x7f;
 		(*out) = (v & ~mask ) | ( u8xor_table[v & mask ][bchar] & mask );
 		out++;
 	}
@@ -20068,41 +20219,41 @@ TEXTCHAR *EncodeBase64Ex( const uint8_t* buf, size_t length, size_t *outsize, co
 static void setupDecodeBytes( const char *code ) {
 	int n = 0;
 	// default all of these, allow code to override them.
-	// allow nul terminators (sortof)
- // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
-	_base64_r[0] = 64;
- // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
-	_base64_r['~'] = 64;
- // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
-	_base64_r['='] = 64;
-	// My JS Encoding $_ and = at the end.  allows most to be identifiers too.
-	// 'standard' encoding +/
-	// variants -/
-	//          +,
-	//          ._
-	// variants -_
- // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
-	_base64_r['$'] = 62;
- // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
-	_base64_r['+'] = 62;
- // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
-	_base64_r['-'] = 62;
- // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
-	_base64_r['.'] = 62;
- // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
-	_base64_r['_'] = 63;
- // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
-	_base64_r['/'] = 63;
- // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
-	_base64_r[','] = 63;
 	if( _last_base64_set != code ) {
 		_last_base64_set = code;
 		memset( _base64_r, 0, 256 );
-		while( *code ) {
-			_base64_r[*code] = n++;
-			code++;
-		}
-	}
+                // allow nul terminators (sortof)
+ // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
+                _base64_r[0] = 64;
+ // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
+                _base64_r['~'] = 64;
+ // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
+                _base64_r['='] = 64;
+                // My JS Encoding $_ and = at the end.  allows most to be identifiers too.
+                // 'standard' encoding +/
+                // variants -/
+                //          +,
+                //          ._
+                // variants -_
+ // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
+                _base64_r['$'] = 62;
+ // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
+                _base64_r['+'] = 62;
+ // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
+                _base64_r['-'] = 62;
+ // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
+                _base64_r['.'] = 62;
+ // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
+                _base64_r['_'] = 63;
+ // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
+                _base64_r['/'] = 63;
+ // = ix 64 (0x40) and mask is & 0x3F dropping the upper bit.
+                _base64_r[','] = 63;
+                while( *code ) {
+                    _base64_r[*code] = n++;
+                    code++;
+                }
+        }
 }
 uint8_t *DecodeBase64Ex( const char* buf, size_t length, size_t *outsize, const char *base64 )
 {
@@ -20156,6 +20307,10 @@ uint8_t *DecodeBase64Ex( const char* buf, size_t length, size_t *outsize, const 
  // namespace sack {
 }
 #endif
+#ifdef _MSC_VER
+#  pragma warning( default:6011 26451 28182)
+#  pragma warning( default:26451 )
+#endif
 /*
  *  Crafted by James Buckeyne
  *
@@ -20170,7 +20325,9 @@ uint8_t *DecodeBase64Ex( const char* buf, size_t length, size_t *outsize, const 
  * see also - include/typelib.h
  *
  */
+#ifdef _MSC_VER
 #pragma warning( disable : 28182)
+#endif
  // make true to recurse parse expressions
 #define PARSE_DEEP 0
 #define Collapse(towhere) SegConcat(towhere,begin,beginoffset,total)
@@ -20612,7 +20769,7 @@ void RecallUserInput( PUSER_INPUT_BUFFER pci, int bUp )
 			LineRelease( pci->CollectionBuffer );
 				pci->CollectionBuffer = NULL;
 			pci->CollectionIndex = 0;
-			pci->nHistory = INVALID_INDEX;
+			pci->nHistory = -1;
 			return;
 		}
 	}
@@ -20637,7 +20794,7 @@ void RecallUserInput( PUSER_INPUT_BUFFER pci, int bUp )
 		}
 		// wrap to a valid position....
 		if( pci->nHistory < 0 )
-			pci->nHistory += pci->InputHistory->Cnt;
+			pci->nHistory += (int)pci->InputHistory->Cnt;
 	}
 	LineRelease( pci->CollectionBuffer );
 	pci->CollectionBuffer = NULL;
@@ -20830,7 +20987,6 @@ LOGICAL  SetUserInputPosition ( PUSER_INPUT_BUFFER pci, int nPos, int whence )
 		}
 		else
 		{
-			int totalpos = 0;
 			size_t tmpstart = 0;
 			PTEXT start = pci->CollectionBuffer;
 			PTEXT lastseg = start;
@@ -20908,7 +21064,6 @@ LOGICAL  SetUserInputPosition ( PUSER_INPUT_BUFFER pci, int nPos, int whence )
 			int start;
 			size_t cursor = (int)pci->CollectionIndex;
 			PTEXT curseg = pci->CollectionBuffer;
-			TEXTRUNE ch;
 			start = (int)cursor;
 			for( tmp = 0; tmp > nPos; tmp-- )
 			{
@@ -20920,7 +21075,8 @@ LOGICAL  SetUserInputPosition ( PUSER_INPUT_BUFFER pci, int nPos, int whence )
 				}
 				if( !curseg )
 					break;
-				ch = GetPriorUtfCharIndexed( curseg->data.data, &cursor );
+				// just updates the cursor, don't need the character result.
+				GetPriorUtfCharIndexed( curseg->data.data, &cursor );
 				if( !cursor )
 				{
 					total += (int)(cursor - start);
@@ -21012,6 +21168,9 @@ void  SetUserInputSaveCR( PUSER_INPUT_BUFFER pci, int bSave ) {
 // Revision 1.6  2003/03/25 08:59:03  panther
 // Added CVS logging
 //
+#ifdef _MSC_VER
+#pragma warning( default : 28182)
+#endif
 /*
  *
  *   Crafted by Jim Buckeyne
@@ -23476,16 +23635,63 @@ void BalanceBinaryTree( PTREEROOT root )
 	//Log( "=========" );;
 }
 //---------------------------------------------------------------------------
+#ifdef DEBUG_AVL_VALIDATION
+//-------------------------------------------------------------------------- -
+void ValidateTreeNode( PTREENODE node ) {
+	if( node->parent && !node->parent->flags.bRoot ) {
+		if( node->parent->children != ( ( node->parent->lesser ? ( node->parent->lesser->children + 1 ) : 0 )
+			+ ( node->parent->greater ? ( node->parent->greater->children + 1 ) : 0 )
+			) ) {
+			lprintf( "child account is failed." );
+			DebugBreak();
+		}
+		if( node->parent->depth <= node->depth ) {
+			lprintf( "Depth tracking is failure." );
+			DebugBreak();
+		}
+		else if( ( node->parent->depth - node->depth ) > 2 ) {
+			lprintf( "Depth tracking is failure(2)." );
+			DebugBreak();
+		}
+		if( node->parent->lesser != node && node->parent->greater != node ) {
+			lprintf( "My parent is not pointing at me." );
+			DebugBreak();
+		}
+	}
+	if( node->lesser ) {
+		if( node->lesser->parent != node ) {
+			lprintf( "My Lesser does not point back to me as a parent." );
+			DebugBreak();
+		}
+		ValidateTreeNode( node->lesser );
+	}
+	if( node->greater ) {
+		if( node->greater->parent != node ) {
+			lprintf( "My Greater does not point back to me as a parent." );
+			DebugBreak();
+		}
+		ValidateTreeNode( node->greater );
+	}
+}
+//-------------------------------------------------------------------------- -
+void ValidateTree( PTREEROOT root ) {
+	//lprintf( "--------------------------- VALIDATE TREE -----------------------------" );
+	//DumpTree( root, NULL );
+	ValidateTreeNode( root->tree );
+}
+#endif
 //---------------------------------------------------------------------------
 //static PTREENODE AVL_RotateToRight( PTREENODE node )
+                                    /*lprintf( "RTR %p %p %p", node, left, T2 );     */
 	                                                                                                              /* Perform rotation*/
 	                                                                                                   /* Update heights */
-#define AVL_RotateToRight(node)                                          {	                                                                        PTREENODE left = node->lesser;	                                   PTREENODE T2 = left->greater;	                                                                                                             node->children -= (left->children + 1);	                                                                                                   node->me[0] = left;	                                              left->me = node->me;	                                             left->parent = node->parent;	                                            left->greater = node;	                                            node->me = &left->greater;	                                       node->parent = left;	                                                                                                                      node->lesser = T2;	                                               if( T2 ) {		                                                       T2->me = &node->lesser;		                                  T2->parent = node;		                                       node->children += (left->greater->children + 1);		         left->children -= (left->greater->children + 1);	         }	                                                                left->children += (node->children + 1);	                                             {		                                                                int leftDepth, rightDepth;		                               leftDepth = node->lesser ? node->lesser->depth : 0;		      rightDepth = node->greater ? node->greater->depth : 0;		   if( leftDepth > rightDepth )			                             node->depth = leftDepth + 1;		                     else			                                                     node->depth = rightDepth + 1;		                                                                                             leftDepth = left->lesser ? left->lesser->depth : 0;		      rightDepth = left->greater ? left->greater->depth : 0;		   if( leftDepth > rightDepth ) {			                           left->depth = leftDepth + 1;		                     }		                                                        else			                                                     left->depth = rightDepth + 1;	                    }                                                                }
+#define AVL_RotateToRight(node)                                          {	                                                                        PTREENODE left = node->lesser;	                                   PTREENODE T2 = left->greater;	                   node->children -= (left->children + 1);	                                                                                                   node->me[0] = left;	                                              left->me = node->me;	                                             left->parent = node->parent;	                                            left->greater = node;	                                            node->me = &left->greater;	                                       node->parent = left;	                                                                                                                      node->lesser = T2;	                                               if( T2 ) {		                                                       T2->me = &node->lesser;		                                  T2->parent = node;		                                       node->children += (T2->children + 1);		         left->children -= (T2->children + 1);	         }	                                                                left->children += (node->children + 1);	                                             {		                                                                int leftDepth, rightDepth;		                               leftDepth = node->lesser ? node->lesser->depth : 0;		      rightDepth = node->greater ? node->greater->depth : 0;		   if( leftDepth > rightDepth )			                             node->depth = leftDepth + 1;		                     else			                                                     node->depth = rightDepth + 1;		                                                                                             leftDepth = left->lesser ? left->lesser->depth : 0;		      rightDepth = left->greater ? left->greater->depth : 0;		   if( leftDepth > rightDepth ) {			                           left->depth = leftDepth + 1;		                     }		                                                        else			                                                     left->depth = rightDepth + 1;	                    }                                                                }
 //---------------------------------------------------------------------------
 //static PTREENODE AVL_RotateToLeft( PTREENODE node )
+	                                    /*lprintf( "RTL %p %p %p", node, right, T2 );  */
 	                                                                                                             /* Perform rotation  */
 	                         /*  Update heights */
-#define AVL_RotateToLeft(node)                                           {	                                                                        PTREENODE right = node->greater;	                                 PTREENODE T2 = right->lesser;	                                                                                                             node->children -= (right->children + 1);	                                                                                                  node->me[0] = right;	                                             right->me = node->me;	                                            right->parent = node->parent;	                                          right->lesser = node;	                                            node->me = &right->lesser;	                                       node->parent = right;	                                            node->greater = T2;	                                              if( T2 ) {		                                                       T2->me = &node->greater;		                                 T2->parent = node;		                                       node->children += (right->lesser->children + 1);		         right->children -= (right->lesser->children + 1);	        }	                                                                right->children += (node->children + 1);	                                            {		                                                                int left, rightDepth;		                                    left = node->lesser ? node->lesser->depth : 0;		           rightDepth = node->greater ? node->greater->depth : 0;		   if( left > rightDepth )			                                  node->depth = left + 1;		                          else			                                                     node->depth = rightDepth + 1;		                                                                                             left = right->lesser ? right->lesser->depth : 0;		         rightDepth = right->greater ? right->greater->depth : 0;		 if( left > rightDepth )			                                  right->depth = left + 1;		                         else			                                                     right->depth = rightDepth + 1;	                   }                                                                }
+#define AVL_RotateToLeft(node)                                           {	                                                                        PTREENODE right = node->greater;	                                 PTREENODE T2 = right->lesser;	                node->children -= (right->children + 1);	                                                                                                  node->me[0] = right;	                                             right->me = node->me;	                                            right->parent = node->parent;	                                          right->lesser = node;	                                            node->me = &right->lesser;	                                       node->parent = right;	                                            node->greater = T2;	                                              if( T2 ) {		                                                       T2->me = &node->greater;		                                 T2->parent = node;		                                       node->children += (T2->children + 1);		         right->children -= (T2->children + 1);	        }	                                                                right->children += (node->children + 1);	                                            {		                                                                int left, rightDepth;		                                    left = node->lesser ? node->lesser->depth : 0;		           rightDepth = node->greater ? node->greater->depth : 0;		   if( left > rightDepth )			                                  node->depth = left + 1;		                          else			                                                     node->depth = rightDepth + 1;		                                                                                             left = right->lesser ? right->lesser->depth : 0;		         rightDepth = right->greater ? right->greater->depth : 0;		 if( left > rightDepth )			                                  right->depth = left + 1;		                         else			                                                     right->depth = rightDepth + 1;	                   }                                                                }
 //---------------------------------------------------------------------------
 #ifdef DEFINE_BINARYLIST_PERF_COUNTERS
 int zz;
@@ -23612,6 +23818,9 @@ int HangBinaryNode( PTREEROOT root, PTREENODE node )
 		root->tree = node;
 		node->me = &root->tree;
 		node->parent = (PTREENODE)root;
+#ifdef DEBUG_AVL_VALIDATION
+		ValidateTree( root );
+#endif
 		return 1;
 	}
 	 check = root->tree;
@@ -23659,14 +23868,6 @@ int HangBinaryNode( PTREEROOT root, PTREENODE node )
 		}
 		else
 		{
-#if SACK_BINARYLIST_USE_CHILD_COUNTS
-			int leftchildren = 0, rightchildren = 0;
-			if( check->lesser )
-				leftchildren = check->lesser->children;
-			if( check->greater )
-				rightchildren = check->greater->children;
-			if( leftchildren <= rightchildren )
-#else
 			// allow duplicates; but link in as a near node, either left
 			// or right... depending on the depth.
 			int leftdepth = 0, rightdepth = 0;
@@ -23675,7 +23876,6 @@ int HangBinaryNode( PTREEROOT root, PTREENODE node )
 			if( check->greater )
 				rightdepth = check->greater->depth;
 			if( leftdepth < rightdepth )
-#endif
 			{
 				if( check->lesser )
 					check = check->lesser;
@@ -23705,6 +23905,9 @@ int HangBinaryNode( PTREEROOT root, PTREENODE node )
 		*(int*)0 = 0;
 	}
 	AVLbalancer( root, node );
+#ifdef DEBUG_AVL_VALIDATION
+	ValidateTree( root );
+#endif
 	return 1;
 }
 //---------------------------------------------------------------------------
@@ -23767,51 +23970,103 @@ static void NativeRemoveBinaryNode( PTREEROOT root, PTREENODE node )
 			bottom->parent = node->parent;
 		} else {
 			node->children--;
+			bottom = node;
 			// have a lesser and a greater.
 			if( node->lesser->depth > node->greater->depth ) {
 				least = node->lesser;
-				while( least->greater ) least = least->greater;
+				while( least->greater ) { bottom = least; least = least->greater; }
 				if( least->lesser ) {
 					(*(least->lesser->me =least->me)) = least->lesser;
 					least->lesser->parent  = least->parent;
-					bottom = least->lesser;
 				} else {
 					(*(least->me)) = NULL;
-					bottom = least->parent;
 				}
 			} else {
 				least = node->greater;
-				while( least->lesser ) least = least->lesser;
+				while( least->lesser ) { bottom = least; least = least->lesser; }
 				if( least->greater ) {
 					(*(least->greater->me = least->me)) = least->greater;
 					least->greater->parent  = least->parent;
-					bottom = least->greater;
 				} else {
 					(*(least->me)) = NULL;
-					bottom = least->parent;
 				}
 			}
 		}
 		{
+			LOGICAL updating = 1;
 			backtrack = bottom;
 			do {
 				backtrack = backtrack->parent;
 				while( backtrack && ( no_children || backtrack != node ) ) {
 					backtrack->children--;
-					if( backtrack->lesser )
-						if( backtrack->greater ) {
-							int tmp1, tmp2;
-							if( (tmp1=backtrack->lesser->depth) > (tmp2=backtrack->greater->depth) )
-								backtrack->depth = tmp1 + 1;
-							else
-								backtrack->depth = tmp2 + 1;
-						} else
-							backtrack->depth = backtrack->lesser->depth + 1;
-					else
-						if( backtrack->greater )
-							backtrack->depth = backtrack->greater->depth + 1;
+					if( updating )
+						if( backtrack->lesser )
+							if( backtrack->greater ) {
+								int tmp1, tmp2;
+								PTREENODE z_, y_, x_;
+								if( (tmp1=backtrack->lesser->depth) > (tmp2=backtrack->greater->depth) ) {
+									if( backtrack->depth != ( tmp1 + 1 ) )
+										backtrack->depth = tmp1 + 1;
+									else
+										updating = 0;
+									if( (tmp1-tmp2) > 1 ) {
+										// unblanced here...
+										int tmp3, tmp4;
+										tmp3 = backtrack->lesser->lesser?backtrack->lesser->lesser->depth:0;
+										tmp4 = backtrack->lesser->greater?backtrack->lesser->greater->depth:0;
+										z_ = backtrack;
+										y_ = backtrack->lesser;
+										if( tmp3 > tmp4 ) {
+											x_ = backtrack->lesser->lesser;
+											// left-left Rotate Right(Z)
+											AVL_RotateToRight( z_ );
+										} else {
+											// left-right
+											x_ = backtrack->lesser->greater;
+											AVL_RotateToLeft( y_ );
+											AVL_RotateToRight( z_ );
+										}
+									}
+								} else {
+									if( backtrack->depth != ( tmp2 + 1 ) )
+										backtrack->depth = tmp2 + 1;
+									else
+										updating = 0;
+									if( (tmp2-tmp1) > 1 ) {
+										// unblanced here...
+										int tmp3, tmp4;
+										tmp3 = backtrack->greater->lesser?backtrack->greater->lesser->depth:0;
+										tmp4 = backtrack->greater->greater?backtrack->greater->greater->depth:0;
+										z_ = backtrack;
+										y_ = backtrack->greater;
+										if( tmp4 > tmp3 ) {
+											x_ = y_->greater;
+											// right-right Rotate Right(Z)
+											AVL_RotateToLeft( y_ );
+										} else {
+											// right-left
+											x_ = y_->lesser;
+											AVL_RotateToRight( y_ );
+											AVL_RotateToLeft( z_ );
+										}
+									}
+								}
+							} else
+									if( backtrack->depth != ( backtrack->lesser->depth + 1 ) )
+										backtrack->depth = backtrack->lesser->depth + 1;
+									else
+										updating = 0;
 						else
-							backtrack->depth = 0;
+							if( backtrack->greater )
+									if( backtrack->depth != ( backtrack->greater->depth + 1 ) )
+										backtrack->depth = backtrack->greater->depth + 1;
+									else
+										updating = 0;
+							else
+									if( backtrack->depth != 0 )
+										backtrack->depth = 0;
+									else
+										updating = 0;
 					backtrack = backtrack->parent;
 				}
 				if( least ) {
@@ -23828,6 +24083,9 @@ static void NativeRemoveBinaryNode( PTREEROOT root, PTREENODE node )
 			root->Destroy( userdata, userkey );
 		if( node )
 			DeleteFromSet( TREENODE, TreeNodeSet, node );
+#ifdef DEBUG_AVL_VALIDATION
+		ValidateTree( root );
+#endif
 		return;
 	}
 	lprintf( "Fatal RemoveBinaryNode could not find the root!" );
@@ -23876,7 +24134,9 @@ static void DestroyBinaryTreeNode( PTREEROOT root, PTREENODE node )
 			DestroyBinaryTreeNode( root, node->lesser );
 		if( node->greater )
 			DestroyBinaryTreeNode( root, node->greater );
-		NativeRemoveBinaryNode( root, node );
+		if( root->Destroy )
+			root->Destroy( node->userdata, node->key );
+		DeleteFromSet( TREENODE, TreeNodeSet, node );
 	}
 }
 void DestroyBinaryTree( PTREEROOT root )
@@ -26993,6 +27253,10 @@ DeclareSet( PLINKQUEUE );
 typedef PDATALIST *PPDATALIST;
 #define MAXPDATALISTSPERSET 256
 DeclareSet( PDATALIST );
+struct pendingParser {
+	PDATALIST* pdlMessage;
+	struct json_parse_state* state;
+};
 struct json_parser_shared_data {
 	PPARSE_CONTEXTSET parseContexts;
 	PPARSE_BUFFERSET parseBuffers;
@@ -27004,8 +27268,8 @@ struct json_parser_shared_data {
 	PPDATALISTSET dataLists;
  // used by simple parse_message interface.
 	struct json_parse_state *json_state;
- // used by simple parse_message interface.
-	struct json_parse_state *json6_state;
+	///struct json_parse_state *json6_state; // used by simple parse_message interface.
+	PLIST pendingParsers6;
 };
 #ifndef JSON_PARSER_MAIN_SOURCE
 extern
@@ -27015,8 +27279,10 @@ void _json_dispose_message( PDATALIST *msg_data );
 #ifdef __cplusplus
 } } SACK_NAMESPACE_END
 #endif
+#ifdef _MSC_VER
 // derefecing NULL pointers; the function wouldn't be called with a NULL.
-#pragma warning( disable:6011)
+#  pragma warning( disable:6011)
+#endif
 #ifdef __cplusplus
 SACK_NAMESPACE namespace network { namespace json {
 #endif
@@ -27583,6 +27849,8 @@ int json_parse_add_data( struct json_parse_state *state
 					}
 					break;
 				case ' ':
+//case '\xa0':
+				case 160:
 				case '\t':
 				case '\r':
 				case '\n':
@@ -29118,7 +29386,8 @@ static int gatherString6(struct json_parse_state *state, CTEXTSTR msg, CTEXTSTR 
 					continue;
 				} else {
 					if( state->hex_char > 255 ) {
-						lprintf("(escaped character, parsing octal escape val=%d) fault while parsing; )" " (near %*.*s[%c]%s)"
+						if( !state->pvtError ) state->pvtError = VarTextCreate();
+						vtprintf( state->pvtError, "(escaped character, parsing octal escape val=%d) fault while parsing; )" " (near %*.*s[%c]%s)"
 							, state->hex_char
 							, (int)( ( n>3 ) ? 3 : n ), (int)( ( n>3 ) ? 3 : n )
 							, ( *msg_input ) - ( ( n>3 ) ? 3 : n )
@@ -29147,7 +29416,8 @@ static int gatherString6(struct json_parse_state *state, CTEXTSTR msg, CTEXTSTR 
 				else if( c >= 'A' && c <= 'F' ) state->hex_char += ( c - 'A' ) + 10;
 				else if( c >= 'a' && c <= 'f' ) state->hex_char += ( c - 'a' ) + 10;
 				else {
-					lprintf("(escaped character, parsing hex of \\u) fault while parsing; '%c' unexpected at %" _size_f " (near %*.*s[%c]%s)", c, n
+					if( !state->pvtError ) state->pvtError = VarTextCreate();
+					vtprintf( state->pvtError, "(escaped character, parsing hex of \\u) fault while parsing; '%c' unexpected at %" _size_f " (near %*.*s[%c]%s)", c, n
 						, (int)( ( n > 3 ) ? 3 : n ), (int)( ( n > 3 ) ? 3 : n )
 						, ( *msg_input ) - ( ( n > 3 ) ? 3 : n )
 						, c
@@ -29170,7 +29440,8 @@ static int gatherString6(struct json_parse_state *state, CTEXTSTR msg, CTEXTSTR 
 					else if( c >= 'A' && c <= 'F' ) state->hex_char += ( c - 'A' ) + 10;
 					else if( c >= 'a' && c <= 'f' ) state->hex_char += ( c - 'a' ) + 10;
 					else {
-						lprintf("(escaped character, parsing hex of \\x) fault while parsing; '%c' unexpected at %" _size_f " (near %*.*s[%c]%s)", c, n
+						if( !state->pvtError ) state->pvtError = VarTextCreate();
+						vtprintf( state->pvtError, "(escaped character, parsing hex of \\x) fault while parsing; '%c' unexpected at %" _size_f " (near %*.*s[%c]%s)", c, n
 							, (int)( ( n>3 ) ? 3 : n ), (int)( ( n>3 ) ? 3 : n )
 							, ( *msg_input ) - ( ( n>3 ) ? 3 : n )
 							, c
@@ -29207,9 +29478,9 @@ static int gatherString6(struct json_parse_state *state, CTEXTSTR msg, CTEXTSTR 
 				if( state->cr_escaped ) state->cr_escaped = FALSE;
 				// fall through to clear escape status <CR><LF> support.
  // LS (Line separator)
-			case 2028:
+			case 0x2028:
  // PS (paragraph separate)
-			case 2029:
+			case 0x2029:
 				// escaped whitespace is nul'ed.
 				state->escape = 0;
 				continue;
@@ -29256,7 +29527,8 @@ static int gatherString6(struct json_parse_state *state, CTEXTSTR msg, CTEXTSTR 
 					state->escape = FALSE;
 					mOut += ConvertToUTF8(mOut, c);
 				} else {
-					lprintf("(escaped character) fault while parsing; '%c' unexpected %" _size_f " (near %*.*s[%c]%s)", c, n
+					if( !state->pvtError ) state->pvtError = VarTextCreate();
+					vtprintf( state->pvtError, "(escaped character) fault while parsing; '%c' unexpected %" _size_f " (near %*.*s[%c]%s)", c, n
 						, (int)( ( n>3 ) ? 3 : n ), (int)( ( n>3 ) ? 3 : n )
 						, ( *msg_input ) - ( ( n>3 ) ? 3 : n )
 						, c
@@ -29457,9 +29729,9 @@ int json6_parse_add_data( struct json_parse_state *state
 				}
 				break;
 			case '[':
-				if( state->parse_context == CONTEXT_OBJECT_FIELD ) {
+				if( state->parse_context == CONTEXT_OBJECT_FIELD || state->val.value_type != VALUE_UNSET ) {
 					if( !state->pvtError ) state->pvtError = VarTextCreate();
-					vtprintf( state->pvtError, "Fault while parsing; while getting field name unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+					vtprintf( state->pvtError, "Fault while parsing; unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 					state->status = FALSE;
 					break;
 				}
@@ -29534,6 +29806,14 @@ int json6_parse_add_data( struct json_parse_state *state
 					//if( (state->parse_context == CONTEXT_OBJECT_FIELD_VALUE) )
 					if( state->val.value_type != VALUE_UNSET ) {
 						AddDataItem( state->elements, &state->val );
+					}
+					else if( state->parse_context == CONTEXT_OBJECT_FIELD_VALUE )
+					{
+						if( !state->pvtError ) state->pvtError = VarTextCreate();
+// fault
+						vtprintf( state->pvtError, "object close after field with no value? fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+						state->status = FALSE;
+						break;
 					}
 					//RESET_STATE_VAL();
 					state->val.value_type = VALUE_OBJECT;
@@ -29626,9 +29906,15 @@ int json6_parse_add_data( struct json_parse_state *state
 #ifdef _DEBUG_PARSING
 					lprintf( "comma after field value, push field to object: %s", state->val.name );
 #endif
-					state->parse_context = CONTEXT_OBJECT_FIELD;
 					if( state->val.value_type != VALUE_UNSET )
 						AddDataItem( state->elements, &state->val );
+					else {
+						if( !state->pvtError ) state->pvtError = VarTextCreate();
+// fault
+						vtprintf( state->pvtError, "comma after no value? fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+						state->status = FALSE;
+					}
+					state->parse_context = CONTEXT_OBJECT_FIELD;
 					RESET_STATE_VAL();
 				}
 				else
@@ -29636,7 +29922,7 @@ int json6_parse_add_data( struct json_parse_state *state
 					state->status = FALSE;
 					if( !state->pvtError ) state->pvtError = VarTextCreate();
 // fault
-					vtprintf( state->pvtError, "bad context; fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+					vtprintf( state->pvtError, "excessive commas or bad context; fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 				}
 				break;
 			default:
@@ -29974,7 +30260,15 @@ int json6_parse_add_data( struct json_parse_state *state
 					//
 					//----------------------------------------------------------
 				case '-':
-					state->negative = !state->negative;
+					if( state->word == WORD_POS_RESET )
+						state->negative = !state->negative;
+					else {
+						state->status = FALSE;
+						if( !state->pvtError ) state->pvtError = VarTextCreate();
+						vtprintf( state->pvtError, "fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f
+							, c, state->n, state->line, state->col );
+// fault
+					}
 					break;
 				default:
 					if( (c >= '0' && c <= '9') || (c == '+') || (c == '.') )
@@ -30038,7 +30332,7 @@ int json6_parse_add_data( struct json_parse_state *state
 								else {
 									state->status = FALSE;
 									if( !state->pvtError ) state->pvtError = VarTextCreate();
-									vtprintf( state->pvtError, "fault white parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+									vtprintf( state->pvtError, "fault while parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 									break;
 								}
 							}
@@ -30052,7 +30346,7 @@ int json6_parse_add_data( struct json_parse_state *state
 								else {
 									state->status = FALSE;
 									if( !state->pvtError ) state->pvtError = VarTextCreate();
-									vtprintf( state->pvtError, "fault white parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+									vtprintf( state->pvtError, "fault while parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 									break;
 								}
 							}
@@ -30060,7 +30354,7 @@ int json6_parse_add_data( struct json_parse_state *state
 								if( !state->exponent ) {
 									state->status = FALSE;
 									if( !state->pvtError ) state->pvtError = VarTextCreate();
-									vtprintf( state->pvtError, "fault white parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+									vtprintf( state->pvtError, "fault while parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 									break;
 								}
 								else {
@@ -30071,7 +30365,7 @@ int json6_parse_add_data( struct json_parse_state *state
 									else {
 										state->status = FALSE;
 										if( !state->pvtError ) state->pvtError = VarTextCreate();
-										vtprintf( state->pvtError, "fault white parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+										vtprintf( state->pvtError, "fault while parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 										break;
 									}
 								}
@@ -30085,7 +30379,7 @@ int json6_parse_add_data( struct json_parse_state *state
 								else {
 									state->status = FALSE;
 									if( !state->pvtError ) state->pvtError = VarTextCreate();
-									vtprintf( state->pvtError, "fault white parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+									vtprintf( state->pvtError, "fault while parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 									break;
 								}
 							}
@@ -30106,7 +30400,7 @@ int json6_parse_add_data( struct json_parse_state *state
 									else {
 										state->status = FALSE;
 										if( !state->pvtError ) state->pvtError = VarTextCreate();
-										vtprintf( state->pvtError, "fault white parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+										vtprintf( state->pvtError, "fault while parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 										break;
 									}
 								}
@@ -30257,6 +30551,7 @@ void json_parse_clear_state( struct json_parse_state *state ) {
 			INDEX idx;
 			LIST_FORALL( state->outValBuffers[0], idx, char*, buf ) {
 				Deallocate( char*, buf );
+				SetLink( state->outValBuffers, idx, NULL );
 			}
 			DeleteFromSet( PLIST, jpsd.listSet, state->outValBuffers );
 			//DeleteList( &state->outValBuffers );
@@ -30325,6 +30620,7 @@ void json_parse_dispose_state( struct json_parse_state **ppState ) {
 			Deallocate( const char *, buf->buf );
 			DeleteFromSet( PARSE_BUFFER, jpsd.parseBuffers, buf );
 			Deallocate( PPARSE_BUFFER, buf );
+			SetLink( state->outValBuffers, idx, NULL );
 		}
 		DeleteFromSet( PLIST, jpsd.listSet, state->outValBuffers );
 		//DeleteList( &state->outValBuffers );
@@ -30364,18 +30660,21 @@ LOGICAL json6_parse_message( const char * msg
 	logTick(1);
 	int result = json6_parse_add_data( state, msg, msglen );
 	//logTick(3);
-	if( jpsd.json6_state ) json_parse_dispose_state( &jpsd.json6_state );
 	if( result > 0 ) {
 		logTick(4);
 		(*_msg_output) = json_parse_get_data( state );
 		logTick(5);
-		jpsd.json6_state = state;
-		//json6_parse_dispose_state( &state );
+		{
+			struct pendingParser* pp = New( struct pendingParser );
+			pp->state = state;
+			pp->pdlMessage = _msg_output;
+			AddLink( &jpsd.pendingParsers6, pp );
+		}
 		return TRUE;
 	}
 	(*_msg_output) = NULL;
 	jpsd.last_parse_state = state;
-	jpsd.json6_state = state;
+	//jpsd.json6_state = state;
 	return FALSE;
 }
 void getJson6Ticks( int *tickBuf ) {
@@ -30388,12 +30687,27 @@ void getJson6Ticks( int *tickBuf ) {
 # endif
 }
 struct json_parse_state *json6_get_message_parser( void ) {
-	//lprintf( "Return simple json6 parser:%p", jpsd.json6_state );
-	return jpsd.json6_state;
+	//lprintf( "Return simple json6 parser:%p", jpsd.pendingParsers6 );
+	//DebugBreak();
+ // need to pass this a message to find the thing.
+	return (struct json_parse_state*)GetLink( &jpsd.pendingParsers6, 0);
 }
 void json6_dispose_message( PDATALIST *msg_data )
 {
 	json_dispose_message( msg_data );
+	{
+		struct pendingParser* pp;
+		INDEX idx;
+		LIST_FORALL( jpsd.pendingParsers6, idx, struct pendingParser*, pp ) {
+			if( pp->pdlMessage == msg_data )
+				break;
+		}
+		if( pp ) {
+			DeleteLink( &jpsd.pendingParsers6, pp );
+			json_parse_dispose_state( &pp->state );
+			Release( pp );
+		}
+	}
 	return;
 }
 #undef GetUtfChar
@@ -30678,8 +30992,9 @@ enum jsox_word_char_states {
 	JSOX_WORD_POS_UNDEFINED_7,
 	JSOX_WORD_POS_UNDEFINED_8,
 	//JSOX_WORD_POS_UNDEFINED_9, // instead of stepping to this value here, go to RESET
-	JSOX_WORD_POS_NAN_1,
   // 20
+	JSOX_WORD_POS_NAN_1,
+  // 21
 	JSOX_WORD_POS_NAN_2,
 	//JSOX_WORD_POS_NAN_3,// instead of stepping to this value here, go to RESET
 	JSOX_WORD_POS_INFINITY_1,
@@ -30691,8 +31006,9 @@ enum jsox_word_char_states {
 	JSOX_WORD_POS_INFINITY_7,
 	//JSOX_WORD_POS_INFINITY_8,// instead of stepping to this value here, go to RESET
 	JSOX_WORD_POS_FIELD,
+  // 30
 	JSOX_WORD_POS_AFTER_FIELD,
- // 30
+ // 31
 	JSOX_WORD_POS_DOT_OPERATOR,
 	JSOX_WORD_POS_PROPER_NAME,
 	JSOX_WORD_POS_AFTER_PROPER_NAME,
@@ -30780,6 +31096,20 @@ struct jsox_parse_context {
 typedef struct jsox_parse_context JSOX_PARSE_CONTEXT, *PJSOX_PARSE_CONTEXT;
 #define MAXJSOX_PARSE_CONTEXTSPERSET 128
 DeclareSet( JSOX_PARSE_CONTEXT );
+#ifndef JSON_PARSER_INCLUDED
+typedef PLIST *PPLIST;
+#define MAXPLISTSPERSET 256
+DeclareSet( PLIST );
+typedef PLINKSTACK *PPLINKSTACK;
+#define MAXPLINKSTACKSPERSET 256
+DeclareSet( PLINKSTACK );
+typedef PLINKQUEUE *PPLINKQUEUE;
+#define MAXPLINKQUEUESPERSET 256
+DeclareSet( PLINKQUEUE );
+typedef PDATALIST *PPDATALIST;
+#define MAXPDATALISTSPERSET 256
+DeclareSet( PDATALIST );
+#endif
 // this is the stack state that can be saved between parsing for streaming.
 struct jsox_parse_state {
 	//TEXTRUNE c;
@@ -30804,6 +31134,7 @@ struct jsox_parse_state {
 	PJSOX_CLASS current_class;
 	int current_class_item;
 	int arrayType;
+	int allowRedefinition;
 	LOGICAL first_token;
 	PJSOX_PARSE_CONTEXT context;
 	enum jsox_parse_context_modes parse_context;
@@ -30838,39 +31169,26 @@ struct jsox_parse_state {
 	LOGICAL stringHex;
 	TEXTRUNE hex_char;
 	int hex_char_len;
-	LOGICAL stringOct;
 	LOGICAL weakSpace;
 	PDATALIST root;
 	//char *token_begin;
+	PJSOX_CLASSSET  classPool;
+	PJSOX_PARSE_CONTEXTSET parseContexts;
+	PJSOX_CLASS_FIELDSET  class_fields;
+	PJSOX_PARSE_BUFFERSET parseBuffers;
 };
 typedef struct jsox_parse_state JSOX_PARSE_STATE, *PJSOX_PARSE_STATE;
 #define MAXJSOX_PARSE_STATESPERSET 32
 DeclareSet( JSOX_PARSE_STATE );
-#ifndef JSON_PARSER_INCLUDED
-typedef PLIST *PPLIST;
-#define MAXPLISTSPERSET 256
-DeclareSet( PLIST );
-typedef PLINKSTACK *PPLINKSTACK;
-#define MAXPLINKSTACKSPERSET 256
-DeclareSet( PLINKSTACK );
-typedef PLINKQUEUE *PPLINKQUEUE;
-#define MAXPLINKQUEUESPERSET 256
-DeclareSet( PLINKQUEUE );
-typedef PDATALIST *PPDATALIST;
-#define MAXPDATALISTSPERSET 256
-DeclareSet( PDATALIST );
-#endif
 struct jsox_parser_shared_data {
-	PJSOX_PARSE_CONTEXTSET parseContexts;
-	PJSOX_PARSE_BUFFERSET parseBuffers;
+	LOGICAL initialized;
+	CRITICALSECTION cs_states;
 	struct jsox_parse_state *last_parse_state;
 	PJSOX_PARSE_STATESET parseStates;
 	PPLISTSET listSet;
 	PPLINKSTACKSET linkStacks;
 	PPLINKQUEUESET linkQueues;
 	PPDATALISTSET dataLists;
-	PJSOX_CLASSSET  classes;
-	PJSOX_CLASS_FIELDSET  class_fields;
  // static parsing state for simple message interface.
 	struct jsox_parse_state *_state;
 };
@@ -30883,6 +31201,7 @@ void _jsox_dispose_message( PDATALIST *msg_data );
 } } SACK_NAMESPACE_END
 #endif
 //#define DEBUG_PARSING
+//#define DEBUG_ARRAY_TYPE
 //#define DEBUG_CHARACTER_PARSING
 //#define DEBUG_CLASS_STATES
 //#define DEBUG_STRING_LENGTH
@@ -30947,6 +31266,15 @@ static void jsox_state_init( struct jsox_parse_state *state )
 	ppList = GetFromSet( PLIST, &jxpsd.listSet );
 	if( ppList[0] ) ppList[0]->Cnt = 0;
 	state->outValBuffers = ppList;
+	if( state->classes ){
+		INDEX idx;
+		PJSOX_CLASS cls;
+		LIST_FORALL( state->classes, idx, PJSOX_CLASS, cls ) {
+			DeleteFromSet( JSOX_CLASS, &state->classPool, cls );
+			SetLink( &state->classes, idx, NULL );
+		}
+	}
+	DeleteList( &state->classes );
 	state->line = 1;
 	state->col = 1;
  // character index;
@@ -30957,11 +31285,14 @@ static void jsox_state_init( struct jsox_parse_state *state )
 	state->current_class = NULL;
 	state->current_class_item = 0;
 	state->arrayType = -1;
+#ifdef DEBUG_ARRAY_TYPE
+	lprintf( "Init arrayType to -1");
+#endif
 // NULL;
 	state->context_stack = GetFromSet( PLINKSTACK, &jxpsd.linkStacks );
 	if( state->context_stack[0] ) state->context_stack[0]->Top = 0;
 	//state->first_token = TRUE;
-	state->context = GetFromSet( JSOX_PARSE_CONTEXT, &jxpsd.parseContexts );
+	state->context = GetFromSet( JSOX_PARSE_CONTEXT, &state->parseContexts );
 	state->parse_context = JSOX_CONTEXT_UNKNOWN;
 	state->comment = 0;
 	state->completed = FALSE;
@@ -30980,9 +31311,15 @@ static void jsox_state_init( struct jsox_parse_state *state )
 /* I guess this is a good parser */
 struct jsox_parse_state * jsox_begin_parse( void )
 {
+	if( !jxpsd.initialized ) {
+		InitializeCriticalSec( &jxpsd.cs_states );
+		jxpsd.initialized = TRUE;
+	}
+	EnterCriticalSec( &jxpsd.cs_states  );
 //New( struct json_parse_state );
 	struct jsox_parse_state *state = GetFromSet( JSOX_PARSE_STATE, &jxpsd.parseStates );
 	jsox_state_init( state );
+	LeaveCriticalSec( &jxpsd.cs_states  );
 	return state;
 }
 char *jsox_escape_string_length( const char *string, size_t len, size_t *outlen ) {
@@ -31013,9 +31350,9 @@ char *jsox_escape_string( const char *string ) {
 }
 #undef __GetUtfChar
 #undef _zero
-#define BADUTF8 0xFFFFFFF
+#define JSOX_BADUTF8 0xFFFFFFF
 #define _2char(result,from) (((*from) += 2),( ( result & 0x1F ) << 6 ) | ( ( result & 0x3f00 )>>8))
-#define _zero(result,from)  ((*from)++,BADUTF8)
+#define _zero(result,from)  ((*from)++,JSOX_BADUTF8)
 #define _gzero(result,from)  ((*from)++,0)
 #define _3char(result,from) ( ((*from) += 3),( ( ( result & 0xF ) << 12 ) | ( ( result & 0x3F00 ) >> 2 ) | ( ( result & 0x3f0000 ) >> 16 )) )
 #define _4char(result,from)  ( ((*from) += 4), ( ( ( result & 0x7 ) << 18 )                             | ( ( result & 0x3F00 ) << 4 )                           | ( ( result & 0x3f0000 ) >> 10 )                            | ( ( result & 0x3f000000 ) >> 24 ) ) )
@@ -31037,7 +31374,7 @@ static int gatherStringX(struct jsox_parse_state *state, CTEXTSTR msg, CTEXTSTR 
 	//escape = 0;
 	//cr_escaped = FALSE;
 	while( ( ( n = nextN ), ( n < msglen ) )
-		&& ( ( ( c = GetUtfChar( msg_input ) ) != BADUTF8 )
+		&& ( ( ( c = GetUtfChar( msg_input ) ) != JSOX_BADUTF8 )
 			&& ( status >= 0 ) ) )
 	{
 		if( (nextN = msg_input[0] - msg ) > msglen ) {
@@ -31047,47 +31384,17 @@ static int gatherStringX(struct jsox_parse_state *state, CTEXTSTR msg, CTEXTSTR 
 		}
 		(state->col)++;
 		if( c == start_c ) {
-			if( state->escape ) { ( *mOut++ ) = c; state->escape = FALSE; }
-			else if( c == start_c ) {
+			if( state->escape ) {
+				if( state->cr_escaped ) { state->cr_escaped = FALSE; state->escape = FALSE; status = 1; break; }
+				// otherwise, escaped quote, append it.
+				( *mOut++ ) = c; state->escape = FALSE;
+			}
+			else {
 				status = 1;
 				break;
- // other else is not valid close quote; just store as content.
-			} else ( *mOut++ ) = c;
+			}
 		} else if( state->escape ) {
-			if( state->stringOct ) {
-/*'0'*/
-/*'9'*/
-				if( state->hex_char_len < 3 && c >= 48 && c <= 57 ) {
-					state->hex_char *= 8;
-/*.codePointAt(0)*/
-					state->hex_char += c - 0x30;
-					state->hex_char_len++;
-					if( state->hex_char_len == 3 ) {
-						mOut += ConvertToUTF8(mOut, state->hex_char);
-						state->stringOct = FALSE;
-						state->escape = FALSE;
-						continue;
-					}
-					continue;
-				} else {
-					if( state->hex_char > 255 ) {
-						lprintf("(escaped character, parsing octal escape val=%d) fault while parsing; )" " (near %*.*s[%c]%s)"
-							, state->hex_char
-							, (int)( ( n>3 ) ? 3 : n ), (int)( ( n>3 ) ? 3 : n )
-							, ( *msg_input ) - ( ( n>3 ) ? 3 : n )
-							, c
-							, ( *msg_input ) + 1
-// fault
-						);
-						status = -1;
-						break;
-					}
-					mOut += ConvertToUTF8(mOut, state->hex_char);
-					state->stringOct = FALSE;
-					state->escape = FALSE;
-					continue;
-				}
-			} else if( state->unicodeWide ) {
+			if( state->unicodeWide ) {
 				if( c == '}' ) {
 					mOut += ConvertToUTF8(mOut, state->hex_char);
 					state->unicodeWide = FALSE;
@@ -31100,7 +31407,8 @@ static int gatherStringX(struct jsox_parse_state *state, CTEXTSTR msg, CTEXTSTR 
 				else if( c >= 'A' && c <= 'F' ) state->hex_char += ( c - 'A' ) + 10;
 				else if( c >= 'a' && c <= 'f' ) state->hex_char += ( c - 'a' ) + 10;
 				else {
-					lprintf("(escaped character, parsing hex of \\u) fault while parsing; '%c' unexpected at %" _size_f " (near %*.*s[%c]%s)", c, n
+					if( !state->pvtError ) state->pvtError = VarTextCreate();
+					vtprintf( state->pvtError, "(escaped character, parsing hex of \\u) fault while parsing; '%c' unexpected at %" _size_f " (near %*.*s[%c]%s)", c, n
 						, (int)( ( n > 3 ) ? 3 : n ), (int)( ( n > 3 ) ? 3 : n )
 						, ( *msg_input ) - ( ( n > 3 ) ? 3 : n )
 						, c
@@ -31123,7 +31431,8 @@ static int gatherStringX(struct jsox_parse_state *state, CTEXTSTR msg, CTEXTSTR 
 					else if( c >= 'A' && c <= 'F' ) state->hex_char += ( c - 'A' ) + 10;
 					else if( c >= 'a' && c <= 'f' ) state->hex_char += ( c - 'a' ) + 10;
 					else {
-						lprintf("(escaped character, parsing hex of \\x) fault while parsing; '%c' unexpected at %" _size_f " (near %*.*s[%c]%s)", c, n
+						if( !state->pvtError ) state->pvtError = VarTextCreate();
+						vtprintf( state->pvtError, "(escaped character, parsing hex of \\x) fault while parsing; '%c' unexpected at %" _size_f " (near %*.*s[%c]%s)", c, n
 							, (int)( ( n>3 ) ? 3 : n ), (int)( ( n>3 ) ? 3 : n )
 							, ( *msg_input ) - ( ( n>3 ) ? 3 : n )
 							, c
@@ -31160,9 +31469,9 @@ static int gatherStringX(struct jsox_parse_state *state, CTEXTSTR msg, CTEXTSTR 
 				if( state->cr_escaped ) state->cr_escaped = FALSE;
 				// fall through to clear escape status <CR><LF> support.
  // LS (Line separator)
-			case 2028:
+			case 0x2028:
  // PS (paragraph separate)
-			case 2029:
+			case 0x2029:
 				// escaped whitespace is nul'ed.
 				state->escape = 0;
 				continue;
@@ -31188,11 +31497,9 @@ static int gatherStringX(struct jsox_parse_state *state, CTEXTSTR msg, CTEXTSTR 
 			case 'f':
 				( *mOut++ ) = '\f';
 				break;
-			case '0': case '1': case '2': case '3':
-				state->stringOct = TRUE;
-				state->hex_char = c - 48;
-				state->hex_char_len = 1;
-				continue;
+			case '0':
+				( *mOut++ ) = '\0';
+				break;
 			case 'x':
 				state->stringHex = TRUE;
 				state->hex_char_len = 0;
@@ -31209,7 +31516,8 @@ static int gatherStringX(struct jsox_parse_state *state, CTEXTSTR msg, CTEXTSTR 
 					state->escape = FALSE;
 					mOut += ConvertToUTF8(mOut, c);
 				} else {
-					lprintf("(escaped character) fault while parsing; '%c' unexpected %" _size_f " (near %*.*s[%c]%s)", c, n
+					if( !state->pvtError ) state->pvtError = VarTextCreate();
+					vtprintf( state->pvtError, "(escaped character) fault while parsing; '%c' unexpected %" _size_f " (near %*.*s[%c]%s)", c, n
 						, (int)( ( n>3 ) ? 3 : n ), (int)( ( n>3 ) ? 3 : n )
 						, ( *msg_input ) - ( ( n>3 ) ? 3 : n )
 						, c
@@ -31257,8 +31565,12 @@ static int openObject( struct jsox_parse_state *state, struct jsox_output_buffer
 	PJSOX_CLASS cls = NULL;
 	INDEX idx;
 	//let tmpobj = {};
-	if( state->word > JSOX_WORD_POS_RESET && state->word < JSOX_WORD_POS_FIELD )
+	if( state->word > JSOX_WORD_POS_RESET && state->word < JSOX_WORD_POS_FIELD ) {
 		recoverIdent( state, output, -1 );
+		if( !state->completedString ) {
+			state->val.stringLen = output->pos - state->val.string;
+		}
+	}
 	if( state->val.value_type == JSOX_VALUE_STRING ){
 		if( state->parse_context == JSOX_CONTEXT_UNKNOWN )
 			nextObjectMode = JSOX_OBJECT_CONTEXT_CLASS_FIELD;
@@ -31296,7 +31608,7 @@ static int openObject( struct jsox_parse_state *state, struct jsox_output_buffer
 				if( memcmp( cls->name, state->val.className, state->val.classNameLen ) == 0 )
 					break;
 			if( !cls ) {
-				cls = GetFromSet( JSOX_CLASS, &jxpsd.classes );
+				cls = GetFromSet( JSOX_CLASS, &state->classPool );
 				cls->name = state->val.className;
 				cls->nameLen = state->val.stringLen;
 				cls->fields = NULL;
@@ -31305,15 +31617,28 @@ static int openObject( struct jsox_parse_state *state, struct jsox_output_buffer
 #endif
 				AddLink( &state->classes, cls );
 			} else {
-				struct jsox_class_field* field;
-				LIST_FORALL( cls->fields, idx, struct jsox_class_field*,field ) {
-					DeleteFromSet( JSOX_CLASS_FIELD, jxpsd.class_fields, field );
-				}
+				if( state->allowRedefinition ) {
+					struct jsox_class_field* field;
+					LIST_FORALL( cls->fields, idx, struct jsox_class_field*, field ) {
+						DeleteFromSet( JSOX_CLASS_FIELD, state->class_fields, field );
+					}
 #ifdef DEBUG_CLASS_STATES
-				lprintf( "RESETTING CLASS: %s", cls->name );
+					lprintf( "RESETTING CLASS: %s", cls->name );
 #endif
-				DeleteList( &cls->fields );
-				// now can re-define fields.
+					DeleteList( &cls->fields );
+					// now can re-define fields.
+				}
+				else {
+ // no change to next...
+					nextMode = JSOX_CONTEXT_OBJECT_FIELD;
+					if( cls )
+						// no colons, on comma push value.
+						// maybe allow colons for extra values that aren't part of the pre-type
+						nextObjectMode = JSOX_OBJECT_CONTEXT_CLASS_VALUE;
+					else
+						// this is a tagged class for later prototype revival.
+						nextObjectMode = JSOX_OBJECT_CONTEXT_CLASS_NORMAL;
+				}
 			}
 		}
 		else {
@@ -31375,7 +31700,7 @@ static int openObject( struct jsox_parse_state *state, struct jsox_output_buffer
 		nextMode = JSOX_CONTEXT_OBJECT_FIELD;
 	// common code; create new object container layer...
 	{
-		struct jsox_parse_context *old_context = GetFromSet( JSOX_PARSE_CONTEXT, &jxpsd.parseContexts );
+		struct jsox_parse_context *old_context = GetFromSet( JSOX_PARSE_CONTEXT, &state->parseContexts );
 #ifdef DEBUG_PARSING
 		lprintf( "Begin a new object; previously pushed into elements; but wait until trailing comma or close previously:%d", state->val.value_type );
 #endif
@@ -31386,10 +31711,14 @@ static int openObject( struct jsox_parse_state *state, struct jsox_output_buffer
 		old_context->className = state->val.className;
 		old_context->classNameLen = state->val.classNameLen;
 		old_context->current_class = state->current_class;
+		old_context->objectContext = state->objectContext;
 #ifdef DEBUG_CLASS_STATES
 		lprintf( "object Push class: %s %s", state->val.className, state->current_class?state->current_class->name:"");
 #endif
 		old_context->current_class_item = state->current_class_item;
+#ifdef DEBUG_ARRAY_TYPE
+		lprintf( "open object save arrayType:%d",state->arrayType );
+#endif
 		old_context->arrayType = state->arrayType;
 		state->arrayType = -1;
 		state->current_class = cls;
@@ -31397,8 +31726,10 @@ static int openObject( struct jsox_parse_state *state, struct jsox_output_buffer
 		lprintf( "set current class: %s", cls?cls->name:"<none>" );
 #endif
 		state->current_class_item = 0;
+		EnterCriticalSec( &jxpsd.cs_states );
 // CreateDataList( sizeof( state->val ) );
 		state->elements = GetFromSet( PDATALIST, &jxpsd.dataLists );
+		LeaveCriticalSec( &jxpsd.cs_states );
 		if( !state->elements[0] ) state->elements[0] = CreateDataList( sizeof( state->val ) );
 		else state->elements[0]->Cnt = 0;
 		PushLink( state->context_stack, old_context );
@@ -31408,18 +31739,25 @@ static int openObject( struct jsox_parse_state *state, struct jsox_output_buffer
 	}
 	return TRUE;
 }
+#ifdef _MSC_VER
 // this is about nLeast being uninitialized.
 // LIST_FORALL initilaizes typeIndex.
 // knownArrayTypeNames is always NOT NULL.
-#pragma warning( disable: 6001 )
+#  pragma warning( disable: 6001 )
+#endif
 static LOGICAL openArray( struct jsox_parse_state *state, struct jsox_output_buffer* output, int c ) {
 	PJSOX_CLASS cls = NULL;
-	if( state->word > JSOX_WORD_POS_RESET && state->word < JSOX_WORD_POS_FIELD )
-		recoverIdent(state,output,c);
+	int newArrayType = -1;
+	if( state->word == JSOX_WORD_POS_FIELD ) {
+		if( !state->pvtError ) state->pvtError = VarTextCreate();
+		vtprintf( state->pvtError, "Fault while parsing; colon expected after field name %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+		state->status = FALSE;
+		return FALSE;
+        }
 	if( state->val.value_type == JSOX_VALUE_STRING ) {
 		state->val.className = state->val.string;
 #ifdef DEBUG_CLASS_STATES
-		lprintf( "SET class: %s", state->val.className );
+		lprintf( "SET class: %.*s %d", state->val.stringLen, state->val.className, state->val.stringLen );
 #endif
 		state->val.classNameLen = state->val.stringLen;
 		state->val.string = NULL;
@@ -31428,7 +31766,8 @@ static LOGICAL openArray( struct jsox_parse_state *state, struct jsox_output_buf
 	}
 	else {
 		if( state->val.value_type != JSOX_VALUE_UNSET ) {
-			lprintf( "Unhandled value type preceeding object open: %d %s", state->val.value_type, state->val.string );
+			//lprintf( "Unhandled value type preceeding object open: %d %s", state->val.value_type, state->val.string );
+			// just assume it is okay up to this point... macro-tag{} []  is object type before this.
 		}
 	}
 	if( state->val.className ) {
@@ -31440,13 +31779,16 @@ static LOGICAL openArray( struct jsox_parse_state *state, struct jsox_output_buf
 		lprintf( "define typed array:%s", state->val.className );
 #endif
 		if( !knownArrayTypeNames ) registerKnownArrayTypeNames();
+		typeIndex = 0;
 		LIST_FORALL( knownArrayTypeNames, typeIndex, char *, name ) {
-			if( memcmp( state->val.className, name, state->val.classNameLen ) == 0 )
+			int typeLen = name[0] ? name[1] ? name[2] ? name[3] ? 4 : 3 : 2 : 1 : 0;
+			if( typeLen == state->val.classNameLen
+				&& memcmp( state->val.className, name, state->val.classNameLen ) == 0 )
 				break;
 		}
 		if( typeIndex < 13 ) {
 			state->word = JSOX_WORD_POS_FIELD;
-			state->arrayType = (int)typeIndex;
+			newArrayType = (int)typeIndex;
 #ifdef DEBUG_PARSING
 			lprintf( "setup array type... %d", typeIndex );
 #endif
@@ -31459,14 +31801,16 @@ static LOGICAL openArray( struct jsox_parse_state *state, struct jsox_output_buf
 		}
 	} else if( state->parse_context == JSOX_CONTEXT_OBJECT_FIELD ) {
 		if( state->objectContext == JSOX_OBJECT_CONTEXT_CLASS_VALUE ) {
+		}else {
+			if( !state->pvtError ) state->pvtError = VarTextCreate();
+			vtprintf( state->pvtError, "Fault while parsing; while getting field name unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+			vtprintf( state->pvtError, "\nError: word state: %d %d", state->parse_context, state->objectContext );
+			state->status = FALSE;
+			return FALSE;
 		}
-		if( !state->pvtError ) state->pvtError = VarTextCreate();
-		vtprintf( state->pvtError, "Fault while parsing; while getting field name unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
-		state->status = FALSE;
-		return FALSE;
 	}
 	{
-		struct jsox_parse_context *old_context = GetFromSet( JSOX_PARSE_CONTEXT, &jxpsd.parseContexts );
+		struct jsox_parse_context *old_context = GetFromSet( JSOX_PARSE_CONTEXT, &state->parseContexts );
 #ifdef DEBUG_PARSING
 		lprintf( "Begin a new array; previously pushed into elements; but wait until trailing comma or close previously:%d", state->val.value_type );
 #endif
@@ -31476,20 +31820,26 @@ static LOGICAL openArray( struct jsox_parse_state *state, struct jsox_output_buf
 		old_context->nameLen = state->val.nameLen;
 		old_context->className = state->val.className;
 		old_context->classNameLen = state->val.classNameLen;
+		old_context->objectContext = state->objectContext;
 #ifdef DEBUG_CLASS_STATES
 		lprintf( "Push2T class: %s", state->val.className );
 #endif
 		old_context->current_class = state->current_class;
 		old_context->current_class_item = state->current_class_item;
+#ifdef DEBUG_ARRAY_TYPE
+		lprintf( "open array save arrayType:%d to %d", state->arrayType, newArrayType );
+#endif
 		old_context->arrayType = state->arrayType;
 		state->current_class = cls;
 #ifdef DEBUG_CLASS_STATES
 		lprintf( "set current class: %s", cls ? cls->name : "<none>" );
 #endif
 		state->current_class_item = 0;
-		state->arrayType = -1;
+		state->arrayType = newArrayType;
+		EnterCriticalSec( &jxpsd.cs_states );
 // CreateDataList( sizeof( state->val ) );
 		state->elements = GetFromSet( PDATALIST, &jxpsd.dataLists );
+		LeaveCriticalSec( &jxpsd.cs_states );
 		if( !state->elements[0] ) state->elements[0] = CreateDataList( sizeof( state->val ) );
 		else state->elements[0]->Cnt = 0;
 		PushLink( state->context_stack, old_context );
@@ -31499,7 +31849,10 @@ static LOGICAL openArray( struct jsox_parse_state *state, struct jsox_output_buf
 	}
 	return TRUE;
 }
-#pragma warning( default: 6001 )
+#ifdef _MSC_VER
+// restore warning...
+#  pragma warning( default: 6001 )
+#endif
 int recoverIdent( struct jsox_parse_state *state, struct jsox_output_buffer* output, int cInt ) {
 	if( state->word == JSOX_WORD_POS_FIELD && cInt == ':' ) return 0;
 	if( state->word != JSOX_WORD_POS_RESET ) {
@@ -31757,7 +32110,7 @@ int recoverIdent( struct jsox_parse_state *state, struct jsox_output_buffer* out
 		openObject( state, output, cInt );
 /*'['*/
 	else if( cInt == 91 )
-		openArray( state, output, cInt );
+		openArray( state, output, 0 );
 /*':'*/
 	else if( cInt == 58 ) {
  // well.. it is.  It's already a fairly commited value.
@@ -31767,37 +32120,56 @@ int recoverIdent( struct jsox_parse_state *state, struct jsox_output_buffer* out
 			state->val.stringLen = output->pos - state->val.string;
 		}
 #ifdef DEBUG_STRING_LENGTH
-		lprintf( "Update stringLen  '%c'  :%d", cInt, state->val.stringLen );
+			lprintf( "Update stringLen  '%c'  :%d", cInt?cInt:'?', state->val.stringLen );
 #endif
 /*','*/
 	} else if( cInt == 44 ) {
  // well.. it is.  It's already a fairly commited value.
 		state->word = JSOX_WORD_POS_RESET;
-		state->completedString = TRUE;
-		state->val.stringLen = output->pos - state->val.string;
+		if( !state->completedString ) {
+			state->completedString = TRUE;
+			state->val.stringLen = output->pos - state->val.string;
+}
 #ifdef DEBUG_STRING_LENGTH
-		lprintf( "Update stringLen  '%c'  :%d", cInt, state->val.stringLen );
+		lprintf( "Update stringLen  '%c'  :%d", cInt?cInt:'~', state->val.stringLen );
 #endif
 	} else if( cInt >= 0 ) {
 		// ignore white space.
 /*' '*/
-		if( cInt == 32 || cInt == 13 || cInt == 10 || cInt == 9 || cInt == 0xFEFF || cInt == 2028 || cInt == 2029 ) {
+/*nbsp*/
+		if( cInt == 32 ||cInt==160|| cInt == 13 || cInt == 10 || cInt == 9 || cInt == 0xFEFF || cInt == 0x2028 || cInt == 0x2029 ) {
 			state->word = JSOX_WORD_POS_END;
-			state->val.stringLen = output->pos - state->val.string;
+			if( !state->completedString ) {
+				state->completedString = TRUE;
+				state->val.stringLen = output->pos - state->val.string;
+}
 #ifdef DEBUG_STRING_LENGTH
 			lprintf( "Update stringLen  '%c'  :%d", cInt, state->val.stringLen );
 #endif
 			return 0;
 		}
+		if( cInt == '"' || cInt == '\'' || cInt == '`' ) {
+			if( !state->val.string )  state->val.string = output->pos;
+			state->val.value_type = JSOX_VALUE_STRING;
+			if( !state->val.className ) {
+				state->val.className = state->val.string;
+				state->val.classNameLen = state->val.stringLen;
+				state->val.string = output->pos;
+				state->val.stringLen = 0;
+				state->gatheringStringFirstChar = cInt;
+				state->gatheringString = TRUE;
+			}
+		}
 /*','*/
 /*'}'*/
 /*']'*/
 /*':'*/
-		if( cInt == 44 || cInt == 125 || cInt == 93 || cInt == 58 )
+		else if( cInt == 44 || cInt == 125 || cInt == 93 || cInt == 58 )
 			vtprintf( state->pvtError, "invalid character; unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, cInt, state->n, state->line, state->col );
 		else {
 			if( !state->val.string )  state->val.string = output->pos;
 			state->val.value_type = JSOX_VALUE_STRING;
+			state->word = JSOX_WORD_POS_END;
 			if( cInt < 128 ) (*output->pos++) = cInt;
 			else output->pos += ConvertToUTF8( output->pos, cInt );
 #ifdef DEBUG_PARSING
@@ -31820,22 +32192,16 @@ static void pushValue( struct jsox_parse_state *state, PDATALIST *pdl, struct js
 #endif
  // no value to push.
 	if( val->value_type == JSOX_VALUE_UNSET ) return;
-	if( val->value_type == JSOX_VALUE_ARRAY ) {
-		if( state->arrayType >= 0 ) {
+	if( val->value_type >= JSOX_VALUE_TYPED_ARRAY && val->value_type <= JSOX_VALUE_TYPED_ARRAY_MAX ) {
+		//lprintf( "Setting value type as JSOX_VALUD_TYPED_ARRAY+%d",val->value_type - JSOX_VALUE_TYPED_ARRAY );
+		if( (val->value_type - JSOX_VALUE_TYPED_ARRAY) >= 0 && (val->value_type - JSOX_VALUE_TYPED_ARRAY) < 12 ) {
 			struct jsox_value_container *innerVal = (struct jsox_value_container *)GetDataItem( &val->contains, 0 );
-			//size_t size;
-			//val->className = (char*)GetLink( &knownArrayTypeNames, state->arrayType );
-			val->value_type = (enum jsox_value_types)(JSOX_VALUE_TYPED_ARRAY + state->arrayType);
-			//lprintf( "INPUT:%d %s", val->stringLen, val->string );
-			if( state->arrayType < 12 )
-				val->string = (char*)DecodeBase64Ex( innerVal->string, innerVal->stringLen, &val->stringLen, NULL );
-			//lprintf( "base:%s", EncodeBase64Ex( "HELLO, World!", 13, NULL, NULL ) );
-			//lprintf( "Resolve base64 string:%s", val->string );
+			val->string = (char*)DecodeBase64Ex( innerVal->string, innerVal->stringLen, &val->stringLen, NULL );
 		}
 	}
 	AddDataItem( pdl, val );
 #ifdef DEBUG_CLASS_STATES
-	lprintf( "RESET CLASS NAME %s", val->className );
+	lprintf( "RESET CLASS NAME %.*s", val->classNameLen, val->className );
 #endif
 	val->className = NULL;
 	val->classNameLen = 0;
@@ -31880,19 +32246,22 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 				if( input->tempBuf )
 					Deallocate( CPOINTER, input->buf );
 				input->pos = input->buf = newBuf;
+				input->size = unused+msglen;
 				input->tempBuf = TRUE;
 			}
 		}
 		// no input; or this buffer wasn't appended to the previous buffer...
 		if( !input || !input->tempBuf )
 		{
-			input = GetFromSet( JSOX_PARSE_BUFFER, &jxpsd.parseBuffers );
+			input = GetFromSet( JSOX_PARSE_BUFFER, &state->parseBuffers );
 			input->pos = input->buf = msg;
 			input->size = msglen;
 			input->tempBuf = FALSE;
 			EnqueLinkNL( state->inBuffers, input );
 		}
 		if( state->gatheringString
+ // already assigned to an existing outbuffer
+			|| state->val.string
 			|| state->gatheringNumber
 			|| state->word == JSOX_WORD_POS_FIELD
 			|| state->parse_context == JSOX_CONTEXT_OBJECT_FIELD ) {
@@ -31901,13 +32270,24 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 			size_t offset2;
 			output = (struct jsox_output_buffer*)DequeLinkNL( state->outQueue );
 			//lprintf( "output from before is %p", output );
-			offset = (output->pos - output->buf);
-			offset2 = state->val.string ? (state->val.string - output->buf) : 0;
-			AddLink( state->outValBuffers, output->buf );
-			output->buf = NewArray( char, output->size + msglen + 1 );
-			if( state->val.string ) {
-				MemCpy( output->buf + offset2, state->val.string, offset - offset2 );
-				state->val.string = output->buf + offset2;
+			if( output ) {
+				offset = (output->pos - output->buf);
+			}
+			offset2 = ( state->val.string && output ) ? (state->val.string - output->buf) : 0;
+			if( output ) {
+				AddLink( state->outValBuffers, output->buf );
+				output->buf = NewArray( char, output->size + msglen + 1 );
+				if( state->val.string ) {
+					MemCpy( output->buf + offset2, state->val.string, offset - offset2 );
+					state->val.string = output->buf + offset2;
+				}
+			} else {
+				output = (struct jsox_output_buffer*)GetFromSet( JSOX_PARSE_BUFFER, &state->parseBuffers );
+				offset = state->val.stringLen;
+				output->size = state->val.stringLen;
+				output->buf = NewArray( char, output->size + msglen + 1 );
+				MemCpy( output->buf, state->val.string, state->val.stringLen );
+				state->val.string = output->buf;
 			}
 			output->size += msglen;
 			//lprintf( "previous val:%s", state->val.string, state->val.string );
@@ -31915,7 +32295,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 			PrequeLink( state->outQueue, output );
 		}
 		else {
-			output = (struct jsox_output_buffer*)GetFromSet( JSOX_PARSE_BUFFER, &jxpsd.parseBuffers );
+			output = (struct jsox_output_buffer*)GetFromSet( JSOX_PARSE_BUFFER, &state->parseBuffers );
 			output->pos = output->buf = NewArray( char, msglen + 1 );
 			output->size = msglen;
 			EnqueLinkNL( state->outQueue, output );
@@ -31930,20 +32310,33 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 			PushLink( state->outBuffers, output );
 			state->gatheringNumber = FALSE;
 			//lprintf( "result with number:%s", state->val.string );
-			if( state->val.float_result )
-			{
-				CTEXTSTR endpos;
-				state->val.result_d = FloatCreateFromText( state->val.string, &endpos );
-				if( state->negative ) { state->val.result_d = -state->val.result_d; state->negative = FALSE; }
+			if( state->numberFromDate ) {
+				state->val.stringLen = ( output->pos - state->val.string );
+				state->val.value_type = JSOX_VALUE_DATE;
+			} else if( state->numberFromBigInt ) {
+				state->val.stringLen = ( output->pos - state->val.string );
+				state->val.value_type = JSOX_VALUE_BIGINT;
+			} else {
+				if( state->val.float_result ) {
+					CTEXTSTR endpos;
+					state->val.result_d = FloatCreateFromText( state->val.string, &endpos );
+					if( state->negative ) { state->val.result_d = -state->val.result_d; state->negative = FALSE; }
+				}
+				else {
+					state->val.result_n = IntCreateFromText( state->val.string );
+					if( state->negative ) { state->val.result_n = -state->val.result_n; state->negative = FALSE; }
+				}
+				state->val.value_type = JSOX_VALUE_NUMBER;
 			}
-			else
-			{
-				state->val.result_n = IntCreateFromText( state->val.string );
-				if( state->negative ) { state->val.result_n = -state->val.result_n; state->negative = FALSE; }
-			}
-			state->val.value_type = JSOX_VALUE_NUMBER;
 			if( state->parse_context == JSOX_CONTEXT_UNKNOWN ) {
 				state->completed = TRUE;
+			}
+ // this is a flush; and there's still an open object, array, etc.
+			else {
+				if( !state->pvtError ) state->pvtError = VarTextCreate();
+				vtprintf( state->pvtError, "Fault while parsing; unexpected end of stream at %" _size_f "  %" _size_f ":%" _size_f, state->n, state->line, state->col );
+				state->status = FALSE;
+				return -1;
 			}
 			retval = 1;
 		}
@@ -31954,6 +32347,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 		//lprintf( "output is %p", output );
 		state->n = input->pos - input->buf;
 		if( state->n > input->size ) DebugBreak();
+	gatherStringInput:
 		if( state->gatheringString ) {
 			string_status = gatherStringX( state, input->buf, &input->pos, input->size, &output->pos, state->gatheringStringFirstChar );
 			if( string_status < 0 )
@@ -31987,10 +32381,10 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 			goto continueNumber;
 		}
 		//lprintf( "Completed at start?%d", state->completed );
-		while( state->status && (state->n < input->size) && ( (c = GetUtfChar( &input->pos ))!= BADUTF8) )
+		while( state->status && (state->n < input->size) && ( (c = GetUtfChar( &input->pos ))!= JSOX_BADUTF8) )
 		{
 #if defined( DEBUG_PARSING ) && defined( DEBUG_CHARACTER_PARSING )
-			lprintf( "parse character %c %d %d %d %d", c<32?'.':c, state->word, state->parse_context, state->parse_context, state->word );
+			lprintf( "parse character %c %d %d %d %d", c<32?'.':c, state->word, state->parse_context, state->val.value_type, state->word );
 #endif
 			state->col++;
 			newN = input->pos - input->buf;
@@ -32026,6 +32420,9 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 			}
 			if( c > 127 ) {
 				// irrelativent.
+				if( c == 0x2028 || c == 0x2029 || c == 0xfeff ) {
+					goto whitespace;
+				}
 				if( !state->val.string )  state->val.string = output->pos;
 				state->val.value_type = JSOX_VALUE_STRING;
 				output->pos += ConvertToUTF8( output->pos, c );
@@ -32050,7 +32447,9 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 				openObject( state, output, c );
 				break;
 			case '[':
-				openArray( state, output, c );
+  // gather any preceeding string.
+				recoverIdent(state,output,c);
+				//openArray( state, output, c );
 				break;
 			case ':':
 				recoverIdent(state,output,c);
@@ -32064,7 +32463,15 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 						break;
 					}
 					if( state->objectContext == JSOX_OBJECT_CONTEXT_CLASS_FIELD ) {
-						lprintf( "This would be a default value for the object... if I ignore this..." );
+						if( GetLinkCount( state->current_class->fields ) == 0 ) {
+							DeleteLink( &state->classes, state->current_class );
+							DeleteFromSet( JSOX_CLASS, &state->classPool, state->current_class );
+							state->current_class = NULL;
+							state->objectContext = JSOX_OBJECT_CONTEXT_CLASS_NORMAL;
+						}
+						// need to establish whether this is a tag definition state
+						// or tagged-revival revival, or just a prototyped object that's not a tag-revival.
+						//lprintf( "This would be a default value for the object... if I ignore this..." );
 					}
 					state->word = JSOX_WORD_POS_RESET;
 					state->val.name = state->val.string;
@@ -32091,6 +32498,9 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 				{
 					int emitObject;
 					emitObject = TRUE;
+					if( state->word == JSOX_WORD_POS_AFTER_FIELD ) {
+						state->word = JSOX_WORD_POS_RESET;
+					}
 					if( state->word == JSOX_WORD_POS_END ) {
 						// allow starting a new word
 						state->word = JSOX_WORD_POS_RESET;
@@ -32100,7 +32510,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 							if( state->objectContext == JSOX_OBJECT_CONTEXT_CLASS_FIELD ) {
 								// allow blank comma at end to not be a field
 								if( state->val.string ) {
-									struct jsox_class_field* field = GetFromSet( JSOX_CLASS_FIELD, &jxpsd.class_fields );
+									struct jsox_class_field* field = GetFromSet( JSOX_CLASS_FIELD, &state->class_fields );
 									field->name = state->val.string;
 									field->nameLen = output->pos - state->val.string;
 									( *output->pos++ ) = 0;
@@ -32114,6 +32524,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 								JSOX_RESET_STATE_VAL();
 								emitObject = FALSE;
 								state->word = JSOX_WORD_POS_RESET;
+								//break;
 							}
 							else if( state->objectContext == JSOX_OBJECT_CONTEXT_CLASS_VALUE ) {
 								if( state->val.value_type != JSOX_VALUE_UNSET ) {
@@ -32136,25 +32547,32 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 								}
 							}
 						}
-						pushValue( state, state->elements, &state->val );
+  // there isn't a value for this...
+						if( emitObject )
+							pushValue( state, state->elements, &state->val );
 						//if( _DEBUG_PARSING ) lprintf( "close object; empty object", val, elements );
 					}
 					else if( state->parse_context == JSOX_CONTEXT_OBJECT_FIELD_VALUE ) {
 						// current class doesn't really matter... we only get here after a ':'
 						// which will have faulted or not...
 						// this is just push the value.
-						pushValue( state, state->elements, &state->val );
+						if( state->val.value_type != JSOX_VALUE_UNSET )
+							pushValue( state, state->elements, &state->val );
+						else {
+							if( !state->pvtError ) state->pvtError = VarTextCreate();
+							vtprintf( state->pvtError, "Fault while parsing(2); unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+							state->status = FALSE;
+						}
 					}
 					else {
-						if( !state->pvtError ) state->pvtError = VarTextCreate();
-						vtprintf( state->pvtError, "Fault while parsing; unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
-						state->status = FALSE;
-						break;
-					}
-					// lose current class in the pop; have; have to report completed status before popping.
-					if( state->parse_context == JSOX_CONTEXT_UNKNOWN ) {
-						if( !state->current_class )
-							state->completed = TRUE;
+						if( state->val.value_type != JSOX_VALUE_UNSET ) {
+							//pushValue( state, state->elements, &state->val );
+						} else {
+							if( !state->pvtError ) state->pvtError = VarTextCreate();
+							vtprintf( state->pvtError, "Fault while parsing(3); unexpected %c at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+							state->status = FALSE;
+							break;
+						}
 					}
 					{
 						struct jsox_parse_context* old_context = ( struct jsox_parse_context* )PopLink( state->context_stack );
@@ -32163,6 +32581,11 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 						state->val._contains = state->elements;
  // this will restore as IN_ARRAY or OBJECT_FIELD
 						state->parse_context = old_context->context;
+						// lose current class in the pop; have; have to report completed status before popping.
+						if( state->parse_context == JSOX_CONTEXT_UNKNOWN ) {
+							if( !state->current_class )
+								state->completed = TRUE;
+						}
 						state->elements = old_context->elements;
 						state->val.name = old_context->name;
 						state->val.nameLen = old_context->nameLen;
@@ -32171,10 +32594,14 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 						state->current_class = old_context->current_class;
 						state->current_class_item = old_context->current_class_item;
 						state->arrayType = old_context->arrayType;
+#ifdef DEBUG_ARRAY_TYPE
+						lprintf( "close object restore arrayType:%d",state->arrayType );
+#endif
+						state->objectContext = old_context->objectContext;
 #ifdef DEBUG_CLASS_STATES
 						lprintf( "POP CLASS NAME %s %s %p", state->val.className, state->current_class ? state->current_class->name : "", state->current_class ? state->current_class->fields : 0 );
 #endif
-						DeleteFromSet( JSOX_PARSE_CONTEXT, jxpsd.parseContexts, old_context );
+						DeleteFromSet( JSOX_PARSE_CONTEXT, state->parseContexts, old_context );
 						if( emitObject )
 							state->val.value_type = JSOX_VALUE_OBJECT;
 						else
@@ -32206,7 +32633,11 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 						pushValue( state, state->elements, &state->val );
 						JSOX_RESET_STATE_VAL();
 					}
-					state->val.value_type = JSOX_VALUE_ARRAY;
+					if( state->arrayType >= 0 ) {
+						state->val.value_type = (enum jsox_value_types)(JSOX_VALUE_TYPED_ARRAY + state->arrayType);
+					}
+					else
+						state->val.value_type = JSOX_VALUE_ARRAY;
 					//state->val.string = NULL;
 					state->val.contains = state->elements[0];
 					state->val._contains = state->elements;
@@ -32224,11 +32655,15 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 						state->val.classNameLen = old_context->classNameLen;
 						state->current_class = old_context->current_class;
 						state->current_class_item = old_context->current_class_item;
+						state->objectContext = old_context->objectContext;
 #ifdef DEBUG_CLASS_STATES
 						lprintf( "POP2 CLASS NAME %s %s %p", state->val.className, state->current_class ? state->current_class->name : "", state->current_class ? state->current_class->fields : 0 );
 #endif
 						state->arrayType = old_context->arrayType;
-						DeleteFromSet( JSOX_PARSE_CONTEXT, jxpsd.parseContexts, old_context );
+#ifdef DEBUG_ARRAY_TYPE
+						lprintf( "close array restore arrayType:%d",state->arrayType );
+#endif
+						DeleteFromSet( JSOX_PARSE_CONTEXT, state->parseContexts, old_context );
 					}
 					if( state->parse_context == JSOX_CONTEXT_UNKNOWN ) {
 						state->completed = TRUE;
@@ -32247,7 +32682,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 					if( state->objectContext == JSOX_OBJECT_CONTEXT_CLASS_VALUE ) {
 						if( state->val.value_type != JSOX_VALUE_UNSET ) {
 							// revive class value, get name from class definition
-							if( state->current_class->fields ) {
+							if( state->current_class && state->current_class->fields ) {
 								struct jsox_class_field *field = (struct jsox_class_field *)GetLink( &state->current_class->fields, state->current_class_item++ );
 								state->val.name = field->name;
 								state->val.nameLen = field->nameLen;
@@ -32267,7 +32702,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 					}
 					else if( state->objectContext == JSOX_OBJECT_CONTEXT_CLASS_FIELD ) {
 						if( state->current_class ) {
-							struct jsox_class_field *field = GetFromSet( JSOX_CLASS_FIELD, &jxpsd.class_fields );
+							struct jsox_class_field *field = GetFromSet( JSOX_CLASS_FIELD, &state->class_fields );
 							field->name = state->val.string;
 							field->nameLen = output->pos - state->val.string;
 							(*output->pos++) = 0;
@@ -32277,11 +32712,20 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 							lprintf( "Comma Adding field to class %p %s %p", state->current_class, state->current_class->name, state->current_class->fields );
 #endif
 							AddLink( &state->current_class->fields, field );
+							state->word = JSOX_WORD_POS_RESET;
 						}
 						else {
 							if( !state->pvtError ) state->pvtError = VarTextCreate();
 // fault
 							vtprintf( state->pvtError, "lost class definition; fault while parsing; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, state->parse_context, c, state->n, state->line, state->col );
+							state->status = FALSE;
+						}
+					}
+					else {
+						if( state->val.value_type != JSOX_VALUE_UNSET ) {
+							if( !state->pvtError ) state->pvtError = VarTextCreate();
+// fault
+							vtprintf( state->pvtError, "invalid value where a field name is expected %" _size_f "  %" _size_f ":%" _size_f, state->parse_context, c, state->n, state->line, state->col );
 							state->status = FALSE;
 						}
 					}
@@ -32298,10 +32742,14 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 #endif
 						pushValue( state, state->elements, &state->val );
 						JSOX_RESET_STATE_VAL();
+						state->word = JSOX_WORD_POS_RESET;
 					}
 				}
 				else if( state->parse_context == JSOX_CONTEXT_OBJECT_FIELD_VALUE ) {
 					// after an array value, it will have returned to OBJECT_FIELD anyway
+					if( state->word > JSOX_WORD_POS_END
+						&& state->word < JSOX_WORD_POS_AFTER_FIELD )
+						recoverIdent( state, output, c );
 #ifdef DEBUG_PARSING
 					lprintf( "comma after field value, push field to object: %s", state->val.name );
 #endif
@@ -32309,6 +32757,12 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 					state->word = JSOX_WORD_POS_RESET;
 					if( state->val.value_type != JSOX_VALUE_UNSET )
 						pushValue( state, state->elements, &state->val );
+					else {
+						if( !state->pvtError ) state->pvtError = VarTextCreate();
+						vtprintf( state->pvtError, "missing value for object field; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+						state->status = FALSE;
+						break;
+					}
 					JSOX_RESET_STATE_VAL();
 				}
 				else {
@@ -32321,6 +32775,50 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 			default:
 				if( state->val.value_type == JSOX_VALUE_STRING && !state->completedString ) {
 					// already faulted to a string?
+					if( c == '\'' || c == '\"' || c == '`' ) {
+#ifdef DEBUG_CLASS_STATES
+						lprintf( "Setting classname for string here... %d %.*s", state->val.stringLen, state->val.stringLen, state->val.string );
+#endif
+						state->val.className = state->val.string;
+						state->val.classNameLen = state->val.stringLen;
+						state->val.string = output->pos;
+						state->val.stringLen = 0;
+						state->gatheringString = TRUE;
+						state->gatheringStringFirstChar = c;
+						goto gatherStringInput;
+					}
+/*' '*/
+/*nbsp*/
+					if( c == 32 || c == 160 || c == 13 || c == 10 || c == 9 || c == 0xFEFF || c == 0x2028 || c == 0x2029 ) {
+						state->word = JSOX_WORD_POS_AFTER_FIELD;
+						break;
+					}
+					if( state->word == JSOX_WORD_POS_AFTER_FIELD ) {
+						if( state->val.className ) {
+							state->status = FALSE;
+							if( !state->pvtError ) state->pvtError = VarTextCreate();
+// fault
+							vtprintf( state->pvtError, "unquoted spaces between stings; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+							break;
+						}
+						else {
+							if( !state->current_class ) {
+								state->status = FALSE;
+								if( !state->pvtError ) state->pvtError = VarTextCreate();
+// fault
+								vtprintf( state->pvtError, "?? This is like doublestring revival; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+								break;
+							}
+							lprintf( "THIS IS WRONG!" );
+							lprintf( "STRING-STRING?" );
+							state->val.className = state->val.string;
+							state->val.classNameLen = state->val.stringLen;
+							state->val.string = NULL;
+							state->val.stringLen = 0;
+							state->word = JSOX_WORD_POS_RESET;
+							break;
+						}
+					}
 					if( c < 128 ) ( *output->pos++ ) = c;
 					else output->pos += ConvertToUTF8( output->pos, c );
 					state->val.stringLen = output->pos - state->val.string;
@@ -32330,11 +32828,13 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 					break;
 				}
 				if( ( state->parse_context == JSOX_CONTEXT_OBJECT_FIELD  && state->objectContext != JSOX_OBJECT_CONTEXT_CLASS_VALUE )
-				   //|| state->parse_context == JSOX_CONTEXT_UNKNOWN
-				   //|| state->parse_context == JSOX_CONTEXT_IN_ARRAY
-				   //|| (state->parse_context == JSOX_CONTEXT_OBJECT_FIELD_VALUE )
 				) {
-					//lprintf( "gathering object field:%c  %*.*s", c, output->pos- state->val.string, output->pos - state->val.string, state->val.string );
+#ifdef DEBUG_PARSING
+					if( state->val.string )
+						lprintf( "gathering object field:%c  %d %.*s", c, output->pos- state->val.string, output->pos - state->val.string, state->val.string );
+					else
+						lprintf( "Gathering, but no string yet? %c", c );
+#endif
 					switch( c )
 					{
 					case '`':
@@ -32342,8 +32842,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 						// but gatherString now just gathers all strings
 					case '"':
 					case '\'':
-						if( state->val.value_type == JSOX_VALUE_STRING
-							&& state->val.className ) {
+						if( state->val.value_type == JSOX_VALUE_STRING && state->val.className ) {
 							state->status = FALSE;
 							if( !state->pvtError ) state->pvtError = VarTextCreate();
 // fault
@@ -32354,11 +32853,20 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 							|| ( state->val.value_type == JSOX_VALUE_STRING
 								&& !state->val.className ) ) {
 							(*output->pos++) = 0;
+#ifdef DEBUG_PARSING
+							lprintf( "Promoting previous string to... what? %d %.*s", state->val.stringLen, state->val.stringLen, state->val.string );
+#endif
 							state->val.className = state->val.string;
+							state->val.classNameLen = state->val.stringLen;
 #ifdef DEBUG_CLASS_STATES
 							lprintf( "Setting classname HERE (why?):", state->val.string );
 #endif
 						}
+#ifdef DEBUG_PARSING
+						else {
+							lprintf( "Was there already a string in progress?");
+						}
+#endif
 						state->val.string = output->pos;
 						state->gatheringString = TRUE;
 						state->gatheringStringFirstChar = c;
@@ -32392,14 +32900,17 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 						state->col = 1;
 						// fall through to normal space handling - just updated line/col position
 					case ' ':
+// case '\xa0': // nbsp
+					case 160 :
 					case '\t':
 					case '\r':
  // LS (Line separator)
-					case 2028:
+					case 0x2028:
  // PS (paragraph separate)
-					case 2029:
+					case 0x2029:
  // ZWNBS is WS though
 					case 0xFEFF:
+					whitespace:
 						if( state->word == JSOX_WORD_POS_END ) {
 							state->word = JSOX_WORD_POS_RESET;
 							if( state->parse_context == JSOX_CONTEXT_UNKNOWN ) {
@@ -32407,9 +32918,13 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 							}
 							break;
 						}
-						if( (state->word == JSOX_WORD_POS_RESET) || ( state->word == JSOX_WORD_POS_AFTER_FIELD ) )
+						if( state->word == JSOX_WORD_POS_AFTER_FIELD ) {
+							if( state->parse_context == JSOX_CONTEXT_UNKNOWN )
+								state->completed = TRUE;
 							break;
-						else if( state->word == JSOX_WORD_POS_FIELD ) {
+						} else if( state->word == JSOX_WORD_POS_RESET ) {
+							break;
+						} else if( state->word == JSOX_WORD_POS_FIELD ) {
 							if( state->parse_context == JSOX_CONTEXT_UNKNOWN ) {
 								state->completed = TRUE;
 								break;
@@ -32420,10 +32935,9 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 							}
 						}
 						else {
-							state->status = FALSE;
-							if( !state->pvtError ) state->pvtError = VarTextCreate();
-	// fault
-							vtprintf( state->pvtError, "fault while parsing; whitespace unexpected at %" _size_f "  %" _size_f ":%" _size_f, state->n, state->line, state->col );
+							//state->status = FALSE;
+							//if( !state->pvtError ) state->pvtError = VarTextCreate();
+							//vtprintf( state->pvtError, "fault while parsing; whitespace unexpected at %" _size_f "  %" _size_f ":%" _size_f, state->n, state->line, state->col );	// fault
 						}
 						break;
 					default:
@@ -32433,6 +32947,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 						if( state->word == JSOX_WORD_POS_AFTER_FIELD ) {
 							state->status = FALSE;
 							if( !state->pvtError ) state->pvtError = VarTextCreate();
+							//lprintf( "Val is:%s", state->val.string );
 	// fault
 							vtprintf( state->pvtError, "fault while parsing; second string in field name at %" _size_f "  %" _size_f ":%" _size_f, state->n, state->line, state->col );
 							break;
@@ -32466,8 +32981,9 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 							 && !state->val.className ) ) {
 						(*output->pos++) = 0;
 						state->val.className = state->val.string;
+						state->val.classNameLen = state->val.stringLen;
 #ifdef DEBUG_CLASS_STATES
-						lprintf( "Setting classname HERE (why?):", state->val.string );
+						lprintf( "Setting classname HERE (why?): %d %.*s", state->val.stringLen, state->val.stringLen, state->val.string );
 #endif
 					}
 					state->val.string = output->pos;
@@ -32509,10 +33025,12 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 					state->col = 1;
 					// FALLTHROUGH
 				case ' ':
+// case '\xa0': // nbsp
+				case 160 :
  // LS (Line separator)
-				case 2028:
+				case 0x2028:
  // PS (paragraph separate)
-				case 2029:
+				case 0x2029:
 				case '\t':
 				case '\r':
 				case 0xFEFF:
@@ -32523,10 +33041,13 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 						}
 						break;
 					}
-					if( state->word == JSOX_WORD_POS_RESET || (state->word == JSOX_WORD_POS_AFTER_FIELD) ) {
+					if( state->word == JSOX_WORD_POS_AFTER_FIELD ) {
+						if( state->parse_context == JSOX_CONTEXT_UNKNOWN )
+							state->completed = TRUE;
 						break;
-					}
-					else if( state->word == JSOX_WORD_POS_FIELD ) {
+					} else if( (state->word == JSOX_WORD_POS_RESET) ) {
+						break;
+					} else if( state->word == JSOX_WORD_POS_FIELD ) {
 						if( state->val.string ) {
 							state->val.value_type = JSOX_VALUE_STRING;
 							state->word = JSOX_WORD_POS_AFTER_FIELD;
@@ -32535,10 +33056,10 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 						}
 					}
 					else {
-						state->status = FALSE;
-						if( !state->pvtError ) state->pvtError = VarTextCreate();
-	// fault
-						vtprintf( state->pvtError, "fault while parsing; whitespace unexpected at %" _size_f "  %" _size_f ":%" _size_f, state->n );
+						recoverIdent( state, output, c );
+						//state->status = FALSE;
+						//if( !state->pvtError ) state->pvtError = VarTextCreate();
+						//vtprintf( state->pvtError, "fault while parsing; whitespace unexpected at %" _size_f "  %" _size_f ":%" _size_f, state->n );	// fault
 					}
 					// skip whitespace
 					//n++;
@@ -32641,7 +33162,6 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 				default:
 					if( state->word == JSOX_WORD_POS_RESET && ( (c >= '0' && c <= '9') || (c == '+') || (c == '.') ) )
 					{
-						LOGICAL fromDate;
  // to unwind last character past number.
 						const char *_msg_input;
 						// always reset this here....
@@ -32653,7 +33173,6 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 							state->exponent = FALSE;
 							state->exponent_sign = FALSE;
 							state->exponent_digit = FALSE;
-							fromDate = FALSE;
 							state->fromHex = FALSE;
 							state->val.float_result = (c == '.');
 							state->val.string = output->pos;
@@ -32662,10 +33181,9 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 						}
 						else
 						{
-						continueNumber:
-							fromDate = state->numberFromDate;
+					continueNumber: ;
 						}
-						while( (_msg_input = input->pos), ((state->n < input->size) && ( (c = GetUtfChar( &input->pos ))!= BADUTF8)) )
+						while( (_msg_input = input->pos), ((state->n < input->size) && ( (c = GetUtfChar( &input->pos ))!= JSOX_BADUTF8)) )
 						{
 							newN = input->pos - input->buf;
 							if( newN > input->size ) {
@@ -32692,7 +33210,8 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 								// Returns 2011-10-05T14:48:00.000Z
 								*/
 								(*output->pos++) = c;
-								state->numberFromDate = TRUE;
+								if( c != '+' && c != '-' )
+									state->numberFromDate = TRUE;
 							}
 							else if( ( c == 'x' || c == 'b' || c =='o' || c == 'X' || c == 'B' || c == 'O')
 							       && ( output->pos - state->val.string) == 1
@@ -32720,7 +33239,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 								else {
 									state->status = FALSE;
 									if( !state->pvtError ) state->pvtError = VarTextCreate();
-									vtprintf( state->pvtError, "fault white parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+									vtprintf( state->pvtError, "fault while parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 									break;
 								}
 							}
@@ -32728,7 +33247,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 								if( !state->exponent ) {
 									state->status = FALSE;
 									if( !state->pvtError ) state->pvtError = VarTextCreate();
-									vtprintf( state->pvtError, "fault white parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+									vtprintf( state->pvtError, "fault while parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 									break;
 								}
 								else {
@@ -32739,7 +33258,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 									else {
 										state->status = FALSE;
 										if( !state->pvtError ) state->pvtError = VarTextCreate();
-										vtprintf( state->pvtError, "fault white parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+										vtprintf( state->pvtError, "fault while parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 										break;
 									}
 								}
@@ -32757,12 +33276,13 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 								else {
 									state->status = FALSE;
 									if( !state->pvtError ) state->pvtError = VarTextCreate();
-									vtprintf( state->pvtError, "fault white parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+									vtprintf( state->pvtError, "fault while parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 									break;
 								}
 							} else {
 								// in non streaming mode; these would be required to follow
-								if( c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == 0xFEFF
+/*'\xa0'*/
+								if( c == ' ' || c == 160 || c == '\t' || c == '\n' || c == '\r' || c == 0xFEFF
 									|| c == ',' || c == ']' || c == '}'  || c == ':' ) {
 									//lprintf( "Non numeric character received; push the value we have" );
 									(*output->pos) = 0;
@@ -32776,7 +33296,7 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 									else {
 										state->status = FALSE;
 										if( !state->pvtError ) state->pvtError = VarTextCreate();
-										vtprintf( state->pvtError, "fault white parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
+										vtprintf( state->pvtError, "fault while parsing number; '%c' unexpected at %" _size_f "  %" _size_f ":%" _size_f, c, state->n, state->line, state->col );
 										break;
 									}
 								}
@@ -32792,7 +33312,6 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 						{
 							//lprintf( "completion mode is not end of string; and at end of string" );
 							state->gatheringNumber = TRUE;
-							state->numberFromDate = fromDate;
 						}
 						else
 						{
@@ -32838,9 +33357,11 @@ int jsox_parse_add_data( struct jsox_parse_state *state
  // default of high level switch
 				break;
 			}
+			if( state->gatheringString )
+				goto gatherStringInput;
 			// got a completed value; skip out
 			if( state->completed ) {
-				if( state->word == JSOX_WORD_POS_END ) {
+				if( state->word == JSOX_WORD_POS_END || state->completedString ) {
 					state->word = JSOX_WORD_POS_RESET;
 				}
 				break;
@@ -32851,8 +33372,9 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 			if( state->n >= input->size ) {
 				if( input->tempBuf )
 					Deallocate( CPOINTER, input->buf );
-				DeleteFromSet( JSOX_PARSE_BUFFER, jxpsd.parseBuffers, input );
+				DeleteFromSet( JSOX_PARSE_BUFFER, state->parseBuffers, input );
 				if( state->gatheringString
+				    || ( state->val.string && state->parse_context == JSOX_CONTEXT_UNKNOWN && !state->completedString )
 					|| state->gatheringNumber
 					|| state->parse_context == JSOX_CONTEXT_OBJECT_FIELD
 					|| state->word == JSOX_WORD_POS_FIELD ) {
@@ -32902,8 +33424,10 @@ int jsox_parse_add_data( struct jsox_parse_state *state
 }
 PDATALIST jsox_parse_get_data( struct jsox_parse_state *state ) {
 	PDATALIST *result = state->elements;
+	EnterCriticalSec( &jxpsd.cs_states );
 // CreateDataList( sizeof( state->val ) );
 	state->elements = GetFromSet( PDATALIST, &jxpsd.dataLists );
+	LeaveCriticalSec( &jxpsd.cs_states );
 	if( !state->elements[0] ) state->elements[0] = CreateDataList( sizeof( state->val ) );
 	else state->elements[0]->Cnt = 0;
 	return result[0];
@@ -32936,7 +33460,9 @@ void _jsox_dispose_message( PDATALIST *msg_data )
 	}
 	// quick method
 	DeleteDataList( msg_data );
+	EnterCriticalSec( &jxpsd.cs_states );
 	DeleteFromSet( PDATALIST, jxpsd.dataLists, msg_data );
+	LeaveCriticalSec( &jxpsd.cs_states );
 }
 static uintptr_t jsox_FindDataList( void*p, uintptr_t psv ) {
 	if( ((PPDATALIST)p)[0] == (PDATALIST)psv )
@@ -32953,13 +33479,13 @@ void jsox_parse_clear_state( struct jsox_parse_state *state ) {
 		PJSOX_PARSE_BUFFER buffer;
 		while( buffer = (PJSOX_PARSE_BUFFER)PopLink( state->outBuffers ) ) {
 			Deallocate( const char *, buffer->buf );
-			DeleteFromSet( JSOX_PARSE_BUFFER, jxpsd.parseBuffers, buffer );
+			DeleteFromSet( JSOX_PARSE_BUFFER, state->parseBuffers, buffer );
 		}
 		while( buffer = (PJSOX_PARSE_BUFFER)DequeLinkNL( state->inBuffers ) )
-			DeleteFromSet( JSOX_PARSE_BUFFER, jxpsd.parseBuffers, buffer );
+			DeleteFromSet( JSOX_PARSE_BUFFER, state->parseBuffers, buffer );
 		while( buffer = (PJSOX_PARSE_BUFFER)DequeLinkNL( state->outQueue ) ) {
 			Deallocate( const char*, buffer->buf );
-			DeleteFromSet( JSOX_PARSE_BUFFER, jxpsd.parseBuffers, buffer );
+			DeleteFromSet( JSOX_PARSE_BUFFER, state->parseBuffers, buffer );
 		}
 		DeleteFromSet( PLINKQUEUE, jxpsd.linkQueues, state->inBuffers );
 		//DeleteLinkQueue( &state->inBuffers );
@@ -32968,12 +33494,19 @@ void jsox_parse_clear_state( struct jsox_parse_state *state ) {
 		DeleteFromSet( PLINKSTACK, jxpsd.linkStacks, state->outBuffers );
 		//DeleteLinkStack( &state->outBuffers );
 		{
-			char *buf;
+			char* buf;
 			INDEX idx;
+			PJSOX_CLASS cls;
 			LIST_FORALL( state->outValBuffers[0], idx, char*, buf ) {
 				Deallocate( char*, buf );
+ // maybe it was saved?
+				SetLink( state->outValBuffers, idx, NULL );
 			}
 			DeleteFromSet( PLIST, jxpsd.listSet, state->outValBuffers );
+			LIST_FORALL( state->classes, idx, PJSOX_CLASS, cls ) {
+				DeleteFromSet( JSOX_CLASS, &state->classPool, cls );
+				SetLink( &state->classes, idx, NULL );
+			}
 			//DeleteList( &state->outValBuffers );
 		}
 		state->status = TRUE;
@@ -32984,6 +33517,8 @@ void jsox_parse_clear_state( struct jsox_parse_state *state ) {
 		state->line = 1;
 		state->gatheringString = FALSE;
 		state->gatheringNumber = FALSE;
+		state->val.value_type = JSOX_VALUE_UNSET;
+		state->val.string = NULL;
 		{
 			PDATALIST *result = state->elements;
 // CreateDataList( sizeof( state->val ) );
@@ -33009,26 +33544,30 @@ void jsox_parse_dispose_state( struct jsox_parse_state **ppState ) {
 	struct jsox_parse_state *state = (*ppState);
 	struct jsox_parse_context *old_context;
 	PJSOX_PARSE_BUFFER buffer;
+	EnterCriticalSec( &jxpsd.cs_states );
 	_jsox_dispose_message( state->elements );
 	//DeleteDataList( &state->elements );
 	while( buffer = (PJSOX_PARSE_BUFFER)PopLink( state->outBuffers ) ) {
 		Deallocate( const char *, buffer->buf );
-		DeleteFromSet( JSOX_PARSE_BUFFER, jxpsd.parseBuffers, buffer );
+		DeleteFromSet( JSOX_PARSE_BUFFER, state->parseBuffers, buffer );
 	}
 	{
-		char *buf;
+		char* buf;
 		INDEX idx;
 		LIST_FORALL( state->outValBuffers[0], idx, char*, buf ) {
-			Deallocate( char*, buf );
+			Release( buf );
+ // maybe it was saved?
+			SetLink( state->outValBuffers, idx, NULL );
 		}
 		DeleteFromSet( PLIST, jxpsd.listSet, state->outValBuffers );
 		//DeleteList( &state->outValBuffers );
 	}
 	while( buffer = (PJSOX_PARSE_BUFFER)DequeLinkNL( state->inBuffers ) )
-		DeleteFromSet( JSOX_PARSE_BUFFER, jxpsd.parseBuffers, buffer );
+		DeleteFromSet( JSOX_PARSE_BUFFER, state->parseBuffers, buffer );
+	state->val.string = NULL;
 	while( buffer = (PJSOX_PARSE_BUFFER)DequeLinkNL( state->outQueue ) ) {
 		Deallocate( const char*, buffer->buf );
-		DeleteFromSet( JSOX_PARSE_BUFFER, jxpsd.parseBuffers, buffer );
+		DeleteFromSet( JSOX_PARSE_BUFFER, state->parseBuffers, buffer );
 	}
 	DeleteFromSet( PLINKQUEUE, jxpsd.linkQueues, state->inBuffers );
 	//DeleteLinkQueue( &state->inBuffers );
@@ -33036,15 +33575,16 @@ void jsox_parse_dispose_state( struct jsox_parse_state **ppState ) {
 	//DeleteLinkQueue( &state->outQueue );
 	DeleteFromSet( PLINKSTACK, jxpsd.linkStacks, state->outBuffers );
 	//DeleteLinkStack( &state->outBuffers );
-	DeleteFromSet( JSOX_PARSE_CONTEXT, jxpsd.parseContexts, state->context );
+	DeleteFromSet( JSOX_PARSE_CONTEXT, state->parseContexts, state->context );
 	while( (old_context = (struct jsox_parse_context *)PopLink( state->context_stack )) ) {
 		//lprintf( "warning unclosed contexts...." );
-		DeleteFromSet( JSOX_PARSE_CONTEXT, jxpsd.parseContexts, old_context );
+		DeleteFromSet( JSOX_PARSE_CONTEXT, state->parseContexts, old_context );
 	}
 	if( state->context_stack )
 		DeleteFromSet( PLINKSTACK, jxpsd.linkStacks, state->context_stack );
 		//DeleteLinkStack( &state->context_stack );
 	DeleteFromSet( JSOX_PARSE_STATE, jxpsd.parseStates, state );
+	LeaveCriticalSec( &jxpsd.cs_states );
 	//Deallocate( struct jsox_parse_state *, state );
 	(*ppState) = NULL;
 }
@@ -33804,6 +34344,12 @@ struct file_system_interface {
 	uintptr_t (CPROC *fs_ioctl)(uintptr_t psvInstance, uintptr_t opCode, va_list args);
 	uint64_t( CPROC *find_get_ctime )(struct find_cursor *cursor);
 	uint64_t( CPROC *find_get_wtime )(struct find_cursor *cursor);
+	int ( CPROC* _mkdir )( uintptr_t psvInstance, const char* );
+	int ( CPROC* _rmdir )( uintptr_t psvInstance, const char* );
+                //file *
+    int (CPROC* _lock)(void*);
+              //file *
+    int (CPROC* _unlock)(void*);
 };
 /* \ \
    Parameters
@@ -33976,6 +34522,7 @@ FILESYS_PROC uint64_t FILESYS_API ConvertFileTimeToInt( const FILETIME *filetime
 #endif
 //# endif
 #ifndef __LINUX__
+// legacy 3.1 support.  Please use a FILE* instead.
 FILESYS_PROC  HANDLE FILESYS_API  sack_open ( INDEX group, CTEXTSTR filename, int opts, ... );
 FILESYS_PROC  LOGICAL FILESYS_API  sack_set_eof ( HANDLE file_handle );
 FILESYS_PROC  long  FILESYS_API   sack_tell( INDEX file_handle );
@@ -33994,14 +34541,38 @@ FILESYS_PROC  int FILESYS_API  sack_iclose ( INDEX file_handle );
 FILESYS_PROC  int FILESYS_API  sack_ilseek ( INDEX file_handle, size_t pos, int whence );
 FILESYS_PROC  int FILESYS_API  sack_iread ( INDEX file_handle, POINTER buffer, int size );
 FILESYS_PROC  int FILESYS_API  sack_iwrite ( INDEX file_handle, CPOINTER buffer, int size );
+/*
+	Enable per-thread mounts.
+	once you do this, you will have to provide the thread with some mounts.
+*/
+FILESYS_PROC void FILESYS_API sack_filesys_enable_thread_mounts( void );
 /* internal (c library) file system is registered as prority 1000.... lower priorities are checked first for things like
   ScanFiles(), fopen( ..., "r" ), ... exists(), */
 FILESYS_PROC struct file_system_mounted_interface * FILESYS_API sack_mount_filesystem( const char *name, struct file_system_interface *, int priority, uintptr_t psvInstance, LOGICAL writable );
+/*
+  Mount filesystem again, using an existing mount as a reference.
+  name is not required (NULL)
+  priority, if 0, will use the priority of the existing mount.
+  writeable will apply for writes through this mount.  If the previous mount
+  is writable and writable != 0, the new mount can be written, if either
+  is 0, this mount will not be writable.  (cannnot remount-write)
+*/
+FILESYS_PROC struct file_system_mounted_interface* FILESYS_API sack_remount_filesystem( const char* name, struct file_system_mounted_interface* oldMount, int priority, LOGICAL writable );
+/*
+  Remove a mount from chain of mounts.
+*/
 FILESYS_PROC void FILESYS_API sack_unmount_filesystem( struct file_system_mounted_interface *mount );
-// get a mounted filesystem by name
+/*
+   get a mounted filesystem by name.
+*/
 FILESYS_PROC struct file_system_mounted_interface * FILESYS_API sack_get_mounted_filesystem( const char *name );
-// returrn inteface used on the mounted filesystem.
+/*
+   returrn inteface used on the mounted filesystem.
+*/
 FILESYS_PROC struct file_system_interface * FILESYS_API sack_get_mounted_filesystem_interface( struct file_system_mounted_interface * );
+/*
+   Some file system interfaces might use this(?), This is probably already deprecated.
+*/
 FILESYS_PROC uintptr_t FILESYS_API sack_get_mounted_filesystem_instance( struct file_system_mounted_interface *mount );
 /* sometimes you want scanfiles to only scan external files...
   so this is how to get that mount */
@@ -34018,6 +34589,10 @@ FILESYS_PROC  FILE* FILESYS_API  sack_fsopenEx ( INDEX group, CTEXTSTR filename,
 FILESYS_PROC  FILE* FILESYS_API  sack_fsopen ( INDEX group, CTEXTSTR filename, CTEXTSTR opts, int share_mode );
 FILESYS_PROC  struct file_system_interface * FILESYS_API sack_get_filesystem_interface( CTEXTSTR name );
 FILESYS_PROC  void FILESYS_API sack_set_default_filesystem_interface( struct file_system_interface *fsi );
+/*
+ register a name for a file system interface object.
+ This interface provides all the callbacks used to access file and directory objects
+ */
 FILESYS_PROC  void FILESYS_API sack_register_filesystem_interface( CTEXTSTR name, struct file_system_interface *fsi );
 FILESYS_PROC  int FILESYS_API  sack_fclose ( FILE *file_file );
 FILESYS_PROC  size_t FILESYS_API  sack_fseekEx ( FILE *file_file, size_t pos, int whence, struct file_system_mounted_interface *mount );
@@ -34040,13 +34615,18 @@ FILESYS_PROC int FILESYS_API sack_fprintf( FILE *file, const char *format, ... )
 FILESYS_PROC int FILESYS_API sack_fputs( const char *format, FILE *file );
 FILESYS_PROC  int FILESYS_API  sack_unlinkEx ( INDEX group, CTEXTSTR filename, struct file_system_mounted_interface *mount );
 FILESYS_PROC  int FILESYS_API  sack_unlink ( INDEX group, CTEXTSTR filename );
+FILESYS_PROC  int FILESYS_API  sack_rmdirEx( INDEX group, CTEXTSTR filename, struct file_system_mounted_interface* mount );
 FILESYS_PROC  int FILESYS_API  sack_rmdir( INDEX group, CTEXTSTR filename );
+FILESYS_PROC  int FILESYS_API  sack_mkdirEx( INDEX group, CTEXTSTR filename, struct file_system_mounted_interface* mount );
+FILESYS_PROC  int FILESYS_API  sack_mkdir( INDEX group, CTEXTSTR filename );
 FILESYS_PROC  int FILESYS_API  sack_renameEx ( CTEXTSTR file_source, CTEXTSTR new_name, struct file_system_mounted_interface *mount );
 FILESYS_PROC  int FILESYS_API  sack_rename ( CTEXTSTR file_source, CTEXTSTR new_name );
 FILESYS_PROC  void FILESYS_API sack_set_common_data_application( CTEXTSTR name );
 FILESYS_PROC  void FILESYS_API sack_set_common_data_producer( CTEXTSTR name );
 FILESYS_PROC  uintptr_t FILESYS_API  sack_ioctl( FILE *file, uintptr_t opCode, ... );
 FILESYS_PROC  uintptr_t FILESYS_API  sack_fs_ioctl( struct file_system_mounted_interface *mount, uintptr_t opCode, ... );
+FILESYS_PROC int FILESYS_API sack_flock( FILE* file );
+FILESYS_PROC int FILESYS_API sack_funlock( FILE* file );
 #ifndef NO_FILEOP_ALIAS
 #  ifndef NO_OPEN_MACRO
 # define open(a,...) sack_iopen(0,a,##__VA_ARGS__)
@@ -34072,6 +34652,8 @@ FILESYS_PROC  uintptr_t FILESYS_API  sack_fs_ioctl( struct file_system_mounted_i
 # define _lcreat(a,b) sack_creat(0,a,b)
 # define remove(a)   sack_unlink(0,a)
 # define unlink(a)   sack_unlink(0,a)
+# define rmdir(a)   sack_rmdir(0,a)
+# define mkdir(a)   sack_mkdir(0,a)
 #endif
 #endif
  //NO_FILEOP_ALIAS
@@ -34255,6 +34837,7 @@ PREFIX_PACKED struct malloc_chunk_tag
 } PACKED;
 PREFIX_PACKED struct heap_chunk_tag
 {
+	DeclareLink( struct heap_chunk_tag );
             // if 0 - block is free
 	uint16_t dwOwners;
    // extra bytes 4/12 typical, sometimes pad untill next.
@@ -34268,7 +34851,6 @@ PREFIX_PACKED struct heap_chunk_tag
 	struct heap_chunk_tag *pPrior;
   // pointer to master allocation struct (pMEM)
 	struct memory_block_tag * pRoot;
-	DeclareLink( struct heap_chunk_tag );
  // this is additional to subtract to get back to start (aligned allocate)
 	uint16_t alignment;
  // this is additional to subtract to get back to start (aligned allocate)
@@ -34693,111 +35275,34 @@ static void DumpSection( PCRITICALSECTION pcs )
 		int32_t  EnterCriticalSecNoWaitEx( PCRITICALSECTION pcs, THREAD_ID *prior DBG_PASS )
 		{
 			THREAD_ID dwCurProc;
-#ifdef LOG_DEBUG_CRITICAL_SECTIONS
-#  ifndef NO_LOGGING
-			if( g.bLogCritical > 0 && g.bLogCritical < 2 )
-				ll__lprintf( DBG_RELAY )("Attempt enter critical Section %" _64fx " %" _64fx " %" _64fx " %08" _32fx
-					, pcs->dwThreadID
-					, pcs->dwThreadWaiting
-					, (prior?(*prior):-1)
-					, pcs->dwLocks);
-#  endif
-#endif
 			// need to aquire lock on section...
 			// otherwise our old mechanism allowed an enter in another thread
 			// to falsely identify the section as its own while the real owner
 			// tried to exit...
-			if( XCHG( &pcs->dwUpdating, 1 ) )
-				return -1;
-#ifdef USE_CUSTOM_ALLOCER
-			dwCurProc = _GetMyThreadID();
-#else
-			dwCurProc = GetMyThreadID();
-#endif
-			if( !AND_NOT_SECTION_LOGGED_WAIT(pcs->dwLocks) )
-			{
+			if( XCHG( &pcs->dwUpdating, 1 ) ) return -1;
+			dwCurProc = GetThisThreadID();
+			if( !pcs->dwLocks ) {
 				// section is unowned...
-				if( pcs->dwThreadWaiting )
-				{
+				if( pcs->dwThreadWaiting ) {
 					// someone was waiting for it...
-					if( pcs->dwThreadWaiting != dwCurProc )
-					{
+					if( pcs->dwThreadWaiting != dwCurProc ) {
 						if( prior ) {
-							if( !(*prior) ) {
-#ifdef LOG_DEBUG_CRITICAL_SECTIONS
-								ll__lprintf( DBG_RELAY )("waiter is not myself... this is more recent than him... claim now. %" _64fx " %" _64fx " %" _64fx, pcs->dwThreadWaiting, prior ? (*prior) : -1LL, pcs->dwThreadID);
-#endif
-								// this would stack me on top anyway so just allow the waitier to keep waiting....
-#ifdef DEBUG_CRITICAL_SECTIONS
-#  ifdef _DEBUG
-								pcs->pFile[pcs->nPrior] = pFile;
-								pcs->nLine[pcs->nPrior] = nLine;
-#  else
-								pcs->pFile[pcs->nPrior] = __FILE__;
-								pcs->nLine[pcs->nPrior] = __LINE__;
-#  endif
-								pcs->nLineCS[pcs->nPrior] = __LINE__;
-								pcs->isLock[pcs->nPrior] = 1;
-								pcs->dwThreadPrior[pcs->nPrior] = dwCurProc;
-								pcs->nPrior = (pcs->nPrior + 1) % MAX_SECTION_LOG_QUEUE;
-#endif
-							}
-							else {
-#ifdef LOG_DEBUG_CRITICAL_SECTIONS
-								ll__lprintf( DBG_RELAY )("waiter is not myself... AND am in stack of waiter. %" _64fx " %" _64fx " %" _64fx, pcs->dwThreadWaiting, prior ? (*prior) : -1LL, pcs->dwThreadID);
-#endif
+							if( *prior ) {
 								// prior is set, so someone has set their prior to me....
 								pcs->dwUpdating = 0;
 								return 0;
 							}
 						}
-						else {
-#ifdef LOG_DEBUG_CRITICAL_SECTIONS
-							ll__lprintf( DBG_RELAY )("Waiter which is quick-wait does not sleep; claiming section... %" _64fx " %" _64fx " %" _64fx, pcs->dwThreadWaiting, prior ? (*prior) : -1LL, pcs->dwThreadID);
-#endif
-#ifdef DEBUG_CRITICAL_SECTIONS
-#  ifdef _DEBUG
-							pcs->pFile[pcs->nPrior] = pFile;
-							pcs->nLine[pcs->nPrior] = nLine;
-#  else
-							pcs->pFile[pcs->nPrior] = __FILE__;
-							pcs->nLine[pcs->nPrior] = __LINE__;
-#  endif
-							pcs->nLineCS[pcs->nPrior] = __LINE__;
-							pcs->isLock[pcs->nPrior] = 1;
-							pcs->dwThreadPrior[pcs->nPrior] = dwCurProc;
-							pcs->nPrior = (pcs->nPrior + 1) % MAX_SECTION_LOG_QUEUE;
-#endif
-						}
 					}
  //  waiting is me
 					else {
-#ifdef LOG_DEBUG_CRITICAL_SECTIONS
-						ll_lprintf( "@@@ Woke up after waiting, set prior waiter as next waiter... %" _64fx, prior ? (*prior) : -1LL );
-#endif
 						if( prior && (*prior) ) {
-							if( (*prior) == 1 ) {
-								pcs->dwThreadWaiting = 0;
-							}
-							else
-								pcs->dwThreadWaiting = (*prior);
+							if( (*prior) == 1 ) pcs->dwThreadWaiting = 0;
+							else pcs->dwThreadWaiting = (*prior);
 							(*prior) = 0;
 						}
 						else
 							pcs->dwThreadWaiting = 0;
-#ifdef DEBUG_CRITICAL_SECTIONS
-#  ifdef _DEBUG
-						pcs->pFile[pcs->nPrior] = pFile;
-						pcs->nLine[pcs->nPrior] = nLine;
-#  else
-						pcs->pFile[pcs->nPrior] = __FILE__;
-						pcs->nLine[pcs->nPrior] = __LINE__;
-#  endif
-						pcs->nLineCS[pcs->nPrior] = __LINE__;
-						pcs->isLock[pcs->nPrior] = 1;
-						pcs->dwThreadPrior[pcs->nPrior] = dwCurProc;
-						pcs->nPrior = (pcs->nPrior + 1) % MAX_SECTION_LOG_QUEUE;
-#endif
 					}
 				}
 				else {
@@ -34806,22 +35311,7 @@ static void DumpSection( PCRITICALSECTION pcs )
 						if( *prior != 1 )
 							DebugBreak();
 					}
-#ifdef LOG_DEBUG_CRITICAL_SECTIONS
-					ll_lprintf( "Claimed critical section." );
-#endif
-#ifdef DEBUG_CRITICAL_SECTIONS
-#  ifdef _DEBUG
-					pcs->pFile[pcs->nPrior] = pFile;
-					pcs->nLine[pcs->nPrior] = nLine;
-#  else
-					pcs->pFile[pcs->nPrior] = __FILE__;
-					pcs->nLine[pcs->nPrior] = __LINE__;
-#  endif
-					pcs->nLineCS[pcs->nPrior] = __LINE__;
-					pcs->isLock[pcs->nPrior] = 1;
-					pcs->dwThreadPrior[pcs->nPrior] = dwCurProc;
-					pcs->nPrior = (pcs->nPrior + 1) % MAX_SECTION_LOG_QUEUE;
-#endif
+					//ll_lprintf( "Claimed critical section." );
 				}
  // claim the section and return success
 				pcs->dwThreadID = dwCurProc;
@@ -34833,42 +35323,8 @@ static void DumpSection( PCRITICALSECTION pcs )
 			{
 				// otherwise 1) I won the thread already... (threadID == me )
 				pcs->dwLocks++;
-#ifdef DEBUG_CRITICAL_SECTIONS
-#  ifndef NO_LOGGING
-#    ifdef LOG_DEBUG_CRITICAL_SECTIONS
-				if( g.bLogCritical > 0 && g.bLogCritical < 2 )
-					ll_lprintf( "Locks are %08" _32fx, pcs->dwLocks );
-#    endif
-				if( (pcs->dwLocks & 0xFFFFF) > 1 )
-				{
-#    ifdef LOG_DEBUG_CRITICAL_SECTIONS
-					if( g.bLogCritical > 0 && g.bLogCritical < 2 )
-						_xlprintf( 1 DBG_RELAY )("!!!!  %p  Multiple Double entry! %" _32fx, pcs, pcs->dwLocks);
-#    endif
-				}
-#  endif
-#  ifdef _DEBUG
-				pcs->pFile[pcs->nPrior] = pFile;
-				pcs->nLine[pcs->nPrior] = nLine;
-#  else
-				pcs->pFile[pcs->nPrior] = __FILE__;
-				pcs->nLine[pcs->nPrior] = __LINE__;
-#  endif
-				pcs->nLineCS[pcs->nPrior] = __LINE__;
-				pcs->isLock[pcs->nPrior] = 1;
-				pcs->dwThreadPrior[pcs->nPrior] = dwCurProc;
-				pcs->nPrior = (pcs->nPrior + 1) % MAX_SECTION_LOG_QUEUE;
-#endif
 				pcs->dwUpdating = 0;
 				return 1;
-			}
-			//if( !(AND_SECTION_LOGGED_WAIT(pcs->dwLocks)) )
-			{
-#ifdef LOG_DEBUG_CRITICAL_SECTIONS
-				pcs->dwLocks |= SECTION_LOGGED_WAIT;
-				if( g.bLogCritical )
-					ll_lprintf( "Waiting on critical section owned by %s(%d) %08lx %." _64fx, (pcs->pFile) ? (pcs->pFile) : "Unknown", pcs->nLine, pcs->dwLocks, pcs->dwThreadID );
-#endif
 			}
 			// if the prior is wanted to be saved...
 			if( prior )
@@ -34889,11 +35345,6 @@ static void DumpSection( PCRITICALSECTION pcs )
 								DebugBreak();
 								(*prior) = 0;
 							}
-							else {
-#ifdef LOG_DEBUG_CRITICAL_SECTIONS
-								ll_lprintf( "Someone stole the critical section that we were wiating on before we reentered. fail. %" _64fx " %" _64fx " %" _64fx, pcs->dwThreadWaiting, dwCurProc, *prior );
-#endif
-							}
 						}
 						// assume that someone else kept our waiting ID...
 						// cause we're not the one waiting, and we have someone elses ID..
@@ -34901,33 +35352,15 @@ static void DumpSection( PCRITICALSECTION pcs )
 						pcs->dwUpdating = 0;
 						return 0;
 					}
-					else {
-						// waiting is the current threadproc; but someone claimed the section ahead of this.
-					}
 				}
 				else if( pcs->dwThreadWaiting != dwCurProc )
 				{
-					if( pcs->dwThreadWaiting ) {
-#ifdef LOG_DEBUG_CRITICAL_SECTIONS
-						if( g.bLogCritical )
-							ll_lprintf( "@@@ Setting prior to % " _64fx " and prior was %" _64fx, pcs->dwThreadWaiting, (*prior) );
-#endif
-						*prior = pcs->dwThreadWaiting;
-					}
-					else {
-#ifdef LOG_DEBUG_CRITICAL_SECTIONS
-						if( g.bLogCritical )
-							ll_lprintf( "@@@ Setting prior to % " _64fx " and prior was %" _64fx, pcs->dwThreadWaiting, (*prior) );
-#endif
-						*prior = 1;
-					}
+					if( pcs->dwThreadWaiting ) *prior = pcs->dwThreadWaiting;
+					else *prior = 1;
 					pcs->dwThreadWaiting = dwCurProc;
 				}
 			}
-			else
-			{
-				// else no prior... so don't set the dwthreadwaiting...
-			}
+			// else no prior... so don't set the dwthreadwaiting...
 			pcs->dwUpdating = 0;
 			return 0;
 		}
@@ -34943,96 +35376,33 @@ static void DumpSection( PCRITICALSECTION pcs )
 			THREAD_ID dwCurProc;
 			while( XCHG( &pcs->dwUpdating, 1 ) )
 				Relinquish();
-#ifdef USE_CUSTOM_ALLOCER
-			dwCurProc = _GetMyThreadID();
-#else
-			dwCurProc = GetMyThreadID();
-#endif
-#  ifdef LOG_DEBUG_CRITICAL_SECTIONS
-#    ifndef NO_LOGGING
-			if( g.bLogCritical > 0 && g.bLogCritical < 2 )
-				ll__lprintf( DBG_RELAY )("Locked %p for leaving...", pcs);
-#    endif
-#  endif
-			if( !AND_NOT_SECTION_LOGGED_WAIT(pcs->dwLocks) )
+			dwCurProc = GetThisThreadID();
+			if( !pcs->dwLocks )
 			{
-				if( g.bLogCritical > 0 && g.bLogCritical < 2 )
-					ll_lprintf( DBG_FILELINEFMT "Leaving a blank critical section" DBG_RELAY );
+				ll_lprintf( DBG_FILELINEFMT "Leaving a blank critical section (excessive leaves?)" DBG_RELAY );
 				DebugBreak();
-				//while( 1 );
 				pcs->dwUpdating = 0;
 				return FALSE;
 			}
-#ifdef DEBUG_CRITICAL_SECTIONS
-			//if( g.bLogCritical > 1 )
-			// ll_lprintf( DBG_FILELINEFMT ( "Leaving %" _64fx"x %" _64fx"x %p" ) DBG_RELAY ,pcs->dwThreadID, dwCurProc, pcs );
-#endif
 			if( pcs->dwThreadID == dwCurProc )
 			{
 				pcs->dwLocks--;
-				if( AND_SECTION_LOGGED_WAIT(pcs->dwLocks) )
+				if( !pcs->dwLocks )
 				{
-					if( !AND_NOT_SECTION_LOGGED_WAIT(pcs->dwLocks) )
+					pcs->dwThreadID = 0;
+					if( pcs->dwThreadWaiting )
 					{
-#ifdef DEBUG_CRITICAL_SECTIONS
-#  ifdef _DEBUG
-						pcs->pFile[pcs->nPrior] = pFile;
-						pcs->nLine[pcs->nPrior] = nLine;
-#  else
-						pcs->pFile[pcs->nPrior] = __FILE__;
-						pcs->nLine[pcs->nPrior] = __LINE__;
-#  endif
-						pcs->nLineCS[pcs->nPrior] = __LINE__;
-						pcs->isLock[pcs->nPrior] = 0;
-						pcs->dwThreadPrior[pcs->nPrior] = dwCurProc;
-						pcs->nPrior = (pcs->nPrior + 1) % MAX_SECTION_LOG_QUEUE;
-#endif
-#ifdef LOG_DEBUG_CRITICAL_SECTIONS
-						pcs->dwLocks = 0;
-#endif
-						pcs->dwThreadID = 0;
 						pcs->dwUpdating = 0;
  // allow whoever was waiting to go now...
 						Relinquish();
 						return TRUE;
 					}
 				}
-				else
-				{
-					if( !pcs->dwLocks ) {
-#ifdef DEBUG_CRITICAL_SECTIONS
-#  ifdef _DEBUG
-						pcs->pFile[pcs->nPrior] = pFile;
-						pcs->nLine[pcs->nPrior] = nLine;
-#  else
-						pcs->pFile[pcs->nPrior] = __FILE__;
-						pcs->nLine[pcs->nPrior] = __LINE__;
-#  endif
-						pcs->nLineCS[pcs->nPrior] = __LINE__;
-						pcs->isLock[pcs->nPrior] = 1;
-						pcs->dwThreadPrior[pcs->nPrior] = dwCurProc;
-						pcs->nPrior = (pcs->nPrior + 1) % MAX_SECTION_LOG_QUEUE;
-#endif
-						pcs->dwThreadID = 0;
-					}
-				}
-				// don't wake the prior (if there is one sleeping)
-				// pcs->dwThreadID = 0;
 			}
 			else
 			{
-#ifdef DEBUG_CRITICAL_SECTIONS
-				{
-					_xlprintf( 0 DBG_RELAY )("Sorry - you can't leave a section owned by %" _64fx " %08lx %s(%d)..."
-						, pcs->dwThreadID
-						, pcs->dwLocks
-						, (pcs->pFile[(pcs->nPrior + 15) % MAX_SECTION_LOG_QUEUE]) ? (pcs->pFile[(pcs->nPrior + 15) % MAX_SECTION_LOG_QUEUE]) : "Unknown", pcs->nLine[(pcs->nPrior + 15) % MAX_SECTION_LOG_QUEUE]);
-					DebugBreak();
-				}
-#else
-				lprintf( "Sorry - you can't leave a section you don't own..." );
+				lprintf( "Sorry - you can't leave a section you don't own...(shouldn't have been past your Enter anyway?)" );
 				DebugBreak();
-#endif
 				pcs->dwUpdating = 0;
 				return FALSE;
 			}
@@ -35827,7 +36197,12 @@ uintptr_t GetFileSize( int fd )
 #ifdef DEBUG_OPEN_SPACE
 					ll_lprintf( "Setting size to size of file (which was larger.." );
 #endif
-					(*dwSize) = (uintptr_t)(lSize.QuadPart);
+					if( *dwSize ) {
+						SetFilePointer( hFile, (LONG) * (int32_t*)dwSize, (sizeof( dwSize[0] ) > 4) ? (PLONG)(((int32_t*)dwSize) + 1) : NULL, FILE_BEGIN );
+						SetEndOfFile( hFile );
+					}
+					else
+						(*dwSize) = (uintptr_t)(lSize.QuadPart);
 				}
 			}
 			else
@@ -35989,7 +36364,10 @@ uintptr_t GetFileSize( int fd )
 	pMem->dwSize = dwSize;
 	pMem->dwHeapID = 0xbab1f1ea;
 	pMem->pFirstFree = NULL;
-	pMem->dwFlags = 0;
+        pMem->dwFlags = 0;
+        // this uses the address of next to assign a member.
+        // next is the first member of this structure;
+        // even if it is packed, there's no issue surely with taking the address of the first member?
 	LinkThing( pMem->pFirstFree, pMem->pRoot );
 	InitializeCriticalSec( &pMem->cs );
 	pMem->pRoot[0].dwSize = dwSize - MEM_SIZE - CHUNK_SIZE;
@@ -36139,6 +36517,9 @@ POINTER HeapAllocateAlignedEx( PMEM pHeap, size_t dwSize, uint16_t alignment DBG
 {
    // if a heap is passed, it's a private heap, and allocation is as normal...
 	uint32_t dwAlignPad = 0;
+#if defined( __64__ )
+	if( !alignment ) alignment = 8;
+#endif
 	if( alignment ) {
 		dwSize += (alignment - 1);
 		dwAlignPad = (alignment - 1);
@@ -36196,6 +36577,11 @@ POINTER HeapAllocateAlignedEx( PMEM pHeap, size_t dwSize, uint16_t alignment DBG
 		PSPACE pMemSpace;
 		uint32_t dwPad = 0;
 		uint32_t dwMin = 0;
+		intptr_t mask;
+		if( alignment > ( sizeof( masks ) / sizeof( masks[0] ) ) )
+			mask = ( ~( (uintptr_t)( alignment - 1 ) ) );
+		else
+			mask = masks[alignment];
 		//ll__lprintf(DBG_RELAY)( "..." );
 #ifdef _DEBUG
 		if( !g.bDisableAutoCheck )
@@ -36211,16 +36597,15 @@ POINTER HeapAllocateAlignedEx( PMEM pHeap, size_t dwSize, uint16_t alignment DBG
 		if( !pHeap )
 			pHeap = g.pMemInstance;
 		pMem = GrabMem( pHeap );
+		dwPad = dwAlignPad;
 #ifdef __64__
-		dwPad = (((dwSize + 7) & 0xFFFFFFFFFFFFFFF8) - dwSize);
- // fix size to allocate at least _32s which
-		dwSize += 7;
-		dwSize &= 0xFFFFFFFFFFFFFFF8;
+		//dwPad = (uint32_t)( (((dwSize + 7) & 0xFFFFFFFFFFFFFFF8) - dwSize) );
+		//dwSize += 7; // fix size to allocate at least _32s which
+		//dwSize &= 0xFFFFFFFFFFFFFFF8;
 #else
-		dwPad = (((dwSize + 3) & 0xFFFFFFFC) -dwSize);
- // fix size to allocate at least _32s which
-		dwSize += 3;
-		dwSize &= 0xFFFFFFFC;
+		//dwPad = (((dwSize + 3) & 0xFFFFFFFC) -dwSize);
+		//dwSize += 3; // fix size to allocate at least _32s which
+		//dwSize &= 0xFFFFFFFC;
 #endif
 #ifdef _DEBUG
 		if( pMem && !(pMem->dwFlags & HEAP_FLAG_NO_DEBUG) )
@@ -36327,7 +36712,7 @@ POINTER HeapAllocateAlignedEx( PMEM pHeap, size_t dwSize, uint16_t alignment DBG
 			{
 				// after 1 allocation, need a free chunk at end...
 				// and let's just have a couple more to spaere.
-				if( ExpandSpace( pMem, dwSize + (CHUNK_SIZE*4) + MEM_SIZE + 8 * MAGIC_SIZE ) )
+				if( ExpandSpace( pMem, dwSize + 4096 + (CHUNK_SIZE*4) + MEM_SIZE + 8 * MAGIC_SIZE ) )
 				{
 #ifndef NO_LOGGING
 					//ll__lprintf(DBG_RELAY)( "Creating a new expanded space... %" _size_fs, dwSize + (CHUNK_SIZE*4) + MEM_SIZE + 8 * MAGIC_SIZE );
@@ -36374,12 +36759,12 @@ POINTER HeapAllocateAlignedEx( PMEM pHeap, size_t dwSize, uint16_t alignment DBG
 #  endif
 #endif
 		//#endif
-		if( alignment && ((uintptr_t)pc->byData & ~masks[alignment]) ) {
-			uintptr_t retval = ((((uintptr_t)pc->byData) + (alignment - 1)) & masks[alignment]);
+		if( alignment && ((uintptr_t)pc->byData & ~mask ) ) {
+			uintptr_t retval = ((((uintptr_t)pc->byData) + (alignment - 1)) & mask );
  /*pc->alignemnt =*/
 			((uint16_t*)(retval - sizeof( uint32_t )))[0] = alignment;
  /*pc->to_chunk_start =*/
-			((uint16_t*)(retval - sizeof( uint32_t )))[1] = (uint16_t)(((((uintptr_t)pc->byData) + (alignment - 1)) & masks[alignment]) - (uintptr_t)pc->byData);
+			((uint16_t*)(retval - sizeof( uint32_t )))[1] = (uint16_t)(((((uintptr_t)pc->byData) + (alignment - 1)) & mask ) - (uintptr_t)pc->byData);
 			return (POINTER)retval;
 		}
 		else {
@@ -36465,6 +36850,7 @@ POINTER  HeapPreallocateEx ( PMEM pHeap, POINTER source, uintptr_t size DBG_PASS
 	return HeapPreallocateAlignedEx( g.pMemInstance, source, size, AlignOfMemBlock( source ) DBG_RELAY );
 }
 //------------------------------------------------------------------------------------------------------
+#if USE_CUSTOM_ALLOCER
 static void Bubble( PMEM pMem )
 {
 	// handle sorting free memory to be least signficant first...
@@ -36502,6 +36888,7 @@ static void Bubble( PMEM pMem )
 		}
 	}
 }
+#endif
 //------------------------------------------------------------------------------------------------------
  uintptr_t  SizeOfMemBlock ( CPOINTER pData )
 {
@@ -36546,6 +36933,7 @@ uint16_t  AlignOfMemBlock( CPOINTER pData )
 //------------------------------------------------------------------------------------------------------
 POINTER ReleaseEx ( POINTER pData DBG_PASS )
 {
+	if( !g.bInit ) return NULL;
 	if( pData )
 	{
 #ifndef __NO_MMAP__
@@ -36868,7 +37256,8 @@ POINTER ReleaseEx ( POINTER pData DBG_PASS )
 		}
 		else
 		{
-			PCHUNK pc = (PCHUNK)((char*)pData - CHUNK_SIZE);
+			PCHUNK pc = (PCHUNK)(((uintptr_t)pData) - ( ( (uint16_t*)pData)[-1] +
+													offsetof( CHUNK, byData ) ) );
 			PMEM pMem = GrabMem( pc->pRoot );
 #ifndef NO_LOGGING
 			if( g.bLogAllocate )
@@ -38000,6 +38389,9522 @@ TEXTSTR     DupCharToTextEx( const char * original DBG_PASS )
    return -1;
 }
 SACK_MEMORY_NAMESPACE_END
+/*
+ *  Crafted by James Buckeyne
+ *
+ *   (c) Freedom Collective 2000-2006++
+ *
+ *   Adds functionality of timers that run dispatched from a single thread
+ *   timer delay is trackable to provide self adjusting reliable frequency dispatch.
+ *
+ *   RemoveTimer( AddTimer( tick_frequency, timer_callback, user_data ) );
+ *
+ */
+//#define ENABLE_CRITICALSEC_LOGGING
+#define NO_UNICODE_C
+// this is a cheat to get the critical section
+// object... otherwise we'd have had circular
+// linking reference between this and sharemem
+// which would prefer to implement wakeablesleep
+// for critical section waiting...
+// must be included before memlib..
+//#undef UNICODE
+#define MEMORY_STRUCT_DEFINED
+#define DEFINE_MEMORY_STRUCT
+#define THREAD_STRUCTURE_DEFINED
+ // Sleep()
+ // SimpleRegisterAndCreateGlobal
+// sorry if this causes problems...
+// maybe promote this include into stdhdrs when this fails to compile
+#ifdef __WATCOMC__
+// _beginthread
+#undef exit
+#undef getenv
+// process.h redefines exit
+#include <process.h>
+#endif
+#ifndef IDLE_FUNCTIONS_DEFINED
+#define IDLE_FUNCTIONS_DEFINED
+# ifdef IDLE_SOURCE
+#  define IDLE_PROC(type,name) EXPORT_METHOD type CPROC name
+# else
+#  define IDLE_PROC(type,name) IMPORT_METHOD type CPROC name
+# endif
+#ifdef __cplusplus
+namespace sack {
+	namespace timers {
+#endif
+// return -1 if not the correct thread
+// return 0 if no events processed
+// return 1 if events were processed
+typedef int (CPROC *IdleProc)(uintptr_t);
+IDLE_PROC( void, AddIdleProc )( IdleProc Proc, uintptr_t psvUser );
+IDLE_PROC( int, RemoveIdleProc )( IdleProc Proc );
+IDLE_PROC( int, Idle )( void );
+IDLE_PROC( int, IdleFor )( uint32_t dwMilliseconds );
+#ifdef __cplusplus
+//	namespace timers {
+	}
+//namespace sack {
+}
+using namespace sack::timers;
+#endif
+#endif
+#ifndef __NO_OPTIONS__
+#endif
+#define DO_LOGGING
+// display pause/resume support.
+/* <link sack::image::render::PRENDERER, Render> provides a
+   method to display images on a screen. It is the interface
+   between memory images and the window desktop or frame buffer
+   the user is viewing on a monitor.
+   Under windows, this is implemented as an HWND and an HBITMAP
+   used to allow the application to draw. Updates are done
+   directly from the drawable surface to the HWND as appropriate
+   for the type of service. This is implemented with Vidlib.dll.
+   Under Linux, this is mounted against SDL. SDL, however, does
+   not give multiple display surfaces, so a more direct method
+   should be used someday, other than SDL does a good job of
+   aliasing frame buffer and X display windows to a consistant
+   interface. This is implemented wit DisplayLib (as yet outside
+   of the documentation). Display lib can interface either
+   directly, or be mounted as a service across from a shared
+   memory message service, and host multiple applications on a
+   single frame buffer surface.
+   TODO
+   Implement displays as direct X displays, and allow managment
+   there under linux.
+   Displaylib was a good project, and although suffers from
+   code-rot, it is probably still mostly usable. Message
+   services were easily transported across a network, but then
+   location services started failing.
+   Example
+   <code lang="c++">
+   // get a render display, just a default window of some size
+   // extended features are available for more precision.
+   Render render = OpenDisplay(0);
+   </code>
+   A few methods of using this surface are available. One, you
+   may register for events, and be called as required.
+   <code lang="c++">
+   RedrawCallback MyDraw = DrawHandler;
+   MouseCallback MyMouse;
+   </code>
+   <code>
+   KeyProc MyKey;
+   CloseCallback MyClose;
+   </code>
+   <code lang="c++">
+   // called when the surface is initially shown, or when its surface changes.
+   // otherwise, the image drawn by the application is static, and does
+   // not get an update event.
+   SetRedrawHandler( render, MyDraw, 0 );
+   // This will get an event every time a mouse event happens.
+   // If no Key handler is specified, key strokes will also be mouse events.
+   SetMouseHandler( render, MyMouse, 0 );
+   // If the window was closed, get an event.
+   SetCloseHandler( render, MyClose, 0 );
+   // specify a handler to get keyboard events...
+   SetKeyboardHandler( render, MyKey, 0 );
+   </code>
+   Or, if you don't really care about any events...
+   <code lang="c++">
+   // load an image
+   Image image = LoadImageFile( "sample.jpg" );
+   // get the image target of render
+   Image display = GetDisplayImage( render );
+   // copy the loaded image to the display image
+   BlotImage( display, image );
+   // and update the display
+   UpdateDisplay( render );
+   </code>
+   <code lang="c++">
+   void CPROC DrawHandler( uintptr_t psvUserData, 31~PRENDERER render )
+   {
+       Image display = GetDisplayImage( render );
+       // the display image may change, because of an external resize
+       // update the image to display as desired...
+       // when done, the draw handler should call UpdateDisplay or...
+       UpdateDisplayPortion( render, 0, 0, 100, 100 );
+   }
+   </code>
+   Oh! And most importantly! Have to call this to put the window
+   on the screen.
+   <code lang="c++">
+   UpdateDisplay( render );
+   </code>
+   Or maybe can pretend it was hidden
+   <code lang="c++">
+   RestoreDisplay( render );
+   </code>                                                                     */
+// this shouldprobably be interlocked with
+//  display.h or vidlib.h(video.h)
+#ifndef RENDER_INTERFACE_INCLUDED
+// multiple inclusion protection symbol.
+#define RENDER_INTERFACE_INCLUDED
+#ifdef __cplusplus
+#ifdef _D3D_DRIVER
+#define RENDER_NAMESPACE namespace sack { namespace image { namespace render { namespace d3d {
+#define _RENDER_NAMESPACE namespace render { namespace d3d {
+#define RENDER_NAMESPACE_END }}}}
+#elif defined( _D3D10_DRIVER )
+#define RENDER_NAMESPACE namespace sack { namespace image { namespace render { namespace d3d10 {
+#define _RENDER_NAMESPACE namespace render { namespace d3d10 {
+#define RENDER_NAMESPACE_END }}}}
+#elif defined( _D3D11_DRIVER )
+#define RENDER_NAMESPACE namespace sack { namespace image { namespace render { namespace d3d11 {
+#define _RENDER_NAMESPACE namespace render { namespace d3d11 {
+#define RENDER_NAMESPACE_END }}}}
+#else
+#define RENDER_NAMESPACE namespace sack { namespace image { namespace render {
+/* <copy render.h>
+   \ \             */
+#define _RENDER_NAMESPACE namespace render {
+#define RENDER_NAMESPACE_END }}}
+#endif
+#else
+#define RENDER_NAMESPACE
+#define _RENDER_NAMESPACE
+#define RENDER_NAMESPACE_END
+#endif
+#ifndef KEYBOARD_DEFINITION
+#  define KEYBOARD_DEFINITION
+#  ifdef __cplusplus
+#    define _RENDER_KEYBOARD_NAMESPACE namespace keyboard {
+#    define _RENDER_KEYBOARD_NAMESPACE_END }
+#  else
+#    define _RENDER_KEYBOARD_NAMESPACE
+#    define _RENDER_KEYBOARD_NAMESPACE_END
+#  endif
+RENDER_NAMESPACE
+   _RENDER_KEYBOARD_NAMESPACE
+			/* Keyboard state tracking structure... not very optimal...
+			   \internal usage might be different.                      */
+			enum KeyUpDownState {
+KEYISUP   =2,
+KEYISDOWN =1
+			};
+/* <combine sack::image::render::keyboard::keyboard_tag>
+   \ \                                                   */
+typedef struct keyboard_tag KEYBOARD;
+/* <combine sack::image::render::keyboard::keyboard_tag>
+   \ \                                                   */
+typedef struct keyboard_tag *PKEYBOARD;
+struct keyboard_tag
+{
+#define NUM_KEYS 256
+   /* one byte index... more than sufficient
+      if character in array is '1' key is down, '2' key is up. */
+   char keyupdown[NUM_KEYS];
+   /* Indicator that the key is a double-tap, not just a single.
+      "!! is different that "!" "!                               */
+   char keydouble[NUM_KEYS];
+   /* time of the last key event */
+   unsigned int  keytime[NUM_KEYS];
+   /* I'm not sure, maybe it's the printable key char? */
+		unsigned char key[NUM_KEYS];
+#if 0
+	// void (*Proc)(uintptr_t psv)[NUM_KEYS][8];
+#endif
+};
+_RENDER_KEYBOARD_NAMESPACE_END
+RENDER_NAMESPACE_END
+#ifdef __cplusplus
+#  ifdef _D3D_DRIVER
+     using namespace sack::image::render::d3d::keyboard;
+#  elif defined( _D3D10_DRIVER )
+     using namespace sack::image::render::d3d10::keyboard;
+#  elif defined( _D3D11_DRIVER )
+     using namespace sack::image::render::d3d11::keyboard;
+#  else
+     using namespace sack::image::render::keyboard;
+#  endif
+#endif
+//#include "vidlib.h"
+	// some common things which are specific to this
+   // library, and independant of implementation (so far)
+#define KEY_MOD_SHIFT 1
+#define KEY_MOD_CTRL  2
+#define KEY_MOD_ALT   4
+#define KEY_MOD_META  64
+// call trigger on release also...
+#define KEY_MOD_RELEASE  8
+ // application wants both press and release events.
+#define KEY_MOD_ALL_CHANGES  16
+ // key match must be extended also... (extra arrow keys for instance.. what about SDL)
+#define KEY_MOD_EXTENDED 32
+#define KEY_PRESSED         0x80000000
+#define IsKeyPressed( keycode ) ( (keycode) & 0x80000000 )
+#define KEY_ALT_DOWN        0x40000000
+#define KEY_CONTROL_DOWN    0x20000000
+#define KEY_SHIFT_DOWN      0x10000000
+#define KEY_MOD_DOWN (KEY_ALT_DOWN|KEY_CONTROL_DOWN)
+#define KEY_ALPHA_LOCK_ON   0x08000000
+#define KEY_NUM_LOCK_ON     0x04000000
+#define KEY_MOD(key)        ( ( (key) & 0x70000000 ) >> 28 )
+#define KEY_REAL_CODE(key)  ( ( (key) & 0x00FF0000 ) >> 16 )
+#define KEY_CODE(key)       ( (key) & 0xFF )
+#define IsKeyExtended(key)  ( ( (key) & 0x00000100 ) >> 8 )
+#if defined( _WIN32 ) || defined( WIN32 ) || defined( __CYGWIN__ ) || defined( USE_WIN32_KEY_DEFINES )
+// mirrored KEY_ definitions from allegro.H library....
+//#include <windows.h>
+#  define BIT_7           0x80
+#  define KEY_TAB          9
+#  define KEY_CENTER       12
+#  define KEY_KP5       12
+#  define KEY_PAD5         12
+#  define KEY_ENTER        13
+#  define KEY_LSHIFT       16
+#  define KEY_SHIFT        16
+#  define KEY_LEFT_SHIFT   0x10
+ // maybe?
+#  define KEY_RIGHT_SHIFT  0x10
+#  define KEY_SHIFT_LEFT KEY_LEFT_SHIFT
+#  define KEY_SHIFT_RIGHT KEY_RIGHT_SHIFT
+#  define KEY_CTRL         17
+#  define KEY_CONTROL      17
+#  define KEY_LEFT_CONTROL  17
+#  define KEY_RIGHT_CONTROL 17
+ // can't get usually under windows?(keyhook!)
+#  define KEY_ALT          18
+#  define KEY_LEFT_ALT      18
+#  define KEY_RIGHT_ALT     18
+#  define KEY_CAPS_LOCK    20
+#  define KEY_ESC          27
+#  define KEY_ESCAPE       27
+#  define KEY_PGUP         33
+#  define KEY_PAGE_UP     KEY_PGUP
+#  define KEY_PGDN         34
+#  define KEY_PAGE_DOWN   KEY_PGDN
+#  define KEY_END          35
+#  define KEY_HOME         36
+#  define KEY_LEFT         37
+#  define KEY_UP           38
+#  define KEY_RIGHT        39
+#  define KEY_DOWN         40
+#  define KEY_GRAY_UP  38
+#  define KEY_GRAY_LEFT   37
+#  define KEY_GRAY_RIGHT  39
+#  define KEY_GRAY_DOWN    40
+//#  define KEY_GRAY_UP      BIT_7+0x48
+#  define KEY_GRAY_PGUP   BIT_7+0x49
+#  define KEY_GRAY_MINUS  BIT_7+0x4A
+//#  define KEY_GRAY_LEFT BIT_7+0x4B
+//#  define KEY_GRAY_RIGHT   BIT_7+0x4D
+#  define KEY_GRAY_PLUS   BIT_7+0x4E
+#  define KEY_GRAY_END    BIT_7+0x4F
+#  define KEY_PAD_PLUS   BIT_7+0x4E
+//#  define KEY_GRAY_DOWN BIT_7+0x50
+#  define KEY_GRAY_PGDN   BIT_7+0x51
+#  define KEY_GRAY_INS    BIT_7+0x52
+#  define KEY_GRAY_DEL    BIT_7+0x53
+#  define KEY_GRAY_DELETE    BIT_7+0x53
+#  define KEY_GREY_DELETE    BIT_7+0x53
+#  define KEY_INSERT       45
+#  define KEY_DEL          46
+#  define KEY_DELETE       KEY_DEL
+#  define KEY_PRINT_SCREEN1  VK_PRINT
+#  define KEY_PRINT_SCREEN2  VK_SNAPSHOT
+ // windows keys keys
+#  define KEY_WINDOW_2     0x50
+ // windows keys keys
+#  define KEY_WINDOW_1     0x5c
+#  define KEY_GRAY_STAR     0x6a
+#  define KEY_PLUS_PAD     0x6b
+//#  define KEY_GRAY_MINUS    0x6d
+#  define KEY_GRAY_SLASH    VK_OEM_5
+//#  define KEY_GRAY_PLUS     107
+#  define KEY_NUM_LOCK      VK_NUMLOCK
+#  define KEY_SCROLL_LOCK VK_SCROLL
+#  define KEY_SLASH        VK_OEM_2
+#  define KEY_BACKSPACE   '\b'
+#  define KEY_SPACE        ' '
+#  define KEY_COMMA      0xBC
+ // should be some sort of VK_ definitions....
+#  define KEY_STOP       0xBE
+#  define KEY_PERIOD     KEY_STOP
+#  define KEY_A         'A'
+#  define KEY_B         'B'
+#  define KEY_C         'C'
+#  define KEY_D         'D'
+#  define KEY_E         'E'
+#  define KEY_F         'F'
+#  define KEY_G         'G'
+#  define KEY_H         'H'
+#  define KEY_I         'I'
+#  define KEY_J         'J'
+#  define KEY_K         'K'
+#  define KEY_L         'L'
+#  define KEY_F12  VK_F12
+#  define KEY_F11  VK_F11
+#  define KEY_F10  VK_F10
+#  define KEY_F9  VK_F9
+#  define KEY_F8  VK_F8
+#  define KEY_F7  VK_F7
+#  define KEY_F6  VK_F6
+#  define KEY_F5  VK_F5
+#  define KEY_F4  VK_F4
+#  define KEY_F3  VK_F3
+#  define KEY_F2  VK_F2
+#  define KEY_F1  VK_F1
+#  define KEY_M        77
+#  define KEY_N         78
+#  define KEY_O         79
+#  define KEY_P        80
+#  define KEY_Q         'Q'
+#  define KEY_R         'R'
+#  define KEY_S         'S'
+#  define KEY_T         'T'
+#  define KEY_U         'U'
+#  define KEY_V         'V'
+#  define KEY_W         'W'
+#  define KEY_X         'X'
+#  define KEY_Y         'Y'
+#  define KEY_Z         'Z'
+#  define KEY_1         '1'
+#  define KEY_2         '2'
+#  define KEY_3         '3'
+#  define KEY_4         '4'
+#  define KEY_5         '5'
+#  define KEY_6         '6'
+#  define KEY_7         '7'
+#  define KEY_8         '8'
+#  define KEY_9         '9'
+#  define KEY_0         '0'
+#  define KEY_MINUS    KEY_DASH
+#  ifndef VK_OEM_1
+// native windows OEM definitions
+#    define VK_OEM_1   186
+#    define VK_OEM_2   191
+#    define VK_OEM_4   219
+#    define VK_OEM_5   220
+#    define VK_OEM_6   221
+#    define VK_OEM_7   222
+#    define VK_OEM_MINUS  189
+#    define VK_OEM_PLUS    187
+#  endif
+#  define KEY_SEMICOLON     VK_OEM_1
+#  define KEY_QUOTE         VK_OEM_7
+#  define KEY_LEFT_BRACKET  VK_OEM_4
+#  define KEY_RIGHT_BRACKET VK_OEM_6
+#  define KEY_BACKSLASH     VK_OEM_5
+//'-'
+#  define KEY_DASH     VK_OEM_MINUS
+#  define KEY_EQUAL    VK_OEM_PLUS
+#  define KEY_EQUALS   KEY_EQUAL
+#  define KEY_ACCENT 192
+#  define KEY_GRAVE  KEY_ACCENT
+#  define KEY_APOSTROPHE  KEY_ACCENT
+#  define KEY_F1  VK_F1
+#  define KEY_F2  VK_F2
+#  define KEY_F3  VK_F3
+#  define KEY_F4  VK_F4
+#  define KEY_F5  VK_F5
+#  define KEY_F6  VK_F6
+#  define KEY_F7  VK_F7
+#  define KEY_F8  VK_F8
+#  define KEY_F9  VK_F9
+#  define KEY_F10  VK_F10
+#  define KEY_F1  VK_F1
+#  define VK_NUMPAD0        0x60
+#  define VK_NUMPAD1        0x61
+#  define VK_NUMPAD2        0x62
+#  define VK_NUMPAD3        0x63
+#  define VK_NUMPAD4        0x64
+#  define VK_NUMPAD5        0x65
+#  define VK_NUMPAD6        0x66
+#  define VK_NUMPAD7        0x67
+#  define VK_NUMPAD8        0x68
+#  define VK_NUMPAD9        0x69
+#  define VK_MULTIPLY       0x6A
+#  define VK_ADD            0x6B
+#  define VK_SEPARATOR      0x6C
+#  define VK_SUBTRACT       0x6D
+#  define VK_DECIMAL        0x6E
+#  define VK_DIVIDE         0x6F
+#  define KEY_PAD_MULT VK_MULTIPLY
+#  define KEY_PAD_DOT VK_DECIMAL
+#  define KEY_PAD_DIV VK_DIVIDE
+#  define KEY_PAD_0 VK_NUMPAD0
+#  define KEY_GREY_INSERT VK_NUMPAD0
+#  define KEY_PAD_1 VK_NUMPAD1
+#  define KEY_PAD_2 VK_NUMPAD2
+#  define KEY_PAD_3 VK_NUMPAD3
+#  define KEY_PAD_4 VK_NUMPAD4
+#  define KEY_PAD_5 VK_NUMPAD5
+#  define KEY_PAD_6 VK_NUMPAD6
+#  define KEY_PAD_7 VK_NUMPAD7
+#  define KEY_PAD_8 VK_NUMPAD8
+#  define KEY_PAD_9 VK_NUMPAD9
+#  define KEY_PAD_ENTER VK_RETURN
+#  define KEY_PAD_DELETE VK_SEPARATOR
+#  define KEY_PAD_MINUS VK_SUBTRACT
+#endif
+#if defined( __EMSCRIPTEN__ ) || defined( __EMSCRIPTEN__ )
+	  /*   https://w3c.github.io/uievents/#fixed-virtual-key-codes
+      // for keyCode
+      */
+#define KEY_BACKSPACE 8
+#define KEY_TAB 9
+#define KEY_ENTER 13
+#define KEY_SHIFT 16
+#define KEY_LEFT_SHIFT 16
+#define KEY_RIGHT_SHIFT 16
+#define KEY_CTRL 17
+#define KEY_CONTROL 17
+#define KEY_LEFT_CONTROL 17
+#define KEY_RIGHT_CONTROL 17
+#define KEY_ALT 18
+#define KEY_LEFT_ALT 18
+#define KEY_RIGHT_ALT 18
+#define KEY_F1  112
+#define KEY_F2  113
+#define KEY_F3  114
+#define KEY_F4  115
+#define KEY_F5  116
+#define KEY_F6  117
+#define KEY_F7  118
+#define KEY_F8  119
+#define KEY_F9  120
+#define KEY_F10  121
+#define KEY_F11  122
+#define KEY_F12  123
+#  undef KEY_SPACE
+#  define KEY_SPACE        ' '
+#  define KEY_A         'A'
+#  define KEY_B         'B'
+#  define KEY_C         'C'
+#  define KEY_D         'D'
+#  define KEY_E         'E'
+#  define KEY_F         'F'
+#  define KEY_G         'G'
+#  define KEY_H         'H'
+#  define KEY_I         'I'
+#  define KEY_J         'J'
+#  define KEY_K         'K'
+#  define KEY_L         'L'
+#  define KEY_M        77
+#  define KEY_N         78
+#  define KEY_O         79
+#  define KEY_P        80
+#  define KEY_Q         'Q'
+#  define KEY_R         'R'
+#  define KEY_S         'S'
+#  define KEY_T         'T'
+#  define KEY_U         'U'
+#  define KEY_V         'V'
+#  define KEY_W         'W'
+#  define KEY_X         'X'
+#  define KEY_Y         'Y'
+#  define KEY_Z         'Z'
+#  define KEY_1         '1'
+#  define KEY_2         '2'
+#  define KEY_3         '3'
+#  define KEY_4         '4'
+#  define KEY_5         '5'
+#  define KEY_6         '6'
+#  define KEY_7         '7'
+#  define KEY_8         '8'
+#  define KEY_9         '9'
+#  define KEY_0         '0'
+   //';'
+#define KEY_SEMICOLON	186
+   //':'
+#define KEY_COLON	    186
+  //'='	//187
+#define KEY_EQUAL        187
+  //'+'	//187
+#define KEY_PLUS	     187
+   //','	//188
+#define KEY_COMMA	      188
+     //'<'		//188
+#define KEY_LESS_THAN	188
+     //'-'		//189
+#define KEY_MINUS	     189
+    //'-'       //189
+#define KEY_DASH         189
+  //'_'		//189
+#define KEY_Underscore	189
+   //'.'		//190
+#define KEY_STOP	     190
+   //'.'		//190
+#define KEY_PERIOD	     190
+   //'>'		//190
+#define KEY_GREATER_THAN	190
+    //'/'		//191
+#define KEY_SLASH	   191
+   //'?'		//191
+#define KEY_QUESTION	191
+ //'`'		//192
+#define KEY_ACCENT	     192
+ //'~'		//192
+#define KEY_TILDE	    192
+  //'['		//219
+#define KEY_LEFT_BRACKET	219
+  //'{'		//219
+#define KEY_OPEN_BRACE	219
+  //'\\'		//220
+#define KEY_BACKSLASH	220
+ //'|'		//220
+#define KEY_PIPE	     220
+//']'		//221
+#define KEY_RIGHT_BRACKET	221
+//	'}'		//221
+#define KEY_CLOSE_BRACE     221
+   //'\''		//222
+#define KEY_QUOTE	222
+//Double quote	'\"'		//222
+#  define KEY_ESCAPE       27
+#  define KEY_PGUP         33
+#  define KEY_PAGE_UP      33
+#  define KEY_PGDN         34
+#  define KEY_PAGE_DOWN    34
+#  define KEY_END          35
+#  define KEY_HOME         36
+#  define KEY_LEFT         37
+#  define KEY_UP           38
+#  define KEY_RIGHT        39
+#  define KEY_DOWN         40
+#  define KEY_GRAY_UP  38
+#  define KEY_GRAY_LEFT   37
+#  define KEY_GRAY_RIGHT  39
+#  define KEY_GRAY_DOWN    40
+//#  define KEY_GRAY_UP      0x48
+#  define KEY_GRAY_PGUP     33
+#  define KEY_GRAY_MINUS    109
+//#  define KEY_GRAY_LEFT 0x4B
+//#  define KEY_GRAY_RIGHT   0x4D
+#  define KEY_GRAY_PLUS   107
+#  define KEY_GRAY_END    0x4F
+#  define KEY_PAD_PLUS   107
+//#  define KEY_GRAY_DOWN 0x50
+#  define KEY_GRAY_PGDN   34
+#  define KEY_GRAY_INS    45
+#  define KEY_GRAY_INSERT    45
+#  define KEY_GREY_INSERT   45
+#  define KEY_GRAY_DEL       46
+#  define KEY_GRAY_DELETE    46
+#  define KEY_GREY_DELETE    47
+#  define KEY_INSERT       45
+#  define KEY_DEL          46
+#  define KEY_DELETE       KEY_DEL
+#  define KEY_PAD_MULT 106
+#  define KEY_PAD_DOT  110
+#  define KEY_PAD_DELETE 110
+#  define KEY_PAD_DIV 111
+#  define KEY_PAD_0 96
+#  define KEY_PAD_1 97
+#  define KEY_PAD_2 98
+#  define KEY_PAD_3 99
+#  define KEY_PAD_4 100
+#  define KEY_PAD_5 101
+#  define KEY_PAD_6 102
+#  define KEY_PAD_7 103
+#  define KEY_PAD_8 104
+#  define KEY_PAD_9 105
+#  define KEY_PAD_ENTER KEY_ENTER
+#  define KEY_PAD_MINUS 109
+#define KEY_NUM_LOCK 144
+#undef KEY_SCROLL_LOCK
+#define KEY_SCROLL_LOCK 145
+     /*   https://w3c.github.io/uievents/#fixed-virtual-key-codes
+     Backspace	8
+Tab	9
+Enter	13
+Shift	16
+Control	17
+Alt	18
+CapsLock	20
+Escape	27	Esc
+Space	32
+PageUp	33
+PageDown	34
+End	35
+Home	36
+ArrowLeft	37
+ArrowUp	38
+ArrowRight	39
+ArrowDown	40
+Delete	46	Del
+Semicolon	";"	186
+Colon	":"	186
+Equals sign	"="	187
+Plus	"+"	187
+Comma	","	188
+Less than sign	"<"	188
+Minus	"-"	189
+Underscore	"_"	189
+Period	"."	190
+Greater than sign	">"	190
+Forward slash	"/"	191
+Question mark	"?"	191
+Backtick	"`"	192
+Tilde	"~"	192
+Opening squace bracket	"["	219
+Opening curly brace	"{"	219
+Backslash	"\"	220
+Pipe	"|"	220
+Closing square bracket	"]"	221
+Closing curly brace	"}"	221
+Single quote	"'"	222
+Double quote	"""	222
+     */
+#  endif
+// if any key...
+#if 1 || !defined( KEY_1 )
+#  if defined( __ANDROID__ )
+#    include <android/keycodes.h>
+#    define KEY_SHIFT        AKEYCODE_SHIFT_LEFT
+#    define KEY_LEFT_SHIFT   AKEYCODE_SHIFT_LEFT
+ // maybe?
+#    define KEY_RIGHT_SHIFT  AKEYCODE_SHIFT_RIGHT
+#    ifndef AKEYCODE_CTRL_LEFT
+#      define AKEYCODE_CTRL_LEFT 113
+#    endif
+#    ifndef AKEYCODE_CTRL_RIGHT
+#      define AKEYCODE_CTRL_RIGHT 114
+#    endif
+#    define KEY_CTRL          AKEYCODE_CTRL_LEFT
+#    define KEY_CONTROL       AKEYCODE_CTRL_LEFT
+#    define KEY_LEFT_CONTROL  AKEYCODE_CTRL_LEFT
+#    define KEY_RIGHT_CONTROL AKEYCODE_CTRL_RIGHT
+ // can't get usually under windows?(keyhook!)
+#    define KEY_ALT           AKEYCODE_ALT_LEFT
+#    define KEY_LEFT_ALT      AKEYCODE_ALT_LEFT
+#    define KEY_RIGHT_ALT     AKEYCODE_ALT_RIGHT
+#    ifndef AKEYCODE_CAPS_LOCK
+#      define AKEYCODE_CAPS_LOCK 115
+#    endif
+#    define KEY_CAPS_LOCK     AKEYCODE_CAPS_LOCK
+#    define KEY_NUM_LOCK      0
+#    ifndef AKEYCODE_SCROLL_LOCK
+#      define AKEYCODE_SCROLL_LOCK 116
+#    endif
+ // unsure about this
+#    define KEY_SCROLL_LOCK   AKEYCODE_SCROLL_LOCK
+#    ifndef AKEYCODE_ESCAPE
+#      define AKEYCODE_ESCAPE 111
+#    endif
+#    define KEY_ESC           AKEYCODE_ESCAPE
+#    define KEY_ESCAPE        AKEYCODE_ESCAPE
+#    ifndef AKEYCODE_MOVE_HOME
+#      define AKEYCODE_MOVE_HOME 122
+#    endif
+#    ifndef AKEYCODE_MOVE_END
+#      define AKEYCODE_MOVE_END 123
+#    endif
+#    define KEY_HOME          AKEYCODE_MOVE_HOME
+#    define KEY_PAD_HOME      AKEYCODE_MOVE_HOME
+#    define KEY_PAD_7         0
+#    define KEY_GREY_HOME     0
+#    define KEY_UP            AKEYCODE_DPAD_UP
+#    define KEY_PAD_8         0
+#    define KEY_PAD_UP        0
+#    define KEY_GREY_UP       0
+#    define KEY_PGUP          0
+#    define KEY_PAD_9         0
+#    define KEY_PAD_PGUP      0
+#    define KEY_GREY_PGUP     0
+#    define KEY_LEFT          AKEYCODE_DPAD_LEFT
+#    define KEY_PAD_4         0
+#    define KEY_PAD_LEFT      0
+#    define KEY_GREY_LEFT     0
+#    define KEY_CENTER        AKEYCODE_DPAD_CENTER
+#    define KEY_PAD_5         0
+#    define KEY_PAD_CENTER    0
+#    define KEY_GREY_CENTER   0
+#    define KEY_RIGHT         AKEYCODE_DPAD_RIGHT
+#    define KEY_PAD_6         0
+#    define KEY_PAD_RIGHT     0
+#    define KEY_GREY_RIGHT    0
+#    define KEY_END           AKEYCODE_MOVE_END
+#    define KEY_PAD_1         0
+#    define KEY_PAD_END       0
+#    define KEY_GREY_END      0
+#    define KEY_DOWN          AKEYCODE_DPAD_DOWN
+#    define KEY_PAD_2         0
+#    define KEY_PAD_DOWN      0
+#    define KEY_GREY_DOWN     0
+#    define KEY_PGDN          0
+#    define KEY_PAD_3         0
+#    define KEY_PAD_PGDN      0
+#    define KEY_GREY_PGDN     0
+#    define KEY_INSERT        0
+#    define KEY_PAD_0         0
+#    define KEY_PAD_INSERT    0
+#    define KEY_GREY_INSERT   0
+#    define KEY_DELETE        0
+#    define KEY_PAD_DOT       0
+#    define KEY_PAD_DELETE    0
+#    define KEY_GREY_DELETE   0
+#    define KEY_PLUS          0
+#    define KEY_PAD_PLUS      0
+#    define KEY_GREY_PLUS     0
+#    define KEY_MINUS         0
+#    define KEY_PAD_MINUS     0
+#    define KEY_GREY_MINUS    0
+#    define KEY_MULT          0
+#    define KEY_PAD_MULT      0
+#    define KEY_GREY_MULT     0
+#    define KEY_DIV           0
+#    define KEY_PAD_DIV       0
+#    define KEY_GREY_DIV      0
+#    define KEY_ENTER         AKEYCODE_ENTER
+#    define KEY_PAD_ENTER     AKEYCODE_ENTER
+#    define KEY_NORMAL_ENTER  AKEYCODE_ENTER
+ // windows keys keys
+#    define KEY_WINDOW_1      0
+ // windows keys keys
+#    define KEY_WINDOW_2      0
+#    define KEY_TAB           AKEYCODE_TAB
+#    define KEY_SLASH         AKEYCODE_SLASH
+#    define KEY_BACKSPACE     AKEYCODE_DEL
+#    define KEY_SPACE         AKEYCODE_SPACE
+#    define KEY_COMMA         AKEYCODE_COMMA
+ // should be some sort of VK_ definitions....
+#    define KEY_STOP          AKEYCODE_PERIOD
+#    define KEY_PERIOD        AKEYCODE_PERIOD
+#    define KEY_SEMICOLON     AKEYCODE_SEMICOLON
+#    define KEY_QUOTE         AKEYCODE_APOSTROPHE
+#    define KEY_LEFT_BRACKET  AKEYCODE_LEFT_BRACKET
+#    define KEY_RIGHT_BRACKET AKEYCODE_RIGHT_BRACKET
+#    define KEY_BACKSLASH     AKEYCODE_BACKSLASH
+#    define KEY_DASH          AKEYCODE_MINUS
+#    define KEY_EQUAL         AKEYCODE_EQUALS
+#    define KEY_ACCENT        AKEYCODE_GRAVE
+#    define KEY_1         AKEYCODE_1
+#    define KEY_2         AKEYCODE_2
+#    define KEY_3         AKEYCODE_3
+#    define KEY_4         AKEYCODE_4
+#    define KEY_5         AKEYCODE_5
+#    define KEY_6         AKEYCODE_6
+#    define KEY_7         AKEYCODE_7
+#    define KEY_8         AKEYCODE_8
+#    define KEY_9         AKEYCODE_9
+#    define KEY_0         AKEYCODE_0
+#    define KEY_F1        0
+#    define KEY_F2        0
+#    define KEY_F3        0
+#    define KEY_F4        0
+#    define KEY_F5        0
+#    define KEY_F6        0
+#    define KEY_F7        0
+#    define KEY_F8        0
+#    define KEY_F9        0
+#    define KEY_F10       0
+#    define KEY_F11       0
+#    define KEY_F12       0
+#    define KEY_A   AKEYCODE_A
+#    define KEY_B   AKEYCODE_B
+#    define KEY_C   AKEYCODE_C
+#    define KEY_D   AKEYCODE_D
+#    define KEY_E   AKEYCODE_E
+#    define KEY_F   AKEYCODE_F
+#    define KEY_G   AKEYCODE_G
+#    define KEY_H   AKEYCODE_H
+#    define KEY_I   AKEYCODE_I
+#    define KEY_J   AKEYCODE_J
+#    define KEY_K   AKEYCODE_K
+#    define KEY_L   AKEYCODE_L
+#    define KEY_M   AKEYCODE_M
+#    define KEY_N   AKEYCODE_N
+#    define KEY_O   AKEYCODE_O
+#    define KEY_P   AKEYCODE_P
+#    define KEY_Q   AKEYCODE_Q
+#    define KEY_R   AKEYCODE_R
+#    define KEY_S   AKEYCODE_S
+#    define KEY_T   AKEYCODE_T
+#    define KEY_U   AKEYCODE_U
+#    define KEY_V   AKEYCODE_V
+#    define KEY_W   AKEYCODE_W
+#    define KEY_X   AKEYCODE_X
+#    define KEY_Y   AKEYCODE_Y
+#    define KEY_Z   AKEYCODE_Z
+#  elif defined( __LINUX__ ) && !defined( __MAC__ ) && !defined( __ANDROID__ )
+#include <linux/input-event-codes.h>
+#undef BTN_START
+#define KEY_ESCAPE KEY_ESC
+#define KEY_PGDN KEY_PAGEDOWN
+#define KEY_PAGE_DOWN  KEY_PAGEDOWN
+#define KEY_PGUP KEY_PAGEUP
+#define KEY_PAGE_UP  KEY_PAGEUP
+#define KEY_DASH KEY_MINUS
+#define KEY_QUOTE KEY_APOSTROPHE
+#define KEY_PAD_PLUS KEY_KPPLUS
+#define KEY_PAD_ENTER KEY_KPENTER
+#define KEY_PAD_MINUS KEY_KPMINUS
+#define KEY_PAD_DOT   KEY_KPDOT
+#define KEY_PAD_DIV   KEY_KPSLASH
+//#define KEY_DASH
+#define KEY_LEFT_BRACKET KEY_LEFTBRACE
+#define KEY_RIGHT_BRACKET KEY_RIGHTBRACE
+#define KEY_PAD_MULT  KEY_KPASTERISK
+#define KEY_PAD_9   KEY_KP9
+#define KEY_PAD_8   KEY_KP8
+#define KEY_PAD_7   KEY_KP7
+#define KEY_PAD_6   KEY_KP6
+#define KEY_PAD_5   KEY_KP5
+#define KEY_PAD_4   KEY_KP4
+#define KEY_PAD_3   KEY_KP3
+#define KEY_PAD_2   KEY_KP2
+#define KEY_PAD_1   KEY_KP1
+#define KEY_PAD_0   KEY_KP0
+#define KEY_CENTER  KEY_KPPLUSMINUS
+#define KEY_LESS   KEY_COMMA
+#define KEY_PAD_DELETE KEY_KPDOT
+#define KEY_GREY_INSERT KEY_INSERT
+#define KEY_GREY_DELETE KEY_DELETE
+#define KEY_PERIOD KEY_DOT
+#define KEY_CAPS_LOCK KEY_CAPSLOCK
+#define KEY_LEFT_SHIFT KEY_LEFTSHIFT
+#define KEY_RIGHT_SHIFT KEY_RIGHTSHIFT
+#define KEY_ALT KEY_LEFTALT
+#define KEY_LEFT_ALT KEY_LEFTALT
+#define KEY_RIGHT_ALT KEY_RIGHTALT
+#define KEY_CTRL KEY_LEFTCTRL
+#define KEY_LEFT_CONTROL KEY_LEFTCTRL
+#define KEY_RIGHT_CONTROL KEY_RIGHTCTRL
+#define KEY_SCROLL_LOCK KEY_SCROLLLOCK
+#define KEY_SHIFT KEY_LEFTSHIFT
+#define KEY_DEL KEY_BACKSPACE
+//#define
+#define KEY_ACCENT KEY_GRAVE
+	  //#define USE_SDL_KEYSYM
+// ug - KEYSYMS are too wide...
+// so - we fall back to x scancode tables - and translate sym to these
+// since the scancodes which come from X are not the same as from console Raw
+// but - perhaps we should re-translate these to REAL scancodes... but in either
+// case - these fall to under 256 characters, and can therefore be used...
+//#    define USE_X_RAW_SCANCODES
+#    ifdef USE_X_RAW_SCANCODES
+//#pragma message( "XRAW")
+#      define KEY_SHIFT        0xFF
+#      define KEY_LEFT_SHIFT   50
+ // maybe?
+#      define KEY_RIGHT_SHIFT  62
+#      define KEY_CTRL          0xFE
+#      define KEY_CONTROL       0xFE
+#      define KEY_LEFT_CONTROL  37
+#      define KEY_RIGHT_CONTROL 109
+ // can't get usually under windows?(keyhook!)
+#      define KEY_ALT           0xFD
+#      define KEY_LEFT_ALT      64
+#      define KEY_RIGHT_ALT     113
+#      define KEY_CAPS_LOCK     66
+#      define KEY_NUM_LOCK      77
+ // unsure about this
+#      define KEY_SCROLL_LOCK   78
+#      define KEY_ESC           9
+#      define KEY_ESCAPE        9
+#      define KEY_HOME          0xFC
+#      define KEY_PAD_HOME      79
+#      define KEY_PAD_7         79
+#      define KEY_GREY_HOME     97
+#      define KEY_UP            0xFB
+#      define KEY_PAD_8         80
+#      define KEY_PAD_UP        80
+#      define KEY_GREY_UP       98
+#      define KEY_PGUP          0xFA
+#      define KEY_PAGE_UP       KEY_PGUP
+#      define KEY_PAD_9         81
+#      define KEY_PAD_PGUP      81
+#      define KEY_GREY_PGUP     99
+#      define KEY_LEFT          0xF9
+#      define KEY_PAD_4         83
+#      define KEY_PAD_LEFT      83
+#      define KEY_GREY_LEFT     100
+#      define KEY_CENTER        0xF8
+#      define KEY_PAD_5         84
+#      define KEY_PAD_CENTER    84
+#      define KEY_GREY_CENTER   0
+#      define KEY_RIGHT         0xF7
+#      define KEY_PAD_6         85
+#      define KEY_PAD_RIGHT     85
+#      define KEY_GREY_RIGHT    102
+#      define KEY_END           0xF6
+#      define KEY_PAD_1         87
+#      define KEY_PAD_END       87
+#      define KEY_GREY_END      103
+#      define KEY_DOWN          0xF5
+#      define KEY_PAD_2         88
+#      define KEY_PAD_DOWN      88
+#      define KEY_GREY_DOWN     104
+#      define KEY_PGDN          0xF4
+#      define KEY_PAGE_DOWN     KEY_PGDN
+#      define KEY_PAD_3         89
+#      define KEY_PAD_PGDN      89
+#      define KEY_GREY_PGDN     105
+#      define KEY_INSERT        0xF3
+#      define KEY_PAD_0         90
+#      define KEY_PAD_INSERT    90
+#      define KEY_GREY_INSERT   106
+#      define KEY_DELETE        0xF2
+#      define KEY_DEL           KEY_DELETE
+#      define KEY_PAD_DOT       91
+#      define KEY_PAD_DELETE    91
+#      define KEY_GREY_DELETE   107
+#      define KEY_PLUS          0xF1
+#      define KEY_PAD_PLUS      86
+#      define KEY_GREY_PLUS     0
+#      define KEY_MINUS         0xF0
+#      define KEY_PAD_MINUS     82
+#      define KEY_GREY_MINUS    0
+#      define KEY_MULT          0xEF
+#      define KEY_PAD_MULT      63
+#      define KEY_GREY_MULT     0
+#      define KEY_DIV           0xEE
+#      define KEY_PAD_DIV       112
+#      define KEY_GREY_DIV      0
+#      define KEY_ENTER         0xED
+#      define KEY_PAD_ENTER     108
+#      define KEY_NORMAL_ENTER  36
+ // windows keys keys
+#      define KEY_WINDOW_1      115
+ // windows keys keys
+#      define KEY_WINDOW_2      117
+//#pragma message("GOOD DEFINE")
+#      define KEY_TAB           23
+#      define KEY_SLASH         61
+#      define KEY_BACKSPACE     22
+#      define KEY_SPACE         65
+#      define KEY_COMMA         59
+ // should be some sort of VK_ definitions....
+#      define KEY_STOP          60
+#      define KEY_PERIOD        KEY_STOP
+#      define KEY_SEMICOLON     47
+#      define KEY_QUOTE         48
+#      define KEY_LEFT_BRACKET  34
+#      define KEY_RIGHT_BRACKET 35
+#      define KEY_BACKSLASH     51
+#      define KEY_DASH          20
+#      define KEY_EQUAL         21
+#      define KEY_EQUALS       KEY_EQUAL
+#      define KEY_ACCENT        49
+#      define KEY_APOSTROPHE    KEY_QUOTE
+#      define KEY_GRAVE        KEY_ACCENT
+#      define KEY_SHIFT_LEFT   KEY_LEFT_SHIFT
+#      define KEY_SHIFT_RIGHT  KEY_RIGHT_SHIFT
+#      define KEY_1         10
+#      define KEY_2         11
+#      define KEY_3         12
+#      define KEY_4         13
+#      define KEY_5         14
+#      define KEY_6         15
+#      define KEY_7         16
+#      define KEY_8         17
+#      define KEY_9         18
+#      define KEY_0         19
+#      define KEY_F1        67
+#      define KEY_F2        68
+#      define KEY_F3        69
+#      define KEY_F4        70
+#      define KEY_F5        71
+#      define KEY_F6        72
+#      define KEY_F7        73
+#      define KEY_F8        74
+#      define KEY_F9        75
+#      define KEY_F10       76
+#      define KEY_F11       95
+#      define KEY_F12       96
+#      define KEY_A         38
+#      define KEY_B         56
+#      define KEY_C         54
+#      define KEY_D         40
+#      define KEY_E         26
+#      define KEY_F         41
+#      define KEY_G         42
+#      define KEY_H         43
+#      define KEY_I         31
+#      define KEY_J         44
+#      define KEY_K         45
+#      define KEY_L         46
+#      define KEY_M         58
+#      define KEY_N         57
+#      define KEY_O         32
+#      define KEY_P         33
+#      define KEY_Q         24
+#      define KEY_R         27
+#      define KEY_S         39
+#      define KEY_T         28
+#      define KEY_U         30
+#      define KEY_V         55
+#      define KEY_W         25
+#      define KEY_X         53
+#      define KEY_Y         29
+#      define KEY_Z         52
+#    elif defined( USE_SDL_KEYSYM )
+#      include <SDL.h>
+#      define KEY_SHIFT        0xFF
+#      define KEY_LEFT_SHIFT   SDLK_LSHIFT
+#      define KEY_RIGHT_SHIFT  SDLK_RSHIFT
+#      define KEY_CTRL          0xFE
+#      define KEY_CONTROL       0xFE
+#      define KEY_LEFT_CONTROL  SDLK_LCTRL
+#      define KEY_RIGHT_CONTROL SDLK_RCTRL
+ // can't get usually under windows?(keyhook!)
+#      define KEY_ALT           0xFD
+#      define KEY_LEFT_ALT      SDLK_LALT
+#      define KEY_RIGHT_ALT     SDLK_RALT
+#      define KEY_CAPS_LOCK     SDLK_CAPSLOCK
+#      define KEY_NUM_LOCK      SDLK_NUMLOCK
+#      define KEY_SCROLL_LOCK   SDLK_SCROLLOCK
+#      define KEY_ESC           SDLK_ESCAPE
+#      define KEY_ESCAPE        SDLK_ESCAPE
+#      define KEY_HOME          0xFC
+#      define KEY_PAD_HOME      SDLK_KP7
+#      define KEY_PAD_7         SDLK_KP7
+#      define KEY_GREY_HOME     SDLK_HOME
+#      define KEY_UP            0xFB
+#      define KEY_PAD_8         SDLK_KP8
+#      define KEY_PAD_UP        SDLK_KP8
+#      define KEY_GREY_UP       SDLK_UP
+#      define KEY_PGUP          0xFA
+#      define KEY_PAD_9         SDLK_KP9
+#      define KEY_PAD_PGUP      SDLK_KP9
+#      define KEY_GREY_PGUP     SDLK_PAGEUP
+#      define KEY_LEFT          0xF9
+#      define KEY_PAD_4         SDLK_KP4
+#      define KEY_PAD_LEFT      SDLK_KP4
+#      define KEY_GREY_LEFT     SDLK_LEFT
+#      define KEY_CENTER        0xF8
+#      define KEY_PAD_5         SDLK_KP5
+#      define KEY_PAD_CENTER    SDLK_KP5
+#      define KEY_GREY_CENTER   0
+#      define KEY_RIGHT         0xF7
+#      define KEY_PAD_6         SDLK_KP6
+#      define KEY_PAD_RIGHT     SDLK_KP6
+#      define KEY_GREY_RIGHT    SDLK_RIGHT
+#      define KEY_END           0xF6
+#      define KEY_PAD_1         SDLK_KP1
+#      define KEY_PAD_END       SDLK_KP1
+#      define KEY_GREY_END      SDLK_END
+#      define KEY_DOWN          0xF5
+#      define KEY_PAD_2         SDLK_KP2
+#      define KEY_PAD_DOWN      SDLK_KP2
+#      define KEY_GREY_DOWN     SDLK_DOWN
+#      define KEY_PGDN          0xF4
+#      define KEY_PAD_3         SDLK_KP3
+#      define KEY_PAD_PGDN      SDLK_KP3
+#      define KEY_GREY_PGDN     SDLK_PAGEDN
+#      define KEY_INSERT        0xF3
+#      define KEY_PAD_0         SDLK_KP0
+#      define KEY_PAD_INSERT    SDLK_KP0
+#      define KEY_GREY_INSERT   SDLK_INSERT
+#      define KEY_DELETE        0xF2
+#      define KEY_PAD_DOT       SDLK_KP_PERIOD
+#      define KEY_PAD_DELETE    SDLK_KP_PERIOD
+#      define KEY_GREY_DELETE   SDLK_DELETE
+#      define KEY_PLUS          0xF1
+#      define KEY_PAD_PLUS      SDLK_KP_PLUS
+#      define KEY_GREY_PLUS     0
+#      define KEY_MINUS         0xF0
+#      define KEY_PAD_MINUS     SDLK_KP_MINUS
+#      define KEY_GREY_MINUS    0
+#      define KEY_MULT          0xEF
+#      define KEY_PAD_MULT      SDLK_KP_MULTIPLY
+#      define KEY_GREY_MULT     0
+#      define KEY_DIV           0xEE
+#      define KEY_PAD_DIV       SDLK_KP_DIVIDE
+#      define KEY_GREY_DIV      0
+#      define KEY_ENTER         0xED
+#      define KEY_PAD_ENTER     SDLK_KP_ENTER
+#      define KEY_NORMAL_ENTER  SDLK_RETURN
+ // windows keys keys
+#      define KEY_WINDOW_1      115
+ // windows keys keys
+#      define KEY_WINDOW_2      117
+#      define KEY_TAB           SDLK_TAB
+#      define KEY_SLASH         SDLK_SLASH
+#      define KEY_BACKSPACE     SDLK_BACKSPACE
+#      define KEY_SPACE         SDLK_SPACE
+#      define KEY_COMMA         SDLK_COMMA
+ // should be some sort of VK_ definitions....
+#      define KEY_STOP          SDLK_PERIOD
+#      define KEY_PERIOD        KEY_STOP
+#      define KEY_SEMICOLON     SDLK_SEMICOLON
+#      define KEY_QUOTE         SDLK_QUOTE
+#      define KEY_LEFT_BRACKET  SDLK_LEFTBRACKET
+#      define KEY_RIGHT_BRACKET SDLK_RIGHTBRACKET
+#      define KEY_BACKSLASH     SDLK_BACKSLASH
+#      define KEY_DASH          SDLK_MINUS
+#      define KEY_EQUAL         SDLK_EQUALS
+ // grave
+#      define KEY_ACCENT        SDLK_BACKQUOTE
+#      define KEY_1         SDLK_1
+#      define KEY_2         SDLK_2
+#      define KEY_3         SDLK_3
+#      define KEY_4         SDLK_4
+#      define KEY_5         SDLK_5
+#      define KEY_6         SDLK_6
+#      define KEY_7         SDLK_7
+#      define KEY_8         SDLK_8
+#      define KEY_9         SDLK_9
+#      define KEY_0         SDLK_0
+#      define KEY_F1        SDLK_F1
+#      define KEY_F2        SDLK_F2
+#      define KEY_F3        SDLK_F3
+#      define KEY_F4        SDLK_F4
+#      define KEY_F5        SDLK_F5
+#      define KEY_F6        SDLK_F6
+#      define KEY_F7        SDLK_F7
+#      define KEY_F8        SDLK_F8
+#      define KEY_F9        SDLK_F9
+#      define KEY_F10       SDLK_F10
+#      define KEY_F11       SDLK_F11
+#      define KEY_F12       SDLK_F12
+#      define KEY_A         SDLK_A
+#      define KEY_B         SDLK_B
+#      define KEY_C         SDLK_C
+#      define KEY_D         SDLK_D
+#      define KEY_E         SDLK_E
+#      define KEY_F         SDLK_F
+#      define KEY_G         SDLK_G
+#      define KEY_H         SDLK_H
+#      define KEY_I         SDLK_I
+#      define KEY_J         SDLK_J
+#      define KEY_K         SDLK_K
+#      define KEY_L         SDLK_L
+#      define KEY_M         SDLK_M
+#      define KEY_N         SDLK_N
+#      define KEY_O         SDLK_O
+#      define KEY_P         SDLK_P
+#      define KEY_Q         SDLK_Q
+#      define KEY_R         SDLK_R
+#      define KEY_S         SDLK_S
+#      define KEY_T         SDLK_T
+#      define KEY_U         SDLK_U
+#      define KEY_V         SDLK_V
+#      define KEY_W         SDLK_W
+#      define KEY_X         SDLK_X
+#      define KEY_Y         SDLK_Y
+#      define KEY_Z         SDLK_Z
+#    elif defined( USE_RAW_SCANCODE )
+#      error RAW_SCANCODES have not been defined yet.
+#      define KEY_SHIFT        0xFF
+#      define KEY_LEFT_SHIFT   50
+ // maybe?
+#      define KEY_RIGHT_SHIFT  62
+#      define KEY_CTRL          0xFE
+#      define KEY_CONTROL       0xFE
+#      define KEY_LEFT_CONTROL  37
+#      define KEY_RIGHT_CONTROL 109
+ // can't get usually under windows?(keyhook!)
+#      define KEY_ALT           0xFD
+#      define KEY_LEFT_ALT      64
+#      define KEY_RIGHT_ALT     113
+#      define KEY_CAPS_LOCK     66
+#      define KEY_NUM_LOCK      77
+ // unsure about this
+#      define KEY_SCROLL_LOCK   78
+#      define KEY_ESC           9
+#      define KEY_ESCAPE        9
+#      define KEY_HOME          0xFC
+#      define KEY_PAD_HOME      79
+#      define KEY_PAD_7         79
+#      define KEY_GREY_HOME     97
+#      define KEY_UP            0xFB
+#      define KEY_PAD_8         80
+#      define KEY_PAD_UP        80
+#      define KEY_GREY_UP       98
+#      define KEY_PGUP          0xFA
+#      define KEY_PAD_9         81
+#      define KEY_PAD_PGUP      81
+#      define KEY_GREY_PGUP     99
+#      define KEY_LEFT          0xF9
+#      define KEY_PAD_4         83
+#      define KEY_PAD_LEFT      83
+#      define KEY_GREY_LEFT     100
+#      define KEY_CENTER        0xF8
+#      define KEY_PAD_5         84
+#      define KEY_PAD_CENTER    84
+#      define KEY_GREY_CENTER   0
+#      define KEY_RIGHT         0xF7
+#      define KEY_PAD_6         85
+#      define KEY_PAD_RIGHT     85
+#      define KEY_GREY_RIGHT    102
+#      define KEY_END           0xF6
+#      define KEY_PAD_1         87
+#      define KEY_PAD_END       87
+#      define KEY_GREY_END      103
+#      define KEY_DOWN          0xF5
+#      define KEY_PAD_2         88
+#      define KEY_PAD_DOWN      88
+#      define KEY_GREY_DOWN     104
+#      define KEY_PGDN          0xF4
+#      define KEY_PAD_3         89
+#      define KEY_PAD_PGDN      89
+#      define KEY_GREY_PGDN     105
+#      define KEY_INSERT        0xF3
+#      define KEY_PAD_0         90
+#      define KEY_PAD_INSERT    90
+#      define KEY_GREY_INSERT   106
+#      define KEY_DELETE        0xF2
+#      define KEY_PAD_DOT       91
+#      define KEY_PAD_DELETE    91
+#      define KEY_GREY_DELETE   107
+#      define KEY_PLUS          0xF1
+#      define KEY_PAD_PLUS      86
+#      define KEY_GREY_PLUS     0
+#      define KEY_MINUS         0xF0
+#      define KEY_PAD_MINUS     82
+#      define KEY_GREY_MINUS    0
+#      define KEY_MULT          0xEF
+#      define KEY_PAD_MULT      63
+#      define KEY_GREY_MULT     0
+#      define KEY_DIV           0xEE
+#      define KEY_PAD_DIV       112
+#      define KEY_GREY_DIV      0
+#      define KEY_ENTER         0xED
+#      define KEY_PAD_ENTER     108
+#      define KEY_NORMAL_ENTER  36
+ // windows keys keys
+#      define KEY_WINDOW_1      115
+ // windows keys keys
+#      define KEY_WINDOW_2      117
+#      define KEY_TAB           23
+#      define KEY_SLASH         61
+#      define KEY_BACKSPACE     22
+#      define KEY_SPACE         65
+#      define KEY_COMMA         59
+ // should be some sort of VK_ definitions....
+#      define KEY_STOP          60
+#      define KEY_PERIOD        KEY_STOP
+#      define KEY_SEMICOLON     47
+#      define KEY_QUOTE         48
+#      define KEY_LEFT_BRACKET  34
+#      define KEY_RIGHT_BRACKET 35
+#      define KEY_BACKSLASH     51
+#      define KEY_DASH          20
+#      define KEY_EQUAL         21
+#      define KEY_ACCENT        49
+#      define KEY_1         10
+#      define KEY_2         11
+#      define KEY_3         12
+#      define KEY_4         13
+#      define KEY_5         14
+#      define KEY_6         15
+#      define KEY_7         16
+#      define KEY_8         17
+#      define KEY_9         18
+#      define KEY_0         19
+#      define KEY_F1        67
+#      define KEY_F2        68
+#      define KEY_F3        69
+#      define KEY_F4        70
+#      define KEY_F5        71
+#      define KEY_F6        72
+#      define KEY_F7        73
+#      define KEY_F8        74
+#      define KEY_F9        75
+#      define KEY_F10       76
+#      define KEY_F11       95
+#      define KEY_F12       96
+#      define KEY_A         38
+#      define KEY_B         56
+#      define KEY_C         54
+#      define KEY_D         40
+#      define KEY_E         26
+#      define KEY_F         41
+#      define KEY_G         42
+#      define KEY_H         43
+#      define KEY_I         31
+#      define KEY_J         44
+#      define KEY_K         45
+#      define KEY_L         46
+#      define KEY_M         58
+#      define KEY_N         57
+#      define KEY_O         32
+#      define KEY_P         33
+#      define KEY_Q         24
+#      define KEY_R         27
+#      define KEY_S         39
+#      define KEY_T         28
+#      define KEY_U         30
+#      define KEY_V         55
+#      define KEY_W         25
+#      define KEY_X         53
+#      define KEY_Y         29
+#      define KEY_Z         52
+#    endif
+#  endif
+#endif
+#if defined( DEFINE_HARDWARE_SCANCODES )
+#  ifndef KBD_HPP
+#    define KBD_HPP
+#    define KBD_INT            9
+#    define KBD_EXTENDED_CODE     0xE0
+#    define LOW_ASCII(asc)     (asc&0x7F)
+#    define NUM_KEYS        256
+#    ifdef WIN32
+//#    define KEY_ESC       27
+//#    define KEY_LEFT      37
+//#    define KEY_CENTER    KB_CENTER
+//#    define KEY_RIGHT     39
+//#    define KEY_DOWN      40
+//#    define KEY_GRAY_UP   38
+//#    define KEY_GRAY_LEFT 37
+//#    define KEY_GRAY_RIGHT   39
+//#    define KEY_GRAY_DOWN    40
+//#    define KEY_LEFT_SHIFT   16
+//#    define KEY_RIGHT_SHIFT  16
+//#    define KEY_GRAY_PGUP 33
+//#    define KEY_GRAY_PGDN 34
+//#    define KEY_GRAY_INS  45
+//#    define KEY_GRAY_DEL  46
+//#    define KEY_P         80
+//#    define KEY_M         77
+#    else
+#      define KEY_ESC       0x01
+#      define KEY_1         0x02
+#      define KEY_2         0x03
+#      define KEY_3         0x04
+#      define KEY_4         0x05
+#      define KEY_5         0x06
+#      define KEY_6         0x07
+#      define KEY_7         0x08
+#      define KEY_8         0x09
+#      define KEY_9         0x0A
+#      define KEY_0         0x0B
+#      define KEY_MINUS     0x0C
+#      define KEY_PLUS         0x0D
+#      define  KEY_BKSP        0x0E
+#pragma error BAD DEFINE
+#      define KEY_TAB       0x0F
+#      define KEY_Q         0x10
+#      define KEY_W         0x11
+#      define KEY_E         0x12
+#      define KEY_R         0x13
+#      define KEY_T         0x14
+#      define KEY_Y         0x15
+#      define KEY_U         0x16
+#      define KEY_I         0x17
+#      define  KEY_O        0x18
+#      define KEY_P         0x19
+#      define KEY_BRACK_OPEN   0x1A
+#      define KEY_BRACK_CLOSE  0x1B
+#      define KEY_ENTER     0x1C
+#      define KEY_LEFT_CTRL 0x1D
+#      define KEY_A         0x1E
+#      define KEY_S         0x1F
+#      define KEY_D         0x20
+#      define KEY_F         0x21
+#      define KEY_X         0x2D
+#      define KEY_C         0x2E
+#      define KEY_V         0x2F
+#      define KEY_B         0x30
+#      define KEY_N         0x31
+#      define KEY_M         0x32
+#      define KEY_GRAY_SLASH   0x35
+#      define KEY_RIGHT_SHIFT  0x36
+#      define KEY_GRAY_STAR 0x37
+#      define KEY_LEFT_ALT     0x38
+#      define KEY_SPACE     0x39
+#      define KEY_CAPS         0x3A
+#      define KEY_F1        0x3B
+#      define KEY_F2        0x3C
+#      define KEY_F3        0x3D
+#      define KEY_F4        0x3E
+#      define KEY_F5        0x3F
+#      define KEY_F6        0x40
+#      define KEY_F7        0x41
+#      define KEY_F8        0x42
+#      define KEY_F9        0x43
+#      define KEY_F10       0x44
+#      define KEY_UP        0x48
+#      define KEY_LEFT      0x4B
+#      define KEY_CENTER    0x4C
+#      define KEY_RIGHT     0x4D
+#      define KEY_DOWN      0x50
+#      define KEY_DEL       0x53
+#      define KEY_F11       0x57
+#      define KEY_F12       0x58
+#      define KEY_RIGHT_CTRL   BIT_7+0x1D
+#      define KEY_RIGHT_ALT BIT_7+0x38
+#      define KEY_GRAY_UP      BIT_7+0x48
+#      define KEY_GRAY_PGUP BIT_7+0x49
+#      define KEY_GRAY_MINUS   BIT_7+0x4A
+#      define KEY_GRAY_LEFT BIT_7+0x4B
+#      define KEY_GRAY_RIGHT   BIT_7+0x4D
+#      define KEY_GRAY_PLUS BIT_7+0x4E
+#      define KEY_GRAY_END     BIT_7+0x4F
+#      define KEY_GRAY_DOWN BIT_7+0x50
+#      define KEY_GRAY_PGDN BIT_7+0x51
+#      define KEY_GRAY_INS     BIT_7+0x52
+#      define KEY_GRAY_DEL     BIT_7+0x53
+#    endif
+#  endif
+#endif
+#endif
+// $Log: keybrd.h,v $
+// Revision 1.16  2004/08/11 11:41:06  d3x0r
+// Begin seperation of key and render
+//
+// Revision 1.15  2004/06/01 21:53:43  d3x0r
+// Fix PUBLIC dfeinitions from Windoze-centric to system nonspecified
+//
+// Revision 1.14  2004/04/27 04:58:16  d3x0r
+// Forgot to macro a function..
+//
+// Revision 1.13  2004/04/27 03:06:16  d3x0r
+// Define F1-F10
+//
+// Revision 1.12  2004/03/05 23:33:21  d3x0r
+// Missing keydefs - may be wrong.
+//
+// Revision 1.11  2003/03/25 08:38:11  panther
+// Add logging
+//
+/* Crafted by Jim Buckeyne (c)1999-2006++ Freedom Collective
+   Image building tracking, and simple manipulations.        */
+// if the library is to have it's own idea of what
+// an image is - then it should have included
+// the definition for 'SFTFont', and 'Image' before
+// including this... otherwise, it is assumed to
+// be a client, and therefore does not need the information
+// if a custom structure is used - then it MUST define
+// it's ACTUAL x,y,width,height as the first 4 int32_t bit values.
+#ifndef IMAGE_H
+// multiple inclusion protection symbol
+#define IMAGE_H
+#if defined( _MSC_VER ) && defined( SACK_BAG_EXPORTS ) && 0
+#define HAS_ASSEMBLY
+#endif
+/* Define COLOR type. Basically the image library regards color
+   as 32 bits of data. User applications end up needing to
+   specify colors in the correct method for the platform they
+   are working on. This provides aliases to rearrange colors.
+   For instance the colors on windows and the colors for OpenGL
+   are not exactly the same. If the OpenGL driver is specified
+   as the output device, the entire code would need to be
+   rebuilt for specifying colors correctly for opengl. While
+   otherwise they are both 32 bits, and pieces work, they get
+   very ugly colors output.
+   See Also
+   <link Colors>                                                */
+#ifndef COLOR_STRUCTURE_DEFINED
+/* An exclusion symbol for defining CDATA and color operations. */
+#define COLOR_STRUCTURE_DEFINED
+#ifdef __cplusplus
+SACK_NAMESPACE
+	namespace image {
+#endif
+		// byte index values for colors on the video buffer...
+		enum color_byte_index {
+ I_BLUE  = 0,
+ I_GREEN = 1,
+ I_RED   = 2,
+ I_ALPHA = 3
+		};
+#if defined( __ANDROID__ ) || defined( _OPENGL_DRIVER )
+#  define USE_OPENGL_COMPAT_COLORS
+#endif
+#if ( !defined( IMAGE_LIBRARY_SOURCE_MAIN ) && ( !defined( FORCE_NO_INTERFACE ) || defined( ALLOW_IMAGE_INTERFACE ) ) )      && !defined( FORCE_COLOR_MACROS )
+#define Color( r,g,b ) MakeColor(r,g,b)
+#define AColor( r,g,b,a ) MakeAlphaColor(r,g,b,a)
+#define SetAlpha( rgb, a ) SetAlphaValue( rgb, a )
+#define SetGreen( rgb, g ) SetGreeValue(rgb,g )
+#define AlphaVal(color) GetAlphaValue( color )
+#define RedVal(color)   GetRedValue(color)
+#define GreenVal(color) GetGreenValue(color)
+#define BlueVal(color)  GetBlueValue(color)
+#else
+#if defined( _OPENGL_DRIVER ) || defined( USE_OPENGL_COMPAT_COLORS )
+#  define Color( r,g,b ) (((uint32_t)( ((uint8_t)(r))|((uint16_t)((uint8_t)(g))<<8))|(((uint32_t)((uint8_t)(b))<<16)))|0xFF000000)
+#  define AColor( r,g,b,a ) (((uint32_t)( ((uint8_t)(r))|((uint16_t)((uint8_t)(g))<<8))|(((uint32_t)((uint8_t)(b))<<16)))|((a)<<24))
+#  define SetAlpha( rgb, a ) ( ((rgb)&0x00FFFFFF) | ( (a)<<24 ) )
+#  define SetGreen( rgb, g ) ( ((rgb)&0xFFFF00FF) | ( ((g)&0xFF)<<8 ) )
+#  define SetBlue( rgb, b )  ( ((rgb)&0xFF00FFFF) | ( ((b)&0xFF)<<16 ) )
+#  define SetRed( rgb, r )   ( ((rgb)&0xFFFFFF00) | ( ((r)&0xFF)<<0 ) )
+#  define GLColor( c )  (c)
+#  define AlphaVal(color) ((color&0xFF000000) >> 24)
+#  define RedVal(color)   ((color&0x000000FF) >> 0)
+#  define GreenVal(color) ((color&0x0000FF00) >> 8)
+#  define BlueVal(color)  ((color&0x00FF0000) >> 16)
+#else
+#  ifdef _WIN64
+#    define AND_FF &0xFF
+#  else
+/* This is a macro to cure a 64bit warning in visual studio. */
+#    define AND_FF
+#  endif
+/* A macro to create a solid color from R G B coordinates.
+   Example
+   <code lang="c++">
+   CDATA color1 = Color( 255,0,0 ); // Red only, so this is bright red
+   CDATA color2 = Color( 0,255,0); // green only, this is bright green
+   CDATA color3 = Color( 0,0,255); // blue only, this is birght blue
+   CDATA color4 = Color(93,93,32); // this is probably a goldish grey
+   </code>                                                             */
+#define Color( r,g,b ) (((uint32_t)( ((uint8_t)((b)AND_FF))|((uint16_t)((uint8_t)((g))AND_FF)<<8))|(((uint32_t)((uint8_t)((r))AND_FF)<<16)))|0xFF000000)
+/* Build a color with alpha specified. */
+#define AColor( r,g,b,a ) (((uint32_t)( ((uint8_t)((b)AND_FF))|((uint16_t)((uint8_t)((g))AND_FF)<<8))|(((uint32_t)((uint8_t)((r))AND_FF)<<16)))|(((a)AND_FF)<<24))
+/* Sets the alpha part of a color. (0-255 value, 0 being
+   transparent, and 255 solid(opaque))
+   Example
+   <code lang="c++">
+   CDATA color = BASE_COLOR_RED;
+   CDATA hazy_color = SetAlpha( color, 128 );
+   </code>
+ */
+#define SetAlpha( rgb, a ) ( ((rgb)&0x00FFFFFF) | ( (a)<<24 ) )
+/* Sets the green channel of a color. Expects a value 0-255.  */
+#define SetGreen( rgb, g ) ( ((rgb)&0xFFFF00FF) | ( ((g)&0x0000FF)<<8 ) )
+/* Sets the blue channel of a color. Expects a value 0-255.  */
+#define SetBlue( rgb, b ) ( ((rgb)&0xFFFFFF00) | ( ((b)&0x0000FF)<<0 ) )
+/* Sets the red channel of a color. Expects a value 0-255.  */
+#define SetRed( rgb, r ) ( ((rgb)&0xFF00FFFF) | ( ((r)&0x0000FF)<<16 ) )
+/* Return a CDATA that is meant for output to OpenGL. */
+#define GLColor( c )  (((c)&0xFF00FF00)|(((c)&0xFF0000)>>16)|(((c)&0x0000FF)<<16))
+/* Get the alpha value of a color. This is a 0-255 unsigned
+   byte.                                                    */
+#define AlphaVal(color) (((color) >> 24) & 0xFF)
+/* Get the red value of a color. This is a 0-255 unsigned byte. */
+#define RedVal(color)   (((color) >> 16) & 0xFF)
+/* Get the green value of a color. This is a 0-255 unsigned
+   byte.                                                    */
+#define GreenVal(color) (((color) >> 8) & 0xFF)
+/* Get the blue value of a color. This is a 0-255 unsigned byte. */
+#define BlueVal(color)  (((color)) & 0xFF)
+#endif
+ // IMAGE_LIBRARY_SOURCE
+#endif
+		/* a definition for a single color channel - for function replacements for ___Val macros*/
+		typedef unsigned char COLOR_CHANNEL;
+        /* a 4 byte array of color (not really used, we mostly went with CDATA and PCDATA instead of COLOR and PCOLOR */
+		typedef COLOR_CHANNEL COLOR[4];
+		// color data raw...
+		typedef uint32_t CDATA;
+		/* pointer to an array of 32 bit colors */
+		typedef uint32_t *PCDATA;
+		/* A Pointer to <link COLOR>. Probably an array of color (a
+		 block of pixels for instance)                            */
+		typedef COLOR *PCOLOR;
+//-----------------------------------------------
+// common color definitions....
+//-----------------------------------------------
+// both yellows need to be fixed.
+#define BASE_COLOR_BLACK         Color( 0,0,0 )
+#define BASE_COLOR_BLUE          Color( 0, 0, 128 )
+#define BASE_COLOR_DARKBLUE          Color( 0, 0, 42 )
+/* An opaque Green.
+   See Also
+   <link Colors>    */
+#define BASE_COLOR_GREEN         Color( 0, 128, 0 )
+/* An opaque cyan - kind of a light sky like blue.
+   See Also
+   <link Colors>                                   */
+#define BASE_COLOR_CYAN          Color( 0, 128, 128 )
+/* An opaque red.
+   See Also
+   <link Colors>  */
+#define BASE_COLOR_RED           Color( 192, 32, 32 )
+/* An opaque BROWN. Brown is dark yellow... so this might be
+   more like a gold sort of color instead.
+   See Also
+   <link Colors>                                             */
+#define BASE_COLOR_BROWN         Color( 140, 140, 0 )
+#define BASE_COLOR_LIGHTBROWN         Color( 221, 221, 85 )
+#define BASE_COLOR_MAGENTA       Color( 160, 0, 160 )
+#define BASE_COLOR_LIGHTGREY     Color( 192, 192, 192 )
+/* An opaque darker grey (gray?).
+   See Also
+   <link Colors>                  */
+#define BASE_COLOR_DARKGREY      Color( 128, 128, 128 )
+/* An opaque a bight or light color blue.
+   See Also
+   <link Colors>                          */
+#define BASE_COLOR_LIGHTBLUE     Color( 0, 0, 255 )
+/* An opaque lighter, brighter green color.
+   See Also
+   <link Colors>                            */
+#define BASE_COLOR_LIGHTGREEN    Color( 0, 255, 0 )
+/* An opaque a lighter, more bight cyan color.
+   See Also
+   <link Colors>                               */
+#define BASE_COLOR_LIGHTCYAN     Color( 0, 255, 255 )
+/* An opaque bright red.
+   See Also
+   <link Colors>         */
+#define BASE_COLOR_LIGHTRED      Color( 255, 0, 0 )
+/* An opaque Lighter pink sort of red-blue color.
+   See Also
+   <link Colors>                                  */
+#define BASE_COLOR_LIGHTMAGENTA  Color( 255, 0, 255 )
+/* An opaque bright yellow.
+   See Also
+   <link Colors>            */
+#define BASE_COLOR_YELLOW        Color( 255, 255, 0 )
+/* An opaque White.
+   See Also
+   <link Colors>    */
+#define BASE_COLOR_WHITE         Color( 255, 255, 255 )
+#define BASE_COLOR_ORANGE        Color( 204,96,7 )
+#define BASE_COLOR_NICE_ORANGE   Color( 0xE9, 0x7D, 0x26 )
+#define BASE_COLOR_PURPLE        Color( 0x7A, 0x11, 0x7C )
+#ifdef __cplusplus
+ //	 namespace image {
+}
+SACK_NAMESPACE_END
+using namespace sack::image;
+#endif
+#endif
+// $Log: colordef.h,v $
+// Revision 1.4  2003/04/24 00:03:49  panther
+// Added ColorAverage to image... Fixed a couple macros
+//
+// Revision 1.3  2003/03/25 08:38:11  panther
+// Add logging
+//
+#ifndef __NO_INTERFACES__
+#endif
+# ifndef SECOND_IMAGE_LEVEL
+#  define SECOND_IMAGE_LEVEL _2
+/* This is a macro used for building name changes for
+   interfaces.                                        */
+#  define PASTE(sym,name) name
+# else
+#  define PASTE2(sym,name) sym##name
+#  define PASTE(sym,name) PASTE2(sym,name)
+# endif
+/* Macro to do symbol concatenation. */
+#define _PASTE2(sym,name) sym##name
+/* A second level paste macro so macro substitution is done on
+   \parameters.                                                */
+#define _PASTE(sym,name) _PASTE2(sym,name)
+/* Define the default call type of image routines. CPROC is
+   __cdecl.                                                 */
+#define IMAGE_API CPROC
+#     ifdef IMAGE_LIBRARY_SOURCE
+#        define IMAGE_PROC  EXPORT_METHOD
+// this sometimes needs an extra 'extern'
+//#           ifdef IMAGE_MAIN
+//#        define IMAGE_PROC_D EXPORT_METHOD
+//#           else
+//#        define IMAGE_PROC_D extern EXPORT_METHOD
+//#           endif
+#     else
+/* Define the linkage type of the routine... probably
+   __declspec(dllimport) if not building the library. */
+#        define IMAGE_PROC IMPORT_METHOD
+// this sometimes needs an extra 'extern'
+//#        define IMAGE_PROC_D  IMPORT_METHOD
+#     endif
+#if defined( _WIN32 ) && !defined( _OPENGL_DRIVER ) && !defined( _D3D_DRIVER ) && !defined( _D3D10_DRIVER ) && !defined( _D3D11_DRIVER )
+#define _INVERT_IMAGE
+#endif
+#ifdef __cplusplus
+/* Define the namespace of image routines, when building under
+   C++.                                                        */
+#ifdef _D3D_DRIVER
+#  define IMAGE_NAMESPACE namespace sack { namespace image { namespace d3d {
+#  define _IMAGE_NAMESPACE namespace image { namespace d3d {
+#  define BASE_IMAGE_NAMESPACE namespace image {
+/* Define the namespace of image routines, when building under
+   C++. This ends a namespace.                                 */
+#  define IMAGE_NAMESPACE_END }}}
+#elif defined( _D3D10_DRIVER )
+#  define IMAGE_NAMESPACE namespace sack { namespace image { namespace d3d10 {
+#  define _IMAGE_NAMESPACE namespace image { namespace d3d10 {
+#  define BASE_IMAGE_NAMESPACE namespace image {
+/* Define the namespace of image routines, when building under
+   C++. This ends a namespace.                                 */
+#  define IMAGE_NAMESPACE_END }}}
+#elif defined( _D3D11_DRIVER )
+#  define IMAGE_NAMESPACE namespace sack { namespace image { namespace d3d11 {
+#  define _IMAGE_NAMESPACE namespace image { namespace d3d11 {
+#  define BASE_IMAGE_NAMESPACE namespace image {
+/* Define the namespace of image routines, when building under
+   C++. This ends a namespace.                                 */
+#  define IMAGE_NAMESPACE_END }}}
+#else
+#  define BASE_IMAGE_NAMESPACE namespace image {
+#  define IMAGE_NAMESPACE namespace sack { namespace image {
+#  define _IMAGE_NAMESPACE namespace image {
+/* Define the namespace of image routines, when building under
+   C++. This ends a namespace.                                 */
+#  define IMAGE_NAMESPACE_END }}
+#endif
+/* Define the namespace of image routines, when building under
+   C++. This ends the namespace. Assembly routines only have the
+   ability to export C names, so extern"c" { } is used instead
+   of namespace ___ { }.                                         */
+#define ASM_IMAGE_NAMESPACE extern "C" {
+/* Define the namespace of image routines, when building under
+   C++. This ends the namespace. Assembly routines only have the
+   ability to export C names, so extern"c" { } is used instead
+   of namespace ___ { }.                                         */
+#define ASM_IMAGE_NAMESPACE_END }
+#else
+#define BASE_IMAGE_NAMESPACE
+#define IMAGE_NAMESPACE
+#define _IMAGE_NAMESPACE
+#define IMAGE_NAMESPACE_END
+#define ASM_IMAGE_NAMESPACE
+ /* Defined Image API.
+   See Also
+   <link sack::image::Image, Image>
+   <link sack::image::SFTFont, SFTFont>
+   <link Colors>
+                                    */
+#define ASM_IMAGE_NAMESPACE_END
+#endif
+#ifdef USE_API_ALIAS_PREFIX
+#  define IMGVER__(a,b) a##b
+#  define IMGVER_(a,b) IMGVER__(a,b)
+#  define IMGVER(n)   IMGVER_(USE_API_ALIAS_PREFIX,n)
+#else
+#  define IMGVER(n)   n
+#endif
+SACK_NAMESPACE
+/* Deals with images and image processing.
+   Image is the primary type of this.
+   SFTFont is a secondary type for putting text on images.
+   render namespace is contained in image, because without
+   image, there could be no render. see PRENDERER.         */
+	_IMAGE_NAMESPACE
+/* A fixed point decimal number (for freetype font rendering) */
+typedef int64_t fixed;
+//#ifndef IMAGE_STRUCTURE_DEFINED
+//#define IMAGE_STRUCTURE_DEFINED
+// consider minimal size - +/- 32000 should be enough for display purposes.
+// print... well that's another matter.
+   typedef int32_t IMAGE_COORDINATE;
+   /* Represents the width and height of an image (unsigned values) */
+   typedef uint32_t  IMAGE_SIZE_COORDINATE;
+   /* An array of 2 IMAGE_COORDINATES - [0] = x, [1] = y */
+   typedef IMAGE_COORDINATE IMAGE_POINT[2];
+   /* An unsigned value coordinate pair to track the size of
+      images.                                                */
+   typedef IMAGE_SIZE_COORDINATE IMAGE_EXTENT[2];
+   /* Pointer to an <link sack::image::IMAGE_POINT, IMAGE_POINT> */
+   typedef IMAGE_COORDINATE *P_IMAGE_POINT;
+   /* Pointer to a <link sack::image::IMAGE_EXTENT, IMAGE_EXTENT> */
+   typedef IMAGE_SIZE_COORDINATE *P_IMAGE_EXTENT;
+#ifdef HAVE_ANONYMOUS_STRUCTURES
+typedef struct boundry_rectangle_tag
+{
+   union {
+      IMAGE_POINT position;
+      struct {
+         IMAGE_COORDINATE x, y;
+      };
+   };
+   union {
+      IMAGE_EXTENT size;
+      struct {
+         IMAGE_SIZE_COORDINATE width, height;
+      };
+   };
+} IMAGE_RECTANGLE, *P_IMAGE_RECTANGLE;
+#else
+/* Defines the coordinates of a rectangle. */
+/* Pointer to an image rectangle.  */
+typedef struct boundry_rectangle_tag
+{
+   /* anonymous union containing position information. */
+   union {
+      /* An anonymous structure containing x,y and width,height of a
+         rectangle.                                                  */
+      struct {
+         /* the left coordinate of a rectangle. */
+         /* the top coordinate of a rectangle */
+         IMAGE_COORDINATE x, y;
+         /* The Y span of the rectangle */
+         /* the X Span of the rectangle */
+         IMAGE_SIZE_COORDINATE width, height;
+      };
+      /* Anonymous structure containing position (x,y) and size
+         (width,height).                                        */
+      struct {
+         /* The location of a rectangle (upper left x, y) */
+         IMAGE_POINT position;
+         /* the size of a rectangle (width and height) */
+         IMAGE_EXTENT size;
+      };
+   };
+} IMAGE_RECTANGLE, *P_IMAGE_RECTANGLE;
+#endif
+/* A macro for accessing vertical (Y) information of an <link sack::image::IMAGE_POINT, IMAGE_POINT>. */
+#define IMAGE_POINT_H(ImagePoint) ((ImagePoint)[0])
+/* A macro for accessing vertical (Y) information of an <link sack::image::IMAGE_POINT, IMAGE_POINT>. */
+#define IMAGE_POINT_V(ImagePoint) ((ImagePoint)[1])
+// the image at exactly this position and size
+// is the one being referenced, the actual size and position
+// may vary depending on use (a sub-image outside the
+// boundry of its parent).
+#define ImageData union {                                 struct {                                               IMAGE_COORDINATE x, y;                              IMAGE_SIZE_COORDINATE width, height;             };                                                  struct {                                               IMAGE_POINT position;                               IMAGE_EXTENT size;                               };                                               }
+/* One of the two primary types that the image library works
+   with.
+   Example
+   <code lang="c++">
+   void LoadImage( char *name )
+   {
+       Image image = LoadImageFile( name );
+       if( image )
+       {
+          // the image file loaded successfully.
+       }
+   }
+   </code>                                                   */
+typedef struct ImageFile_tag *Image;
+typedef struct SlicedImageFile *SlicedImage;
+#if defined( IMAGE_STRUCTURE_DEFINED )
+#if defined(__cplusplus_cli ) && !defined( IMAGE_SOURCE )
+IMAGE_PROC  PCDATA IMAGE_API ImageAddress( Image image, int32_t x, int32_t y );
+#define IMG_ADDRESS(i,x,y) ImageAddress( i,x,y )
+#endif
+#endif
+#if defined( __cplusplus )
+IMAGE_NAMESPACE_END
+#endif
+#ifndef IMAGE_STRUCTURE_DEFINED
+#ifdef _D3D_DRIVER
+#include <d3d9.h>
+#endif
+#ifdef _D3D10_DRIVER
+#include <D3D10_1.h>
+#include <D3D10.h>
+#endif
+#ifdef _D3D11_DRIVER
+#include <D3D11.h>
+#endif
+#ifdef _VULKAN_DRIVER
+#  ifdef _WIN32
+#    define VK_USE_PLATFORM_WIN32_KHR
+#  else
+#    define VK_USE_PLATFORM_XCB_KHR
+#  endif
+#  include <vulkan/vulkan.h>
+#endif
+// one day I'd like to make a multidimensional library
+// but for now - 3D is sufficient - it can handle everything
+// under 2D ignoring the Z axis... although it would be more
+// efficient to do 2D implementation alone...
+// but without function overloading the names of all the functions
+// become much too complex.. well perhaps - maybe I can
+// make all the required functions with a suffix - and
+// supply defines to choose the default based on the dimension number
+#ifndef ROTATE_DECLARATION
+// vector multiple inclusion protection
+#define ROTATE_DECLARATION
+#if !defined(__STATIC__) && !defined(__LINUX__)
+#  ifdef VECTOR_LIBRARY_SOURCE
+#    define MATHLIB_EXPORT EXPORT_METHOD
+#    if defined( __WATCOMC__ ) || defined( _MSC_VER )
+// data requires an extra extern to generate the correct code *boggle*
+#      define MATHLIB_DEXPORT extern EXPORT_METHOD
+#    else
+#      define MATHLIB_DEXPORT EXPORT_METHOD
+#    endif
+#  else
+#    define MATHLIB_EXPORT IMPORT_METHOD
+#    if ( defined( __WATCOMC__ ) || defined( _MSC_VER ) || defined( __GNUC__ ) ) && !defined( __ANDROID__ )
+// data requires an extra extern to generate the correct code *boggle*
+#      ifndef __cplusplus_cli
+#        define MATHLIB_DEXPORT extern IMPORT_METHOD
+#      else
+#        define MATHLIB_DEXPORT extern IMPORT_METHOD
+#      endif
+#    else
+#      define MATHLIB_DEXPORT IMPORT_METHOD
+#    endif
+#  endif
+#else
+#ifndef VECTOR_LIBRARY_SOURCE
+#define MATHLIB_EXPORT extern
+#define MATHLIB_DEXPORT extern
+#else
+#define MATHLIB_EXPORT
+#define MATHLIB_DEXPORT
+#endif
+#endif
+#define DIMENSIONS 3
+#if( DIMENSIONS > 0 )
+   #define vRight   0
+   #define _1D(exp)  exp
+   #if( DIMENSIONS > 1 )
+      #define vUp      1
+      #define _2D(exp)  exp
+      #if( DIMENSIONS > 2 )
+         #define vForward 2
+         #define _3D(exp)  exp
+         #if( DIMENSIONS > 3 )
+  // 4th dimension 'IN'/'OUT' since projection is scaled 3d...
+            #define vIn      3
+            #define _4D(exp)  exp
+         #else
+            #define _4D(exp)
+         #endif
+      #else
+         #define _3D(exp)
+         #define _4D(exp)
+      #endif
+   #else
+      #define _2D(exp)
+      #define _3D(exp)
+      #define _4D(exp)
+   #endif
+#else
+   // print out a compiler message can't perform zero-D transformations...
+#endif
+#if defined( _D3D_DRIVER ) || defined( _D3D10_DRIVER )
+#  ifndef MAKE_RCOORD_SINGLE
+#    define MAKE_RCOORD_SINGLE
+#  endif
+#endif
+#ifdef __cplusplus
+#  ifndef MAKE_RCOORD_SINGLE
+#    define VECTOR_NAMESPACE SACK_NAMESPACE namespace math { namespace vector { namespace Double {
+#    define _MATH_VECTOR_NAMESPACE namespace math { namespace vector { namespace Double {
+#    define _VECTOR_NAMESPACE namespace vector { namespace Double {
+#    define USE_VECTOR_NAMESPACE using namespace sack::math::vector::Double;
+#  else
+#    define VECTOR_NAMESPACE SACK_NAMESPACE namespace math { namespace vector { namespace Float {
+#    define _MATH_VECTOR_NAMESPACE namespace math { namespace vector { Float {
+#    define _VECTOR_NAMESPACE namespace vector { namespace Float {
+#    define USE_VECTOR_NAMESPACE using namespace sack::math::vector::Float;
+#  endif
+#  define _MATH_NAMESPACE namespace math {
+#  define VECTOR_NAMESPACE_END } } } SACK_NAMESPACE_END
+#else
+#  define VECTOR_NAMESPACE
+#  define _MATH_VECTOR_NAMESPACE
+#  define _MATH_NAMESPACE
+#  define _VECTOR_NAMESPACE
+#  define VECTOR_NAMESPACE_END
+#  define USE_VECTOR_NAMESPACE
+#endif
+#undef EXTERNAL_NAME
+#undef VECTOR_METHOD
+#ifdef MAKE_RCOORD_SINGLE
+#  define VECTOR_METHOD(r,n,args) MATHLIB_EXPORT r n##f args
+#  define EXTERNAL_NAME(n)  n##f
+#else
+#  define VECTOR_METHOD(r,n,args) MATHLIB_EXPORT r n##d args
+#  define EXTERNAL_NAME(n)  n##d
+#endif
+#ifndef VECTOR_TYPES_DEFINED
+#define VECTOR_TYPES_DEFINED
+// this file merely defines the basic calculation unit...
+// more types are defined in VECTLIB.H which has the number
+// of dimensions defined...
+#include <math.h>
+#include <float.h>
+SACK_NAMESPACE
+	_MATH_NAMESPACE
+   _VECTOR_NAMESPACE
+   // requires C++ to make RCOORD single - otherwise it is a double.
+#ifndef MAKE_RCOORD_SINGLE
+/* Define that an RCOORD is represented by the basic type
+   'double' for platforms with smaller fast floating point
+   types, this could be float.                             */
+#define RCOORD_IS_DOUBLE 1
+	/* basic type that Vectlib is based on.
+	 This specifies a 'real' (aka float) coordinate.
+	 Combinations of coordinates create vectors and points.  */
+typedef double RCOORD;
+/* <combine sack::math::vector::double::RCOORD>
+   \ \                                  */
+	typedef double *PRCOORD;
+#else
+	/* basic type that Vectlib is based on.
+	 This specifies a 'real' (aka float) coordinate.
+	 Combinations of coordinates create vectors and points.  */
+typedef float RCOORD;
+/* <combine sack::math::vector::float::RCOORD>
+   \ \                                  */
+typedef float *PRCOORD;
+#endif
+// these SHOULD be dimension relative, but we lack much code for that...
+typedef RCOORD MATRIX[4][4];
+typedef MATRIX *PMatrix;
+/* Describes the rotation matrix for a PTRANSFORM. */
+typedef RCOORD PMATRIX[][4];
+typedef RCOORD RQUATERNION[4];
+typedef RCOORD PRQUATERNION[4];
+#ifdef RCOORD_IS_DOUBLE
+#define RCOORDBITS(v)  (*(uint64_t*)&(v))
+#else
+/* A macro to get the literal bits into an unsigned value of the
+   same size. Shift and binary operators do not apply to
+   floating point values, but floating point values are fields
+   of bits that represent fractional parts of integers. This
+   gets the bits so the fields can be tested.                    */
+#define RCOORDBITS(v)  (*(uint32_t*)&(v))
+#endif
+/* a symbol which is effectively the largest negative value of
+   the space, anything less than this is untrackable, and is the
+   same as infinity.                                             */
+#define NEG_INFINITY ((RCOORD)-9999999999.0)
+/* a symbol which is effectively the largest value of the space,
+   anything more than this is untrackable, and is the same as
+   infinity.                                                     */
+#define POS_INFINITY ((RCOORD)9999999999.0)
+/* This is 'epsilon' that is used with by NearZero comparison
+   macro.                                                     */
+#define e1 (0.00001)
+/* Checks to see if a coordinate is 0 or near 0. */
+#define NearZero( n ) (fabs(n)<e1)
+#ifndef __cplusplus
+#endif
+#ifdef RCOORD_IS_DOUBLE
+// THRESHOLD may be any number more than 1.
+// eveything 0 or more makes pretty much every number
+// which is anything like another number equal...
+// threshold is in count of bits...
+// therefore for 1millionth digit accuracy that would be 20 bits.
+// 10 bits is thousanths different are near
+// 0 bits is if the same magnitude of number... but may be
+//   quite different
+// -10 bits is thousands different are near
+// 1 == 1.5
+// 1 == 1.01
+#define THRESHOLD 16
+#ifdef _MSC_VER
+#define EXPON(f) ((int)(( RCOORDBITS(f) & 0x4000000000000000I64 ) ?                       (( RCOORDBITS(f) &  0x3FF0000000000000I64 ) >> (20+32)) :                        ((( RCOORDBITS(f) & 0x3FF0000000000000I64 ) >> (20+32)) - 1024)))
+#else
+#define EXPON(f) ((int)(( RCOORDBITS(f) & 0x4000000000000000LL ) ?                       (( RCOORDBITS(f) &  0x3FF0000000000000LL ) >> (20+32)) :                        ((( RCOORDBITS(f) & 0x3FF0000000000000LL ) >> (20+32)) - 1024)))
+#endif
+#else
+// THRESHOLD may be any number more than 1.
+// eveything 0 or more makes pretty much every number
+// which is anything like another number equal...
+// threshold is in count of bits...
+// therefore for 1millionth digit accuracy that would be 20 bits.
+// 10 bits is thousanths different are near
+// 0 bits is if the same magnitude of number... but may be
+//   quite different
+// -10 bits is thousands different are near
+// 1 == 1.5
+// 1 == 1.01
+#define THRESHOLD 10
+/* Macro to extract the exponent part of a RCOORD.
+                                                   */
+#define EXPON(f) ((int)(( RCOORDBITS(f) & 0x40000000L ) ?                       (( RCOORDBITS(f) & 0x3F800000L ) >> 23) :                        ((( RCOORDBITS(f) & 0x3F800000L ) >> 23) - 128)))
+#endif
+#ifdef NEED_VECTLIB_COMPARE
+//cpg26Dec2006 c:\work\sack\include\vectypes.h(75): Warning! W202: Symbol 'COMPARE' has been defined, but not referenced
+static int COMPARE( RCOORD n1, RCOORD n2 )
+{
+	RCOORD tmp1, tmp2;
+	int compare_result;
+	tmp1=n1-n2;
+	//lprintf( "exponents %ld %ld", EXPON( n1 ), EXPON( n2 ) );
+	 //lprintf("%9.9g-%9.9g=%9.9g %s %s %ld %ld %ld"
+	//		 , (n1),(n2),(tmp1)
+	//		 ,!RCOORDBITS(n1)?"zero":"    ",!RCOORDBITS(n2)?"zero":"    "
+	  //	 ,EXPON(n1)-THRESHOLD
+	//	    ,EXPON(n2)-THRESHOLD
+	//		 ,EXPON(tmp1) );
+	tmp2=n2-n1;
+	//lprintf("%9.9g-%9.9g=%9.9g %s %s %ld %ld %ld"
+	//		 , (n2),(n1),(tmp2)
+	//		 ,!RCOORDBITS(n2)?"zero":"    ",!RCOORDBITS(n1)?"zero":"    "
+	//		 ,EXPON(n2)-THRESHOLD,EXPON(n1)-THRESHOLD,EXPON(tmp2));
+	compare_result = ( ( !RCOORDBITS(n1) )?( (n2) <  0.0000001 &&
+														 (n2) > -0.0000001 )?1:0
+							:( !RCOORDBITS(n2) )?( (n1) <  0.0000001 &&
+														 (n1) > -0.0000001 )?1:0
+							:( (n1) == (n2) )?1
+							:( ( EXPON(n1) - THRESHOLD ) >=
+							  ( EXPON( tmp1 ) ) ) &&
+							( ( EXPON(n2) - THRESHOLD ) >=
+							 ( EXPON( tmp2) ) ) ? 1 : 0
+						  );
+	return compare_result;
+}
+/*
+static RCOORD CompareTemp1, CompareTemp2;
+#define COMPARE( n1, n2 ) ( RCOORDBITS(n1)                                            ? ( CompareTemp1 = (n1)+(n1),                                 CompareTemp2 = (n1)+(n2),                   (RCOORDBITS(CompareTemp1)&0xFFFFFFF0)==                                     (RCOORDBITS(CompareTemp2)&0xFFFFFFF0) )                                         : RCOORDBITS(n2)                                              ? ( CompareTemp1 = (n2)+(n1),                                   CompareTemp2 = (n2)+(n2),                                  (RCOORDBITS(CompareTemp1)&0xFFFFFFF0)==                                   (RCOORDBITS(CompareTemp2)&0xFFFFFFF0) )                                                  : 1 )
+*/
+/*
+                           ( ( ( RCOORDBITS(n1) & 0x80000000 ) !=                                      ( RCOORDBITS(n2) & 0x80000000 ) )                                       ? ( NearZero(n1)                                                           && ( ( RCOORDBITS(n1)&0x7FFFFFF0 ) ==                                        ( RCOORDBITS(n2)&0x7FFFFFF0 ) ) )                               : ( ( RCOORDBITS(n1)&0xFFFFFFF0 ) ==                                        ( RCOORDBITS(n2)&0xFFFFFFF0 ) ) )
+*/
+#if 1
+#else
+inline int COMPARE( RCOORD n1, RCOORD n2 )
+{
+	RCOORD CompareTemp1, CompareTemp2;
+   return  RCOORDBITS(n1)                                            ? ( CompareTemp1 = (n1)+(n1),                                 CompareTemp2 = (n1)+(n2),                   (RCOORDBITS(CompareTemp1)&0xFFFFFFF0)==                                     (RCOORDBITS(CompareTemp2)&0xFFFFFFF0) )                                         : RCOORDBITS(n2)                                              ? ( CompareTemp1 = (n2)+(n1),                                   CompareTemp2 = (n2)+(n2),                                  (RCOORDBITS(CompareTemp1)&0xFFFFFFF0)==                                   (RCOORDBITS(CompareTemp2)&0xFFFFFFF0) )                                                  : 1;
+}
+#endif
+#endif
+VECTOR_NAMESPACE_END
+#endif
+// $Log: vectypes.h,v $
+// Revision 1.12  2005/01/27 08:21:39  panther
+// Linux cleaned.
+//
+// Revision 1.11  2004/02/08 05:42:29  d3x0r
+// associate comparetemp1, 2 with routine which needs it.
+//
+// Revision 1.10  2003/11/28 00:10:39  panther
+// fix compare function...
+//
+// Revision 1.9  2003/11/23 08:42:41  panther
+// Toying with the nearness floating point operator
+//
+// Revision 1.8  2003/09/01 20:04:37  panther
+// Added OpenGL Interface to windows video lib, Modified RCOORD comparison
+//
+// Revision 1.7  2003/08/29 10:26:17  panther
+// Checkpoint - converted vectlib to be native double
+//
+// Revision 1.6  2003/08/29 02:07:41  panther
+// Fixed logging, and nearness comparison
+//
+// Revision 1.5  2003/08/27 07:56:40  panther
+// Replace COMPARE macro with one that works a little better
+//
+// Revision 1.4  2003/03/25 08:38:11  panther
+// Add logging
+//
+SACK_NAMESPACE
+	_MATH_NAMESPACE
+	/* Vector namespace contains methods for operating on vectors. Vectors
+	   are multi-dimensional scalar quantities, often used to
+	   represent coordinates and directions in space.                      */
+   _VECTOR_NAMESPACE
+//#include "../src/vectlib/vecstruc.h"
+typedef RCOORD _POINT4[4];
+typedef RCOORD _POINT[DIMENSIONS];
+/* pointer to a point. */
+typedef RCOORD *P_POINT;
+/* pointer to a constant point. */
+typedef const RCOORD *PC_POINT;
+/* A vector type. Contains 3 values by default, library can
+   handle 4 dimensional transformations(?)                  */
+typedef _POINT VECTOR;
+/* pointer to a vector. */
+typedef P_POINT PVECTOR;
+/* pointer to a constant vector. */
+typedef PC_POINT PCVECTOR;
+/* <combine sack::math::vector::RAY@1>
+   \ \                                 */
+typedef struct vectlib_ray_type *PRAY;
+/* <combine sack::math::vector::RAY@1>
+   \ \                                 */
+typedef struct vectlib_ray_type RAY;
+/* A ray is a type that has an origin and a direction. (It is a
+   pair of vectors actually)                                    */
+struct vectlib_ray_type {
+ // origin
+   _POINT o;
+ // normal
+   _POINT n;
+};
+/* <combinewith sack::math::vector::lineseg_tag>
+   \ \                                           */
+typedef struct lineseg_tag  LINESEG;
+/* <combine sack::math::vector::lineseg_tag>
+   \ \                                       */
+typedef struct lineseg_tag *PLINESEG;
+/* This is a pure abstraction of a Line. It is used in the basis
+   of 3d graphics.                                               */
+struct lineseg_tag {
+   /* a ray type that is the origin and slope of the line. */
+	RAY r;
+	/* scalar along direction vector that indicates where the line
+	   segment ends. (origin + (direction * dTo) ) = end           */
+	/* scalar along direction vector that indicates where the line
+	   segment ends. (origin + (direction * dTo) ) = start         */
+	RCOORD dFrom, dTo;
+};
+/* <combine sack::math::vector::orthoarea_tag>
+   \ \                                         */
+typedef struct orthoarea_tag ORTHOAREA;
+/* <combine sack::math::vector::orthoarea_tag>
+   \ \                                         */
+typedef struct orthoarea_tag *PORTHOAREA;
+/* A representation of a rectangular 2 dimensional area. */
+struct orthoarea_tag {
+    /* x coorindate of a rectangular area. */
+    /* y coordinate of a rectangular area. */
+    RCOORD x, y;
+    /* height (y + h = area end). height may be negative. */
+    /* with (x + w = area end). with may be negative. */
+    RCOORD w, h;
+} ;
+// relics from fixed point math dayz....
+#define ZERO (0.0f)
+/* Special symbol that is the unit quantity. */
+#define ONE  (1.0f)
+#ifndef M_PI
+/* symbol to define a double precision value for PI if it
+   doesn't exist in the compiler.                         */
+#ifdef MAKE_RCOORD_SINGLE
+#  define M_PI (3.1415926535f)
+#else
+#  define M_PI (3.1415926535)
+#endif
+#endif
+/* a hard coded define that represents a 5 degree angle in
+   radians.                                                */
+#define _5  (RCOORD)((5.0/180.0)*M_PI )
+/* a hard coded define that represents a 15 degree angle in
+   radians.                                                 */
+#define _15 (RCOORD)((15.0/180.0)*M_PI )
+/* a hard coded define that represents a 30 degree angle in
+   radians.                                                 */
+#define _30 (RCOORD)((30.0/180.0)*M_PI )
+/* a hard coded define that represents a 45 degree angle in
+   radians.                                                 */
+#define _45 (RCOORD)((45.0/180.0)*M_PI )
+#define SetPoint( d, s ) ( (d)[0] = (s)[0], (d)[1]=(s)[1], (d)[2]=(s)[2] )
+#define SetPoint4( d, s ) ( (d)[0] = (s)[0], (d)[1]=(s)[1], (d)[2]=(s)[2], (d)[3]=(s)[3] )
+/* Inverts a vector. that is vector * -1. (a,b,c) = (-a,-b,-c)
+   <b>Parameters</b>
+                                                               */
+VECTOR_METHOD( P_POINT, Invert, ( P_POINT a ) );
+/* Macro which can be used to make a vector's direction be
+   exactly opposite of what it is now.                     */
+#define InvertVector( a ) ( a[0] = -a[0], a[1]=-a[1], a[2]=-a[2] )
+/* Logs the vector and leader to log. the leader is called
+   lpName, cause it was inteded to be used by just the vector
+   name.
+   Parameters
+   lpName :  text leader to print before the vector.
+   v :       vector to log
+   Example
+   <code lang="c++">
+   PrintVector( _X );
+   // expands to
+   PrintVectorEx( "_X", _X DBG_SRC );
+   </code>                                                    */
+VECTOR_METHOD( void, PrintVectorEx, ( CTEXTSTR lpName, PCVECTOR v DBG_PASS ) );
+/* <combine sack::math::vector::PrintVectorEx@CTEXTSTR@PCVECTOR v>
+   \ \                                                               */
+#define PrintVector(v) PrintVectorEx( #v, v DBG_SRC )
+/* Same as PrintVectorEx, but prints to standard output using
+   printf.                                                    */
+VECTOR_METHOD( void, PrintVectorStdEx, ( CTEXTSTR lpName, VECTOR v DBG_PASS ) );
+/* <combine sack::math::vector::PrintVectorStdEx@CTEXTSTR@VECTOR v>
+   \ \                                                                */
+#define PrintVectorStd(v) PrintVectorStd( #v, v DBG_SRC )
+/* Dumps to syslog a current matrix. Shows both matrix content,
+   and the cross products between the matrix that cross1 should
+   be row 0, cross2 should be row 1 and cross3 should be row2.
+   Pass a text name to identify this matrix from others.
+   Parameters
+   lpName :    Name to write into the log.
+   m :         the matrix to dump.
+   DBG_PASS :  standard debug paramters
+   Remarks
+   A PTRANSFORM is not a MATRIX; there is a matrix in a
+   transform, and is the first member, so a ptransform can be
+   cast to a matrix and logged with this function.              */
+VECTOR_METHOD( void, PrintMatrixEx, ( CTEXTSTR lpName, MATRIX m DBG_PASS ) );
+/* <combine sack::math::vector::PrintMatrixEx@CTEXTSTR@MATRIX m>
+   \ \                                                             */
+#define PrintMatrix(m) PrintMatrixEx( #m, m DBG_SRC )
+/* <combine sack::math::vector::TransformationMatrix>
+   \ \                                                */
+typedef struct transform_tag *PTRANSFORM;
+/* <combine sack::math::vector::TransformationMatrix>
+   \ \                                                */
+typedef struct transform_tag	 TRANSFORM;
+/* Pointer to a constant transform. */
+typedef const TRANSFORM *PCTRANSFORM;
+/* Constant pointer to a constant transform. For things like _I
+   transformation which is the identity translation.            */
+typedef const PCTRANSFORM *CPCTRANSFORM;
+#define VectorConst_0 EXTERNAL_NAME(VectorConst_0)
+#define VectorConst_X EXTERNAL_NAME(VectorConst_X)
+#define VectorConst_Y EXTERNAL_NAME(VectorConst_Y)
+#define VectorConst_Z EXTERNAL_NAME(VectorConst_Z)
+#define VectorConst_I EXTERNAL_NAME(VectorConst_I)
+#ifdef __cplusplus
+#define VECTLIBCONST
+#else
+#define VECTLIBCONST const
+#endif
+//------ Constants for origin(0,0,0), and axii
+#if !defined( VECTOR_LIBRARY_SOURCE ) || defined( VECTOR_LIBRARY_IS_EXTERNAL )
+MATHLIB_DEXPORT VECTLIBCONST PC_POINT VectorConst_0;
+/* Specifies the coordinate system's X axis direction. static
+   constant.                                                  */
+MATHLIB_DEXPORT VECTLIBCONST PC_POINT VectorConst_X;
+/* Specifies the coordinate system's Y axis direction. static
+   constant.                                                  */
+MATHLIB_DEXPORT VECTLIBCONST PC_POINT VectorConst_Y;
+/* Specifies the coordinate system's Z axis direction. static
+   constant.                                                  */
+MATHLIB_DEXPORT VECTLIBCONST PC_POINT VectorConst_Z;
+/* This is a static constant identity matrix, which can be used
+   to initialize a matrix transform (internally).               */
+MATHLIB_DEXPORT VECTLIBCONST PCTRANSFORM VectorConst_I;
+#define _0 ((PC_POINT)VectorConst_0)
+#  ifndef _X
+#    define _X ((PC_POINT)VectorConst_X)
+#  else
+#  endif
+#define _Y ((PC_POINT)VectorConst_Y)
+#define _Z ((PC_POINT)VectorConst_Z)
+#define _I ((PC_POINT)VectorConst_I)
+#endif
+/* compares two vectors to see if they are near each other. Boundary
+   \conditions exist around 0, when the values are on opposite
+   sides, but it's pretty good.                                      */
+#define Near( a, b ) ( COMPARE(a[0],b[0]) && COMPARE( a[1], b[1] ) && COMPARE( a[2], b[2] ) )
+/* Add two vectors together. (a1,b1,c1) + (a2,b2,c2) =
+   (a1+a2,b1+b2,c1+c2)
+   Remarks
+   The result vector may be the same as one of the source
+   vectors.                                               */
+VECTOR_METHOD( P_POINT, add, ( P_POINT pr, PC_POINT pv1, PC_POINT pv2 ) );
+/* subtracts two vectors and stores the result in another
+   vector.
+   Remarks
+   The result vector may be the same as one of the source
+   vectors.                                               */
+VECTOR_METHOD( P_POINT, sub, ( P_POINT pr, PC_POINT pv1, PC_POINT pv2 ) );
+/* Scales a vector by a scalar
+   Parameters
+   pr :   \result vector
+   pv1 :  vector to scale
+   k :    constant scalar to apply to vector
+   Example
+   <code lang="c#">
+   VECTOR result;
+   VECTOR start;
+   SetPoint( start, _X );
+   scale( result, start, 3 );
+   </code>                                   */
+VECTOR_METHOD( P_POINT, scale, ( P_POINT pr, PC_POINT pv1, RCOORD k ) );
+/* Adds a vector scaled by a scalar to another vector, results
+   in a third vector.
+   Parameters
+   pr :   pointer to a result vector
+   pv1 :  pointer to vector 1
+   pv2 :  pointer to vector 2
+   k :    scalar quantity to apply to vector 2 when adding to
+          vector 1.
+   Remarks
+   The pointer to the result vector may be the same vector as
+   vector 1 or vector 2.
+   Example
+   <code lang="c++">
+   _POINT result;
+   P_POINT v1 = _X;
+   P_POINT v2 = _Y;
+   RCOORD k = 1.414;
+   addscaled( result, v1, v2, k );
+   // result is ( 1, 1.414, 0 )
+   </code>                                                     */
+VECTOR_METHOD( P_POINT, addscaled, ( P_POINT pr, PC_POINT pv1, PC_POINT pv2, RCOORD k ) );
+/* Normalizes a non-zero vector. That is the resulting length of
+   the vector is 1.0. Modifies the vector in place.              */
+VECTOR_METHOD( void, normalize, ( P_POINT pv ) );
+VECTOR_METHOD( void, crossproduct, ( P_POINT pr, PC_POINT pv1, PC_POINT pv2 ) );
+/* \Returns the sin of the angle between two vectors.
+   Parameters
+   pv1 :  one vector
+   pv2 :  another vector
+   Remarks
+   If the length of either vector is 0, then a divide by zero
+   exception will happen.                                     */
+VECTOR_METHOD( RCOORD, SinAngle, ( PC_POINT pv1, PC_POINT pv2 ) );
+/* \Returns the cos (cosine) of the angle between two vectors.
+   Parameters
+   pv1 :  one vector
+   pv2 :  another vector
+   Remarks
+   If the length of either vector is 0, then a divide by zero
+   exception will happen.                                      */
+VECTOR_METHOD( RCOORD, CosAngle, ( PC_POINT pv1, PC_POINT pv2 ) );
+VECTOR_METHOD( RCOORD, dotproduct, ( PC_POINT pv1, PC_POINT pv2 ) );
+// result is the projection of project onto onto
+VECTOR_METHOD( P_POINT, project, ( P_POINT pr, PC_POINT onto, PC_POINT project ) );
+/* \Returns the scalar length of a vector. */
+VECTOR_METHOD( RCOORD, Length, ( PC_POINT pv ) );
+/* \Returns the distance between two points.
+   Parameters
+   v1 :  some point
+   v2 :  another point
+   Returns
+   The distance between the two points.      */
+VECTOR_METHOD( RCOORD, Distance, ( PC_POINT v1, PC_POINT v2 ) );
+/* \Returns the distance a point is as projected on another
+   vector. The result is the distance along that vector from the
+   origin.
+   Parameters
+   pvOn :  Vector to project on
+   pvOf :  vector to get projection length of.                   */
+VECTOR_METHOD( RCOORD, DirectedDistance, ( PC_POINT pvOn, PC_POINT pvOf ) );
+/* copies the value of a ray into another ray
+   Parameters
+   ray to set :   target value
+   ray to copy :  value to copy.
+   Example
+   <code>
+   RAY ray;
+   RAY ray2;
+   // set ray to ray2
+   SetRay( ray, ray2 );
+   </code>                                    */
+#define SetRay( pr1, pr2 ) { SetPoint( (pr1)->o, (pr2)->o ),                               SetPoint( (pr1)->n, (pr2)->n ); }
+		/* Allocates and initializes a new transform for the user.
+		 if name is NULL, allocates an unnamed transform; otherwise
+       the transform is created in a known namespace that can be browsed.
+		 */
+VECTOR_METHOD( PTRANSFORM, CreateNamedTransform, ( CTEXTSTR name ) );
+#define CreateTransform() CreateNamedTransform( NULL )
+VECTOR_METHOD( PTRANSFORM, CreateTransformMotion, ( PTRANSFORM pt ) );
+VECTOR_METHOD( PTRANSFORM, CreateTransformMotionEx, ( PTRANSFORM pt, int rocket ) );
+VECTOR_METHOD( void, DestroyTransform     , ( PTRANSFORM pt ) );
+/* Resets a transform back to initial conitions. */
+VECTOR_METHOD( void, ClearTransform       , ( PTRANSFORM pt ) );
+/* Badly named function.
+   InvertTransform turns a transform sideways, that is takes
+   axis-normal transforms and turns them for sending to other
+   graphic systems.
+   <code lang="c++">
+     \+-         -+
+     | 0   1   2 |
+     | 3   4   5 |
+     | 6   7   8 |
+     \+-         -+
+   becomes
+     \+-         -+
+     | 0   3   6 |
+     | 1   4   7 |
+     | 2   5   8 |
+     \+-         -+
+   Not entirely useful at all :)
+   </code>                                                    */
+VECTOR_METHOD( void, InvertTransform        , ( PTRANSFORM pt ) );
+VECTOR_METHOD( void, Scale                 , ( PTRANSFORM pt, RCOORD sx, RCOORD sy, RCOORD sz ) );
+VECTOR_METHOD( void, Translate             , ( PTRANSFORM pt, RCOORD tx, RCOORD ty, RCOORD tz ) );
+VECTOR_METHOD( void, TranslateV            , ( PTRANSFORM pt, PC_POINT t ) );
+VECTOR_METHOD( void, TranslateRel          , ( PTRANSFORM pt, RCOORD tx, RCOORD ty, RCOORD tz ) );
+VECTOR_METHOD( void, TranslateRelV         , ( PTRANSFORM pt, PC_POINT t ) );
+VECTOR_METHOD( void, RotateAbs, ( PTRANSFORM pt, RCOORD rx, RCOORD ry, RCOORD rz ) );
+VECTOR_METHOD( void, RotateAbsV, ( PTRANSFORM pt, PC_POINT ) );
+/* Updates the current rotation matrix of a transform by a
+   relative amount. Amounts to rotate about the x, y and z axii
+   are given in radians.
+   Parameters
+   pt :  transform to rotate
+   rx :  amount around the x axis to rotate (pitch)(positive is
+         clockwise looking at the object from the right, axis up is
+         moved towards forward )
+   ry :  amount around the y axis to rotate (yaw) (positive is
+         counter clockwise, moves right to forward)
+   rz :  amount around the z axis to rotate (roll) (positive is
+         clockwise, moves up towards right )
+   See Also
+   RotateRelV                                                       */
+VECTOR_METHOD( void, RotateRel, ( PTRANSFORM pt, RCOORD rx, RCOORD ry, RCOORD rz ) );
+/* Update a transformation matrix by relative degress about the
+   x axix, y axis and z axis.
+   Parameters
+   pt :  transform to update
+   v :   vector containing x,y and z relative roll coordinate.  */
+VECTOR_METHOD( void, RotateRelV, ( PTRANSFORM pt, PC_POINT ) );
+/* Rotates a transform around some arbitrary axis. (any line may
+   be used to rotate the transformation's rotation matrix)
+   Parameters
+   pt :      transform to update
+   p :       P defines an axis around which the rotation portion
+             of the matrix is rotated by an amount. Can be any
+             arbitrary axis.
+   amount :  an amount to rotate by.
+   Note
+   coded from
+   http://www.mines.edu/~gmurray/ArbitraryAxisRotation/ArbitraryAxisRotation.html
+   and
+   http://www.siggraph.org/education/materials/HyperGraph/modeling/mod_tran/3drota.htm
+   and http://astronomy.swin.edu.au/~pbourke/geometry/rotate/.
+                                                                                       */
+VECTOR_METHOD( void, RotateAround, ( PTRANSFORM pt, PC_POINT p, RCOORD amount ) );
+/* Sets the current 'up' axis of a transformation. The forward
+   axis is adjusted so that it remains perpendicular to the mast
+   axis vs the right axis. After the forward axis is updated,
+   the right axis is adjusted to be perpendicular to up and
+   forward.
+   Parameters
+   pt :   transform to set the up direction of
+   vup :  new direction for 'up'
+   Remarks
+   RotateMast is based on the idea that your current frame is
+   something like a boat. As the boat moves along a surface,
+   it's version of 'up' may change depending on the landscape. This
+   keeps up up. (Actually, the computation was used for an
+   object running along the interior of a sphere, and this
+   normalizes their 'up' to the center of the sphere.               */
+VECTOR_METHOD( void, RotateMast, ( PTRANSFORM pt, PCVECTOR vup ) );
+/* Rotates around the 'up' of the current rotation matrix. Same
+   as a yaw rotation.
+   Parameters
+   pt :     transformation to rotate
+   angle :  angle to rotate \- positive should be clockwise,
+            looking from top down.                              */
+VECTOR_METHOD( void, RotateAroundMast, ( PTRANSFORM pt, RCOORD angle ) );
+/* Recovers a transformation state from a file.
+   Parameters
+   pt :        transform to read into
+   filename :  filename with the transform in it. */
+VECTOR_METHOD( void, LoadTransform, ( PTRANSFORM pt, CTEXTSTR filename ) );
+/* Provides a way to save a matrix ( direct binary file dump)
+   Parameters
+   pt :        transform matrix to save
+   filename :  \file to save the transformation in.           */
+VECTOR_METHOD( void, SaveTransform, ( PTRANSFORM pt, CTEXTSTR filename ) );
+VECTOR_METHOD( void, RotateTo, ( PTRANSFORM pt, PCVECTOR vforward, PCVECTOR vright ) );
+VECTOR_METHOD( void, RotateRight, ( PTRANSFORM pt, int A1, int A2 ) );
+VECTOR_METHOD( void, Apply           , ( PCTRANSFORM pt, P_POINT dest, PC_POINT src ) );
+VECTOR_METHOD( void, ApplyR          , ( PCTRANSFORM pt, PRAY dest, PRAY src ) );
+VECTOR_METHOD( void, ApplyT          , ( PCTRANSFORM pt, PTRANSFORM dest, PCTRANSFORM src ) );
+// I know this was a result - unsure how it was implented...
+//void ApplyT              (PTRANFORM pt, PTRANSFORM pt1, PTRANSFORM pt2 );
+VECTOR_METHOD( void, ApplyInverse    , ( PCTRANSFORM pt, P_POINT dest, PC_POINT src ) );
+VECTOR_METHOD( void, ApplyInverseR   , ( PCTRANSFORM pt, PRAY dest, PRAY src ) );
+VECTOR_METHOD( void, ApplyInverseT   , ( PCTRANSFORM pt, PTRANSFORM dest, PCTRANSFORM src ) );
+// again note there was a void ApplyInverseT
+VECTOR_METHOD( void, ApplyRotation        , ( PCTRANSFORM pt, P_POINT dest, PC_POINT src ) );
+VECTOR_METHOD( void, ApplyRotationT       , ( PCTRANSFORM pt, PTRANSFORM ptd, PCTRANSFORM pts ) );
+VECTOR_METHOD( void, ApplyInverseRotation , ( PCTRANSFORM pt, P_POINT dest, PC_POINT src ) );
+VECTOR_METHOD( void, ApplyInverseRotationT, ( PCTRANSFORM pt, PTRANSFORM ptd, PCTRANSFORM pts ) );
+VECTOR_METHOD( void, ApplyTranslation     , ( PCTRANSFORM pt, P_POINT dest, PC_POINT src ) );
+VECTOR_METHOD( void, ApplyTranslationT    , ( PCTRANSFORM pt, PTRANSFORM ptd, PCTRANSFORM pts ) );
+VECTOR_METHOD( void, ApplyInverseTranslation, ( PCTRANSFORM pt, P_POINT dest, PC_POINT src ) );
+VECTOR_METHOD( void, ApplyInverseTranslationT, ( PCTRANSFORM pt, PTRANSFORM ptd, PCTRANSFORM pts ) );
+// after Move() these callbacks are invoked.
+typedef void (*MotionCallback)( uintptr_t, PTRANSFORM );
+/* When Move is called on the transform, these callbacks are
+   invoked so user code can get even update for motion.
+   Parameters
+   pt :        PTRANSFORM transform matrix to hook to
+   callback :  user callback routine
+   psv :       pointer size value data to be passed to user
+               callback routine.                             */
+VECTOR_METHOD( void, AddTransformCallback, ( PTRANSFORM pt, MotionCallback callback, uintptr_t psv ) );
+/* Set the speed vector used when Move is applied to a
+   PTRANSFORM.
+   Parameters
+   pt :  transform to set the current speed of.
+   s :   the speed vector to set.                      */
+VECTOR_METHOD( PC_POINT, SetSpeed, ( PTRANSFORM pt, PC_POINT s ) );
+VECTOR_METHOD( P_POINT, GetSpeed, ( PTRANSFORM pt, P_POINT s ) );
+/* Sets the acceleration applied to the speed when Move is
+   called.                                                 */
+VECTOR_METHOD( PC_POINT, SetAccel, ( PTRANSFORM pt, PC_POINT s ) );
+VECTOR_METHOD( P_POINT, GetAccel, ( PTRANSFORM pt, P_POINT s ) );
+/* Sets the forward direction speed in a PTRANSFORM.
+   Parameters
+   pt :        Transform to set the right speed of.
+   distance :  How far it should go in the next time interval. */
+VECTOR_METHOD( void, Forward, ( PTRANSFORM pt, RCOORD distance ) );
+VECTOR_METHOD( void, MoveForward, ( PTRANSFORM pt, RCOORD distance ) );
+VECTOR_METHOD( void, MoveRight, ( PTRANSFORM pt, RCOORD distance ) );
+VECTOR_METHOD( void, MoveUp, ( PTRANSFORM pt, RCOORD distance ) );
+/* Sets the up direction speed in a PTRANSFORM.
+   Parameters
+   pt :        Transform to set the right speed of.
+   distance :  How far it should go in the next time interval. */
+VECTOR_METHOD( void, Up, ( PTRANSFORM pt, RCOORD distance ) );
+/* Sets the right direction speed in a PTRANSFORM.
+   Parameters
+   pt :        Transform to set the right speed of.
+   distance :  How far it should go in the next time interval. */
+VECTOR_METHOD( void, Right, ( PTRANSFORM pt, RCOORD distance ) );
+VECTOR_METHOD( PC_POINT, SetRotation, ( PTRANSFORM pt, PC_POINT r ) );
+VECTOR_METHOD( P_POINT, GetRotation, ( PTRANSFORM pt, P_POINT r ) );
+VECTOR_METHOD( PC_POINT, SetRotationAccel, ( PTRANSFORM pt, PC_POINT r ) );
+/* Set how long it takes, in milliseconds, to move 1 unit of
+   speed vector or rotate 1 unit of rotation vector when Move is
+   called. Each matrix maintains a last tick. If many thousands
+   of matrixes were used, probably a batch move could be
+   implemented that would maintain tick counts for a group of
+   matrixes... don't know how long it takes to compute move, but
+   timeGetTime will slow it down a lot.
+   Parameters
+   pt :                 transform to set the time interval on.
+   speed_interval :     what the time interval should be for
+                        speed.
+   rotation_interval :  what the time interval should be for
+                        rotation.
+   Remarks
+   A default interval of 1000 is used. So it will take 1000
+   milliseconds to move one unit of speed. This could be set to
+   3600000 and then it would take one hour to move one unit of
+   speed. (miles per hour)
+   Rotation has its own interval that affects rotation the same
+   way; If your rotation was set to roll 2*pi radians, then it
+   would revolve one full rotation in the said time.
+                                                                 */
+VECTOR_METHOD( void, SetTimeInterval, ( PTRANSFORM pt, RCOORD speed_interval, RCOORD rotation_interval ) );
+/* Updates a transform by it's current speed and rotation
+   assuming speed and rotation are specified in x per 1 second.
+   Applies the fraction of time between now and the prior time
+   move was called and scales speed and rotation by that when
+   applying it.
+   Parameters
+   pt :  Pointer to a transform to update.
+   See Also
+   <link sack::math::vector::SetTimeInterval@PTRANSFORM@RCOORD@RCOORD, SetTimeInterval> */
+VECTOR_METHOD( LOGICAL, Move, ( PTRANSFORM pt ) );
+#if 0
+	VECTOR_METHOD( void, Unmove, ( PTRANSFORM pt ) );
+#endif
+VECTOR_METHOD( void, showstdEx, ( PTRANSFORM pt, char *header ) );
+VECTOR_METHOD( void, ShowTransformEx, ( PTRANSFORM pt, char *header DBG_PASS ) );
+/* <combine sack::math::vector::ShowTransformEx@PTRANSFORM@char *header>
+   \ \                                                                   */
+#define ShowTransform( n ) ShowTransformEx( n, #n DBG_SRC )
+VECTOR_METHOD( void, showstd, ( PTRANSFORM pt, char *header ) );
+VECTOR_METHOD( void, GetOriginV, ( PTRANSFORM pt, P_POINT o ) );
+VECTOR_METHOD( PC_POINT, GetOrigin, ( PTRANSFORM pt ) );
+VECTOR_METHOD( void, GetAxisV, ( PTRANSFORM pt, P_POINT a, int n ) );
+VECTOR_METHOD( PC_POINT, GetAxis, ( PTRANSFORM pt, int n ) );
+VECTOR_METHOD( void, SetAxis, ( PTRANSFORM pt, RCOORD a, RCOORD b, RCOORD c, int n ) );
+VECTOR_METHOD( void, SetAxisV, ( PTRANSFORM pt, PC_POINT a, int n ) );
+// matrix is suitable to set as the first matrix for opengl rendering.
+// it is an inverse application that uses the transform's origin as camera origin
+// and the rotation matrix as what to look at.
+VECTOR_METHOD( void, GetGLCameraMatrix, ( PTRANSFORM pt, PMATRIX out ) );
+VECTOR_METHOD( void, GetGLMatrix, ( PTRANSFORM pt, PMATRIX out ) );
+VECTOR_METHOD( void, SetGLMatrix, ( PMATRIX in, PTRANSFORM pt ) );
+VECTOR_METHOD( void, SetRotationMatrix, ( PTRANSFORM pt, RCOORD *quat ) );
+VECTOR_METHOD( void, GetRotationMatrix, ( PTRANSFORM pt, RCOORD *quat ) );
+  // line m, b
+VECTOR_METHOD( RCOORD, IntersectLineWithPlane, (PCVECTOR Slope, PCVECTOR Origin,
+  // plane n, o
+	PCVECTOR n, PCVECTOR o,
+	RCOORD *time) );
+VECTOR_METHOD( RCOORD, PointToPlaneT, (PCVECTOR n, PCVECTOR o, PCVECTOR p) );
+#if ( !defined( VECTOR_LIBRARY_SOURCE ) && !defined( NO_AUTO_VECTLIB_NAMES ) ) || defined( NEED_VECTLIB_ALIASES )
+#define add EXTERNAL_NAME(add)
+#define sub EXTERNAL_NAME(sub)
+#define scale EXTERNAL_NAME(scale)
+#define Scale EXTERNAL_NAME(Scale)
+#define Invert EXTERNAL_NAME(Invert)
+#define GetOrigin EXTERNAL_NAME(GetOrigin)
+#define GetOriginV EXTERNAL_NAME(GetOriginV)
+#define GetAxis EXTERNAL_NAME(GetAxis)
+#define GetAxisV EXTERNAL_NAME(GetAxisV)
+#define GetGLCameraMatrix EXTERNAL_NAME(GetGLCameraMatrix)
+#define ApplyInverse EXTERNAL_NAME(ApplyInverse)
+#define Move EXTERNAL_NAME(Move)
+#define MoveForward EXTERNAL_NAME(MoveForward)
+#define MoveRight EXTERNAL_NAME(MoveRight)
+#define MoveUp EXTERNAL_NAME(MoveUp)
+#define Forward EXTERNAL_NAME(Forward)
+#define Right EXTERNAL_NAME(Right)
+#define Up EXTERNAL_NAME(Up)
+#define PrintVectorEx EXTERNAL_NAME(PrintVectorEx)
+#define PrintMatrixEx EXTERNAL_NAME(PrintMatrixEx)
+#define ShowTransformEx EXTERNAL_NAME(ShowTransformEx)
+#define addscaled EXTERNAL_NAME(addscaled)
+#define Length EXTERNAL_NAME(Length)
+#define PointToPlaneT EXTERNAL_NAME(PointToPlaneT)
+#define normalize EXTERNAL_NAME(normalize)
+#define Translate EXTERNAL_NAME(Translate)
+#define TranslateV EXTERNAL_NAME(TranslateV)
+#define Apply EXTERNAL_NAME(Apply)
+#define ApplyR EXTERNAL_NAME(ApplyR)
+#define ApplyT EXTERNAL_NAME(ApplyT)
+#define ApplyTranslation EXTERNAL_NAME(ApplyTranslation)
+#define ApplyTranslationR EXTERNAL_NAME(ApplyTranslationR)
+#define ApplyTranslationT EXTERNAL_NAME(ApplyTranslationT)
+#define ApplyInverseRotation EXTERNAL_NAME(ApplyInverseRotation)
+#define ApplyInverseR EXTERNAL_NAME(ApplyInverseR)
+#define ApplyRotation EXTERNAL_NAME(ApplyRotation)
+#define ApplyRotationT EXTERNAL_NAME(ApplyRotationT)
+#define RotateAround EXTERNAL_NAME(RotateAround)
+#define RotateRel EXTERNAL_NAME(RotateRel)
+#define SetRotation EXTERNAL_NAME(SetRotation)
+#define GetRotation EXTERNAL_NAME(GetRotation)
+#define SetRotationAccel EXTERNAL_NAME(SetRotationAccel)
+#define RotateRight EXTERNAL_NAME(RotateRight)
+#define dotproduct EXTERNAL_NAME(dotproduct)
+#define DestroyTransform EXTERNAL_NAME(DestroyTransform)
+#define SinAngle EXTERNAL_NAME(SinAngle)
+#define CosAngle EXTERNAL_NAME(CosAngle)
+#define crossproduct EXTERNAL_NAME(crossproduct)
+#define CreateTransformMotion EXTERNAL_NAME(CreateTransformMotion)
+#define CreateTransformMotionEx EXTERNAL_NAME(CreateTransformMotionEx)
+#define CreateNamedTransform EXTERNAL_NAME(CreateNamedTransform)
+#define ClearTransform EXTERNAL_NAME(ClearTransform)
+#define RotateTo EXTERNAL_NAME(RotateTo)
+#define SetSpeed EXTERNAL_NAME(SetSpeed)
+#define SetAccel EXTERNAL_NAME(SetAccel)
+#define TranslateRel EXTERNAL_NAME( TranslateRel )
+#define TranslateRelV EXTERNAL_NAME( TranslateRelV )
+#define RotateAbs EXTERNAL_NAME(RotateAbs)
+#define RotateAbsV EXTERNAL_NAME(RotateAbsV)
+#define GetRotationMatrix EXTERNAL_NAME(GetRotationMatrix)
+#define SetRotationMatrix EXTERNAL_NAME(SetRotationMatrix)
+#endif
+#ifdef __cplusplus
+VECTOR_NAMESPACE_END
+USE_VECTOR_NAMESPACE
+#endif
+#endif
+// $Log: vectlib.h,v $
+// Revision 1.13  2004/08/22 09:56:41  d3x0r
+// checkpoint...
+//
+// Revision 1.12  2004/02/02 22:43:35  d3x0r
+// Add lineseg type and orthoarea (min/max box)
+//
+// Revision 1.11  2004/01/11 23:24:15  panther
+// Fix type warnings, conflicts, fix const issues
+//
+// Revision 1.10  2004/01/11 23:11:49  panther
+// Fix const typings
+//
+// Revision 1.9  2004/01/11 23:10:38  panther
+// Include keyboard to avoid windows errors
+//
+// Revision 1.8  2004/01/04 20:54:18  panther
+// Use PCTRANSFORM for prototypes
+//
+// Revision 1.7  2003/12/29 08:10:18  panther
+// Added more functions for applying transforms
+//
+// Revision 1.6  2003/11/22 23:27:11  panther
+// Fix type passed to printvector
+//
+// Revision 1.5  2003/09/01 20:04:37  panther
+// Added OpenGL Interface to windows video lib, Modified RCOORD comparison
+//
+// Revision 1.4  2003/03/25 08:38:11  panther
+// Add logging
+//
+#if defined( _WIN32 ) && !defined( _INVERT_IMAGE ) && !defined( _OPENGL_DRIVER ) && !defined( _D3D_DRIVER )
+#define _INVERT_IMAGE
+#endif
+#define WILL_DEFINE_IMAGE_STRUCTURE
+#define IMAGE_STRUCTURE_DEFINED
+IMAGE_NAMESPACE
+#ifdef __cplusplus
+	namespace Interface
+{
+	struct image_interface_tag;
+}
+#ifdef _D3D_DRIVER
+	using namespace sack::image::d3d::Interface;
+#elif defined( _D3D10_DRIVER )
+	using namespace sack::image::d3d10::Interface;
+#elif defined( _D3D11_DRIVER )
+	using namespace sack::image::d3d11::Interface;
+#else
+	using namespace sack::image::Interface;
+#endif
+#endif
+#ifndef PSPRITE_METHOD
+#define PSPRITE_METHOD PSPRITE_METHOD
+/* pointer to a structure defining a sprite draw method this should be defined in render namespace...*/
+	typedef struct sprite_method_tag *PSPRITE_METHOD;
+#endif
+	/* Flags which may be combined in <link sack::image::ImageFile_tag::flags, Image.flags> */
+	enum ImageFlags {
+ // this has been freed - but contains sub images
+IF_FLAG_FREE   =0x00001,
+ // moved beyond parent image's bound
+IF_FLAG_HIDDEN =0x00002,
+ // built with a *image from external sources
+IF_FLAG_EXTERN_COLORS =0x00004,
+ // pay attention to (clips) array.
+IF_FLAG_HAS_CLIPS     =0x00008,
+// with no _X_STRING flag - characters are shown as literal character glyph.
+ // strings on this use 'c' processing
+IF_FLAG_C_STRING       = 0x00010,
+ // strings on this use menu processing ( &underline )
+IF_FLAG_MENU_STRING    = 0x00020,
+ // strings use control chars (newline, tab)
+IF_FLAG_CONTROL_STRING = 0x00040,
+ // this has been freed - but contains sub images
+IF_FLAG_OWN_DATA       = 0x00080,
+  // image is inverted (standard under windows, but this allows images to be configured dynamically - a hack to match SDL lameness )
+IF_FLAG_INVERTED       = 0x00100,
+// DisplayLib uses this flag - indicates panel root
+ // please #define user flag to this
+IF_FLAG_USER1          = 0x10000,
+// DisplayLib uses this flag - indicates is part of a displayed panel
+IF_FLAG_USER2          = 0x20000,
+IF_FLAG_USER3          = 0x40000,
+ // output should render to opengl target (with transform); also used with proxy
+IF_FLAG_FINAL_RENDER   = 0x00200,
+ // set when a operation has changed the surface of a local image; requires update to remote device(s)
+IF_FLAG_UPDATED        = 0x00400,
+ // set when a operation has changed the surface of a local image; requires update to remote device(s)
+IF_FLAG_HAS_PUTSTRING  = 0x00800,
+ // is an in-memory image; that is the surface can be written to directly with pixel ops (putstring)
+IF_FLAG_IN_MEMORY      = 0x01000,
+	};
+//#define _DRAWPOINT_X 0
+//#define _DRAWPOINT_Y 1
+struct ImageFile_tag
+{
+#if defined( IMAGE_LIBRARY_SOURCE ) || defined( NEED_REAL_IMAGE_STRUCTURE )
+	int real_x;
+	int real_y;
+   // desired height and width may not be actual cause of
+	int real_width;
+  // resizing of parent image....
+	int real_height;
+# ifdef HAVE_ANONYMOUS_STRUCTURES
+	IMAGE_RECTANGLE;
+# else
+ // need this for sub images - otherwise is irrelavent
+	int x;
+	int y;
+  /// Width of image.
+	int width;
+ /// Height of image.
+	int height;
+# endif
+#else
+	/* X coordinate of the image within another image. */
+	int x;
+	/* Y coordinate of an image within another image. */
+	int y;
+   // desired height and width may not be actual cause of
+	int width;
+  // resizing of parent image....
+	int height;
+ // need this for sub images - otherwise is irrelavent
+	int actual_x;
+	int actual_y;
+  // Width of image.
+	int actual_width;
+ // Height of image.
+	int actual_height;
+#endif
+ // width of real physical layer
+	int pwidth;
+	// The image data.
+	PCOLOR image;
+	/* a combination of <link ImageFlags, IF_FLAG_> (ImageFile Flag)
+	   which apply to this image.                                    */
+	int flags;
+	/* This points to a peer image that existed before this one. If
+	   NULL, there is no elder, otherwise, contains the next peer
+	   image in the same parent image.                              */
+	/* Points to the parent image of a sub-image. (The parent image
+	   contains this image)                                         */
+	/* Pointer to the youngest child sub-image. If there are no sub
+	   images pChild will be NULL. Otherwise, pchild points at the
+	   first of one or more sub images. Other sub images in this one
+	   are found by following the pElder link of the pChild.         */
+	/* This points at a more recently created sub-image. (another
+	   sub image within the same parent, but younger)             */
+	struct ImageFile_tag *pParent, *pChild, *pElder, *pYounger;
+	   // effective x - clipped by reality real coordinate.
+	           // (often eff_x = -real_x )
+	int eff_x;
+	/* this is used internally for knowing what the effective y of
+	   the image is. If the sub-image spans a boundry of a parent
+	   image, then the effective Y that will be worked with is only
+	   a part of the subimage.                                      */
+	int eff_y;
+		// effective max - maximum coordinate...
+	int eff_maxx;
+		// effective maximum Y
+	int eff_maxy;
+		/* An extra rectangle that can be used to carry additional
+		 information like update region.                         */
+	IMAGE_RECTANGLE auxrect;
+	// fonts need a way to output the font character subimages to the real image...
+	// or for 3D; to reverse scale appropriately
+	struct image_interface_tag  *reverse_interface;
+ // what the interface thinks this is...
+	POINTER reverse_interface_instance;
+	void (*extra_close)( struct ImageFile_tag *);
+//DOM-IGNORE-BEGIN
+#if defined( __3D__ )
+	PTRANSFORM transform;
+#endif
+#ifdef _OPENGL_DRIVER
+	/* gl context? */
+	LOGICAL depthTest;
+	PLIST glSurface;
+ // most things will still use this, since reload image is called first, reload will set active
+	int glActiveSurface;
+  // updated with SetTransformRelation, otherwise defaults to image size.
+	VECTOR coords[4];
+#endif
+#ifdef _D3D10_DRIVER
+	PLIST Surfaces;
+	ID3D10Texture2D *pActiveSurface;
+#endif
+#ifdef _D3D11_DRIVER
+	PLIST Surfaces;
+	ID3D11Texture2D *pActiveSurface;
+#endif
+#ifdef _D3D_DRIVER
+	/* gl context? */
+	PLIST Surfaces;
+	IDirect3DBaseTexture9 *pActiveSurface;
+#endif
+#ifdef _VULKAN_DRIVER
+	LOGICAL depthTest;
+	PLIST vkSurface;
+ // most things will still use this, since reload image is called first, reload will set active
+	int vkActiveSurface;
+  // updated with SetTransformRelation, otherwise defaults to image size.
+	VECTOR coords[4];
+	VkCommandBuffer* commandBuffers;
+#endif
+#ifdef __cplusplus
+ // watcom limits protections in structs to protected and public
+#ifndef __WATCOMC__
+private:
+#endif
+#endif
+//DOM-IGNORE-END
+};
+enum SlicedImageSection {
+	SLICED_IMAGE_TOP_LEFT,
+	SLICED_IMAGE_TOP,
+	SLICED_IMAGE_TOP_RIGHT,
+	SLICED_IMAGE_LEFT,
+	SLICED_IMAGE_CENTER,
+	SLICED_IMAGE_RIGHT,
+	SLICED_IMAGE_BOTTOM_LEFT,
+	SLICED_IMAGE_BOTTOM,
+	SLICED_IMAGE_BOTTOM_RIGHT,
+};
+struct SlicedImageFile {
+	struct ImageFile_tag *image;
+	struct ImageFile_tag *slices[9];
+	uint32_t left, right, top, bottom;
+	uint32_t center_w, center_h;
+	uint32_t right_w;
+	uint32_t bottom_h;
+	LOGICAL output_center;
+	LOGICAL extended_slice;
+};
+/* The basic structure. This is referenced by applications as '<link sack::image::Image, Image>'
+	This is the primary type that the image library works with.
+	This is the internal definition.
+	This is a actual data content, Image is (ImageFile *).                                        */
+typedef struct ImageFile_tag ImageFile;
+/* A simple wrapper to add dynamic changing position and
+	orientation to an image. Sprites can be output at any angle. */
+struct sprite_tag
+{
+	/* Current location of the sprite's origin. */
+	/* Current location of the sprite's origin. */
+  // current x and current y for placement on image.
+	int32_t curx, cury;
+  // int of bitmap hotspot... centers cur on hot
+	int32_t hotx, hoty;
+	Image image;
+	// curx,y are kept for moving the sprite independantly
+	fixed scalex, scaley;
+	// radians from 0 -> 2*pi.  there is no negative...
+ // radians for now... (used internally, set by blot rotated sprite)
+	float angle;
+	// should consider keeping the angle of rotation
+	// and also should cosider keeping velocity/acceleration
+	// but then limits would have to be kept also... so perhaps
+	// the game module should keep such silly factors... but then couldn't
+	// it also keep curx, cury ?  though hotx hoty is the actual
+	// origin to rotate this image about, and to draw ON curx 0 cury 0
+	// int orgx, orgy;  // rotated origin of bitmap.
+	// after being drawn the min(x,y) and max(x,y) are set.
+ // after draw, these are the extent of the sprite.
+	int32_t minx, maxx;
+ // after draw, these are the extent of the sprite.
+	int32_t miny, maxy;
+	PSPRITE_METHOD pSpriteMethod;
+};
+/* A Sprite type. Adds position and rotation and motion factors
+	to an image. Hooks into the render system to get an update to
+	draw on a temporary layer after the base rendering is done.   */
+typedef struct sprite_tag SPRITE;
+#ifdef _INVERT_IMAGE
+// inversion does not account for eff_y - only eff_maxy
+// eff maxy - eff_minY???
+/*+((i)->eff_y)*/
+#define INVERTY(i,y)     ( (((i)->eff_maxy) - (y)))
+#else
+/* This is a macro is used when image data is inverted on a
+	platform. (Windows images, the first row of data is the
+	bottom of the image, all Image operations are specified from
+	the top-left as 0,0)                                         */
+#define INVERTY(i,y)     ((y) - (i)->eff_y)
+#endif
+/*+((i)->eff_y)*/
+#define INVERTY_INVERTED(i,y)     ( (((i)->eff_maxy) - (y)))
+#define INVERTY_NON_INVERTED(i,y)     ((y) - (i)->eff_y)
+#if defined(__cplusplus_cli ) && !defined( IMAGE_SOURCE )
+//IMAGE_PROC( PCDATA, ImageAddress )( Image image, int32_t x, int32_t y );
+//#define IMG_ADDRESS(i,x,y) ImageAddress( i,x,y )
+#else
+#define IMG_ADDRESS(i,x,y)    ((CDATA*)	                             ((i)->image + (( (x) - (i)->eff_x )	 +(((i)->flags&IF_FLAG_INVERTED)?(INVERTY_INVERTED( (i), (y) ) * (i)->pwidth ):(INVERTY_NON_INVERTED( (i), (y) ) * (i)->pwidth ))	                             ))										   )
+#endif
+#if 0
+#if defined( __arm__ ) && defined( IMAGE_LIBRARY_SOURCE ) && !defined( DISPLAY_SOURCE )
+extern unsigned char AlphaTable[256][256];
+static CDATA DOALPHA( CDATA over, CDATA in, uint8_t a )
+{
+	int r, g, b, aout;
+	if( !a )
+		return over;
+	if( a > 255 )
+		a = 255;
+	if( a == 255 )
+ // force alpha full on.
+		return (in | 0xFF000000);
+	aout = AlphaTable[a][AlphaVal( over )] << 24;
+	r = ((((RedVal(in))  *(a+1)) + ((RedVal(over))  *(256-(a)))) >> 8 );
+	if( r > (255) ) r = (255);
+	g = (((GreenVal(in))*(a+1)) + ((GreenVal(over))*(256-(a)))) >> 8;
+	if( g > (255) ) g = (255);
+	b = ((((BlueVal(in)) *(a+1)) + ((BlueVal(over)) *(256-(a)))) >> 8 );
+	if( b > 255 ) b = 255;
+	return aout|(r<<16)|(g<<8)|b;
+	//return AColor( r, g, b, aout );
+}
+#endif
+#endif
+IMAGE_NAMESPACE_END
+// end if_not_included
+#endif
+// $Log: imagestruct.h,v $
+// Revision 1.2  2005/04/05 11:56:04  panther
+// Adding sprite support - might have added an extra draw callback...
+//
+// Revision 1.1  2004/06/21 07:38:39  d3x0r
+// Move structures into common...
+//
+// Revision 1.20  2003/10/14 20:48:55  panther
+// Tweak mmx a bit - no improvement visible but shorter
+//
+// Revision 1.19  2003/10/14 16:36:45  panther
+// Oops doalpha was outside of known inclusion frame
+//
+// Revision 1.18  2003/10/14 00:43:03  panther
+// Arm optimizations.  Looks like I'm about maxed.
+//
+// Revision 1.17  2003/09/15 17:06:37  panther
+// Fixed to image, display, controls, support user defined clipping , nearly clearing correct portions of frame when clearing hotspots...
+//
+// Revision 1.16  2003/04/25 08:33:09  panther
+// Okay move the -1's back out of IMG_ADDRESS
+//
+// Revision 1.15  2003/04/21 23:33:09  panther
+// fix certain image ops - should check blot direct...
+//
+// Revision 1.14  2003/03/30 18:39:03  panther
+// Update image blotters to use IMG_ADDRESS
+//
+// Revision 1.13  2003/03/30 16:11:03  panther
+// Clipping images works now... blat image untested
+//
+// Revision 1.12  2003/03/30 06:24:56  panther
+// Turns out I had badly implemented clipping...
+//
+// Revision 1.11  2003/03/25 08:45:51  panther
+// Added CVS logging tag
+//
+#if defined( __cplusplus )
+IMAGE_NAMESPACE
+#endif
+/* pointer to a sprite type. */
+typedef struct sprite_tag *PSPRITE;
+//#endif
+// at some point, it may be VERY useful
+// to have this structure also have a public member.
+//
+#ifndef NO_FONT
+typedef struct simple_font_tag {
+ // all characters same height
+   uint16_t height;
+ // number of characters in the set
+   uint16_t characters;
+ // open ended array size characters...
+   uint8_t char_width[1];
+} FontData;
+/* Contains information about a font for drawing and rendering
+   from a font file.                                           */
+typedef struct font_tag *SFTFont;
+#endif
+/* A definition of a block structure to transport font and image
+   data across message queues.                                   */
+/* Type of buffer used to transfer data across message queues. */
+typedef struct data_transfer_state_tag {
+   /* size of this block of data. */
+   uint32_t size;
+   /* offset of the data in the total message. Have to break up
+      large buffers into smaller chunks for transfer.           */
+   uint32_t offset;
+   /* buffer containing the data to transfer. */
+   CDATA buffer;
+} *DataState;
+//-----------------------------------------------------
+enum string_behavior {
+   // every character assumed to have a glyph-including '\0'
+   STRING_PRINT_RAW
+ // control characters perform 'typical' actions - newline, tab, backspace...
+   ,STRING_PRINT_CONTROL
+  // c style escape characters are handled \n \b \x## - literal text
+   ,STRING_PRINT_C
+   ,STRING_PRINT_MENU
+ /* &amp; performs an underline, also does C style handling. \\&amp;
+                         == &amp;                                                         */
+};
+/* Definitions of symbols to pass to <link SetBlotMethod> to
+   specify optimization method.                              */
+enum blot_methods {
+    /* A Symbol to pass to <link SetBlotMethod> to specify using C
+      coded primitives. (for shading and alpha blending).         */
+    BLOT_C
+   , BLOT_ASM
+/* A Symbol to pass to <link SetBlotMethod> to specify using
+      primitives with assembly optimization (for shading and alpha
+      blending).                                                   */
+						,
+                  /* A Symbol to pass to <link SetBlotMethod> to specify using
+      primitives with MMX optimization (for shading and alpha
+      blending).                                                */
+    BLOT_MMX
+};
+// specify the method that pixels are copied from one image to another
+enum BlotOperation {
+   /* copy the pixels from one image to another with no color transform*/
+ BLOT_COPY = 0,
+   // copy the pixels from one image to another with no color transform, scaling by a single color
+ BLOT_SHADED = 1,
+   // copy the pixels from one image to another with no color transform, scaling independant R, G and B color channels to a combination of an R Color, B Color, G Color
+ BLOT_MULTISHADE = 2,
+   /* copy the pixels from one image to another with simple color inversion transform*/
+ BLOT_INVERTED = 3,
+ /* orientation blots for fonts to 3D and external displays */
+ BLOT_ORIENT_NORMAL = 0x00,
+ BLOT_ORIENT_INVERT = 0x04,
+ BLOT_ORIENT_VERTICAL = 0x08,
+ BLOT_ORIENT_VERTICAL_INVERT = 0x0C,
+ BLOT_ORIENTATTION = 0x0C,
+};
+/* Transparency parameter definition
+   0 : no transparency - completely opaque
+   1 (TRUE): 0 colors (absolute transparency) only
+   2-255 : 0 color transparent, plus transparency factor applied
+   to all 2 - mostly almost completely transparent 255 not
+   transparent (opaque)
+   257-511 : alpha transparency in pixel plus transparency value
+   \- 256 0 pixels will be transparent 257 - slightly more
+   opaquen than the original 511 - image totally opaque - alpha
+   will be totally overriden no addition 511 nearly completely
+   transparent 512-767 ; the low byte of this is subtracted from
+   the alpha of the image ; this allows images to be more
+   transparent than they were originally 512 - no modification
+   alpha imge normal 600 - mid range... more transparent 767 -
+   totally transparent any value of transparent greater than the
+   max will be clipped to max this will make very high values
+   opaque totally...                                             */
+enum AlphaModifier {
+   /* Direct alpha copy - whatever the alpha is is what the output will be.  Adding a value of 0-255 here will increase the base opacity by that much */
+	ALPHA_TRANSPARENT = 0x100,
+   // Inverse alpha copy - whatever the alpha is is what the output will be.  Adding a value of 0-255 here will decrease the base opacity by that much
+ALPHA_TRANSPARENT_INVERT = 0x200,
+   // more than this clips to total transparency
+	// for line, plot more than 255 will
+// be total opaque... this max only
+	// applies to blotted images
+ALPHA_TRANSPARENT_MAX = 0x2FF
+};
+/* library global changes. string behavior cannot be tracked per
+   image. string behavior should, for all strings, be the same
+   usage for an application... so behavior is associated with
+   the particular stream and/or image family. does not modify
+   character handling behavior - only strings.
+   See Also
+   <link sack::image::string_behavior, String Behaviors>         */
+   IMAGE_PROC  void IMAGE_API  IMGVER(SetStringBehavior)( Image pImage, uint32_t behavior );
+   /* Specify the optimized code to draw with. There are 3 levels,
+      C - routines coded in C, ASM - assembly optimization (32bit
+      NASM), MMX assembly but taking advantage of MMX features.    */
+   IMAGE_PROC  void IMAGE_API  IMGVER(SetBlotMethod)    ( uint32_t method );
+   /* This routine can be used to generically scale to any point
+      between two colors.
+      Parameters
+      Color 1 :   CDATA color to scale from
+      Color 2 :   CDATA color to scale to
+      distance :  How from from 0 to max distance to scale.
+      max :       How wide the scalar is.
+      Remarks
+      Max is the scale that distance can go from. Distance 0 is the
+      first color, Distance == max is the second color. The
+      distance from 0 to max proportionately scaled the color....
+      Example
+      <code lang="c++">
+      CDATA green = BASE_COLOR_GREEN;
+      CDATA blue = BASE_COLOR_BLUE;
+      CDATA red = BASE_COLOR_RED;
+      </code>
+      Compute a color that is halfway from blue to green. (if the
+      total distance is 100, then 50 is half way).
+      <code lang="c++">
+      CDATA blue_green = ColorAverage( blue, green, 50, 100 );
+      </code>
+      Compute a color that's mostly red.
+      <code lang="c++">
+      CDATA red_blue_green = ColorAverage( blue_green, red, 240, 255 );
+      </code>
+      Iterate through a whole scaled range...
+      <code lang="c++">
+      int n;
+      for( n = 0; n \< 100; n++ )
+      {
+          CDATA scaled = ColorAverage( BASE_COLOR_WHITE, BASE_COLOR_BLACK, n, 100 );
+          // as n increases, the color slowly goes from WHITE to BLACK.
+      }
+      </code>                                                                        */
+   IMAGE_PROC  CDATA IMGVER(ColorAverage)( CDATA c1, CDATA c2, int d, int max );
+   /* Creates an image from user defined parts. The buffer used is
+      from the user. This was used by the video library, but
+      RemakeImage accomplishes this also.
+      Parameters
+      pc :      the color buffer to use for the image.
+      width :   how wide the color buffer is
+      height :  How tall the color buffer is                       */
+   IMAGE_PROC  Image IMAGE_API IMGVER(BuildImageFileEx) ( PCOLOR pc, uint32_t width, uint32_t height DBG_PASS);
+   /* <combine sack::image::MakeImageFile>
+      Adds <link sack::DBG_PASS, DBG_PASS> parameter. */
+   /* Creates an Image with a specified width and height. The
+      image's color is undefined to start.
+      Parameters
+      Width :     how wide to make the image. Cannot be negative.
+      Height :    how tall to make the image. Cannot be negative.
+      DBG_PASS :  _nt_
+      Example
+      See <link sack::image::Image, Image>                        */
+   IMAGE_PROC  Image IMAGE_API IMGVER(MakeImageFileEx  )(uint32_t Width, uint32_t Height DBG_PASS);
+   /* Creates a sub image region on an image. Sub-images may be
+      used like any other image. There are two uses for this sort
+      of thing. OH, the sub image shares the exact data of the
+      parent image, and is not a copy.
+      Parameters
+      pImage :  image to make the sub image in
+      x :       signed location of the top side of the sub\-image
+      y :       signed location of the left side of the sub\-image
+      width :   how wide to make the sub\-image
+      height :  how tall to make the sub\-image
+      Returns
+      NULL if the input image is NULL.
+      Otherwise returns an Image.
+      Example
+      Use 1: An image might contain a grid of symbols or
+      characters, each exactly the same size. These may be token
+      pieces used in a game or a special graphic font.
+      <code lang="c++">
+      Image pieces_image = LoadImageFile( "Game Pieces.image" );
+      PLIST pieces = NULL;
+      int x, y;
+      \#define PIECE_WIDTH 32
+      \#define PIECE_HEIGHT 32
+      for( x = 0; x \< 10; x++ )
+         for( y = 0; y \< 2; y++ )
+         {
+             AddLink( &amp;pieces, MakeSubImage( pieces_image
+                                           , x * PIECE_WIDTH, y * PIECE_HEIGHT
+                                           , PIECE_WIDTH, PIECE_HEIGHT );
+         }
+      // at this point there we have a list with all the tokens,
+      // which were 32x32 pixels each.
+      // Any of these piece images may be output using a scaled or direct blot.
+      </code>
+      Use 2: Partitioning views on an image for things like
+      controls and other clipped regions.
+      <code lang="c++">
+      Image image = MakeImageFile( 1024, 768 );
+      Image clock = MakeSubImage( image, 32, 32, 150, 16 );
+      DrawString( clock, 0, 0, BASE_COLOR_WHITE, BASE_COLOR_BLACK, "Current Time..." );
+      </code>                                                                           */
+   IMAGE_PROC  Image IMAGE_API IMGVER(MakeSubImageEx   )( Image pImage, int32_t x, int32_t y, uint32_t width, uint32_t height DBG_PASS );
+   /* Adds an image as a sub-image of another image. The image
+      being added as a sub image must not already have a parent.
+      Sub-images are like views into the parent, and share the same
+      pixel buffer that the parent has.
+      Parameters
+      pFoster :  This is the parent image to received the new
+                 subimage
+      pOrphan :  this is the subimage to be added                   */
+   IMAGE_PROC  void IMAGE_API IMGVER(AdoptSubImage    )( Image pFoster, Image pOrphan );
+   /* Removes a sub-image (child image) from a parent image. The
+      sub image my then be moved to another image with
+      AdoptSubImage.
+      Parameters
+      pImage :  the sub\-image to orphan.                        */
+   IMAGE_PROC  void IMAGE_API IMGVER(OrphanSubImage   )( Image pImage );
+   /* Create or recreate an image using the specified color buffer,
+      and size. All sub-images have their color data reference
+      updated.
+      Example
+      <code>
+      Image image = NULL;
+      POINTER data = NewArray( CDATA, 100* 100 );
+      image = RemakeImage( image, data, 100, 100 );
+      </code>
+      Remarks
+      If the source image is NULL, a new image will be built using
+      the color buffer and size specified.
+      Image.flags has IF_FLAG_EXTERN_COLORS set if made this way,
+      since the color buffer is an external resource. This causes
+      UnmakeImage() to not attempt to free the color buffer.
+      If the original image does exist, its color buffer is swapped
+      for the one specified, and coordinates are updated. The video
+      system uses this to create an image that has the color data
+      surface the surface of the display.
+      See Also
+      <link sack::image::BuildImageFile, BuildImageFile>
+      GetDisplayImage
+      Parameters
+      data :    Pointer to a buffer of 32 bit color data. ARGB and
+                ABGR available via compile option.
+      width :   the width of the data in pixels.
+      height :  the height of the data in pixels.
+      Returns
+      \Returns the original image if not NULL, otherwise results
+      with an image who's color plane is defined by a user defined
+      buffer of width by height size. The user must have allocated
+      this buffer appropriately, and is responsible for its
+      destruction.                                                  */
+   IMAGE_PROC  Image IMAGE_API IMGVER(RemakeImageEx    )( Image pImage, PCOLOR pc, uint32_t width, uint32_t height DBG_PASS);
+   /* Load an image file. Today we support PNG, JPG, GIF, BMP.
+      Tomorrow consider tapping into that FreeImage project on
+      sourceforge, that combines all readers into one.
+      Parameters
+      name :      Filename to read from. Opens in 'Current Directory'
+                  if not an absolute path.
+      DBG_PASS :  _nt_
+      Example
+      See <link sack::image::Image, Image>                            */
+	IMAGE_PROC  Image IMAGE_API IMGVER(LoadImageFileEx  )( CTEXTSTR name DBG_PASS );
+	/* <combinewith sack::image::LoadImageFileEx@CTEXTSTR name>
+	   Extended load image file. This allows specifying a file group
+	   to load from. (Groups were added for platforms without
+	   support of current working directory).
+	   Parameters
+	   group :  Group to load the file from
+	   _nt_ :   _nt_                                                 */
+	IMAGE_PROC Image  IMAGE_API IMGVER(LoadImageFileFromGroupEx )( INDEX group, CTEXTSTR filename DBG_PASS );
+   /* Decodes a block of memory into an image. This is used
+      internally so, LoadImageFile() opens the file and reads it
+      into a buffer, which it then passes to DecodeMemoryToImage().
+      Images stored in custom user structures may be passed for
+      decoding also.
+      Parameters
+      buf :   Pointer to bytes of data to decode
+      size :  the size of the buffer to decode
+      Returns
+      NULL is returned if the data does not decode as an image.
+      an Image is returned otherwise.
+      Example
+      This pretends that you have a FILE* open to some image
+      already, and that the image is tiny (less than 4k bytes).
+      <code lang="c#">
+      char buffer[4096];
+      int length;
+      length = fread( buffer, 1, 4096, some_file );
+      Image image = DecodeMemoryToImage( buffer, length );
+      if( image )
+      {
+         // buffer decoded okay.
+      }
+      </code>                                                       */
+			IMAGE_PROC  Image IMAGE_API IMGVER(DecodeMemoryToImage )( uint8_t* buf, size_t size );
+#ifdef __cplusplus
+		namespace loader{
+#endif
+	IMAGE_PROC  LOGICAL IMAGE_API IMGVER(PngImageFile )( Image image, uint8_t* *buf, size_t *size );
+	IMAGE_PROC  LOGICAL IMAGE_API IMGVER(JpgImageFile )( Image image, uint8_t* *buf, size_t *size, int Q );
+#ifdef __cplusplus
+		}
+#endif
+      /* direct hack for processing clipboard data... probably does some massaging of the databefore calling DecodeMemoryToImage */
+   IMAGE_PROC  Image IMAGE_API IMGVER(ImageRawBMPFile )(uint8_t* ptr, uint32_t filesize);
+	/* Releases an image, has extra debug parameters.
+	   Parameters
+	   Image :     the Image to release.
+	   DBG_PASS :  Adds <link sack::DBG_PASS, DBG_PASS> parameter for
+	               the release memory tracking.                       */
+	IMAGE_PROC  void IMAGE_API IMGVER(UnmakeImageFileEx )( Image pif DBG_PASS );
+   /* Sets the active image rectangle to the bounding rectangle
+      specified. This can be used to limit artificially drawing
+      onto an image. (It is easier to track to create a subimage in
+      the location to draw instead of masking with a bound rect,
+      which has problems restoring back to initial conditions)
+      Parameters
+      pImage :  Image to set the drawing clipping rectangle.
+      bound :   a pointer to an IMAGE_RECTANGLE to set the image
+                boundaries to.                                      */
+   IMAGE_PROC  void  IMAGE_API IMGVER(SetImageBound    )( Image pImage, P_IMAGE_RECTANGLE bound );
+// reset clip rectangle to the full image (subimage part )
+// Some operations (move, resize) will also reset the bound rect,
+// this must be re-set afterwards.
+// ALSO - one SHOULD be nice and reset the rectangle when done,
+// otherwise other people may not have checked this.
+/* Change the size of an image, reallocating the color buffer as
+   necessary.
+   <b>Parameters</b>
+   <b>Remarks</b>
+   If the image is a sub image (located within a parent), the
+   subimage view on the parent image is updated to the new width
+   and height. The color buffer remains the parent's buffer.
+   If the image is a parent, a new buffer is allocated. If the
+   previous buffer was specified by the user in RemakeImage,
+   that buffer is not freed, but a new buffer is still created.
+   <b>Bugs</b>
+   If the image is a parent image, the child images are not
+   updated to the newly allocated buffer. Resize works really
+   well for subimages though.                                    */
+   IMAGE_PROC  void IMAGE_API IMGVER(ResizeImageEx     )( Image pImage, int32_t width, int32_t height DBG_PASS);
+   /* Moves an image within a parent image. Top level images and
+      images which have a user color buffer do not move.
+      Parameters
+      pImage :  The image to move.
+      x :       the new X coordinate of the image.
+      y :       the new Y coordinate of the image.               */
+   IMAGE_PROC  void IMAGE_API IMGVER(MoveImage         )( Image pImage, int32_t x, int32_t y );
+//-----------------------------------------------------
+   IMAGE_PROC  void IMAGE_API IMGVER(BlatColor         )( Image pifDest, int32_t x, int32_t y, uint32_t w, uint32_t h, CDATA color );
+   /* Blat is the sound a trumpet makes when it spews forth
+      noise... so Blat color is just fill a rectangle with a color,
+      quickly. Apply alpha transparency of the color specified.
+      Parameters
+      pifDest :  The destination image to fill the rectangle on
+      x :        left coordinate of the rectangle
+      y :        right coordinate of the rectangle
+      w :        width of the rectangle
+      h :        height of the rectangle
+      color :    color to fill the rectangle with. The alpha of this
+                 color will be applied.                              */
+   IMAGE_PROC  void IMAGE_API IMGVER(BlatColorAlpha    )( Image pifDest, int32_t x, int32_t y, uint32_t w, uint32_t h, CDATA color );
+   /* \ \
+      Parameters
+      pDest :         destination image (the one to copy to)
+      pIF :           source image
+      x :             destination top coordinate
+      y :             destination left coordinate
+      nTransparent :  <link sack::image::AlphaModifier, Alpha Operation>
+      method :        <link sack::image::blot_methods, Blot Method>
+      _nt_ :          _nt_                                               */
+   IMAGE_PROC  void IMAGE_API IMGVER(BlotImageEx       )( Image pDest, Image pIF, int32_t x, int32_t y, uint32_t nTransparent, uint32_t method, ... );
+   /* Copies an image from one image onto another. The copy is done
+      directly and no scaling is applied. If a width or height
+      larget than the image to copy is specified, only the amount
+      of the image that is valid is copied.
+      Parameters
+      pDest :         Destination image
+      pIF :           Image file to copy
+      x :             X position to put copy at
+      y :             Y position to put copy at
+      xs :            X position to copy from.
+      ys :            Y position to copy from.
+      wd :            how much of the image horizontally to copy
+      ht :            how much of the image vertically to copy
+      nTransparent :  <link sack::image::AlphaModifier, Alpha Transparency method>
+      method :        <link sack::image::blot_methods, BlotMethods>
+      <b>Method == BLOT_SHADED extra parameters</b>
+      red :    Color to use the red channel to output the scale from
+               black to color
+      green :  Color to use the red channel to output the scale from
+               black to color
+      blue :   Color to use the red channel to output the scale from
+               black to color
+      <b>Method == BLOT_SHADED extra parameters</b>
+      shade :  _nt_
+      See Also                                                                     */
+   IMAGE_PROC  void IMAGE_API IMGVER(BlotImageSizedEx  )( Image pDest, Image pIF, int32_t x, int32_t y, int32_t xs, int32_t ys, uint32_t wd, uint32_t ht, uint32_t nTransparent, uint32_t method, ... );
+   /* Copies some or all of an image to a destination image of
+      specified width and height. This does linear interpolation
+      scaling.
+      There are simple forms of this function as macros, since
+      commonly you want to output the entire image, a macro which
+      automatically sets (0,0),(width,height) as the source
+      \parameters to output the whole image exists.
+      Parameters
+      \ \
+      pifDest :       Destination image
+      pifSrc :        image to copy from
+      xd :            destination x coordinate
+      yd :            destination y coordinate
+      wd :            destination width (source image width will be
+                      scaled to this)
+      hd :            destination height (source image height will
+                      be scaled to this)
+      xs :            source x coordinate (where to copy from)
+      ys :            source y coordinate (where to copy from)
+      ws :            source width (how much of the image to copy)
+      hs :            source height (how much of the image to copy)
+      nTransparent :  Alpha method...
+      method :        specifies how the source color data is
+                      transformed if at all. See BlotMethods
+      ... :           possible extra parameters depending on method
+      <b>Method == BLOT_MULTISHADE extra parameters</b>
+      red :    Color to use the red channel to output the scale from
+               black to color
+      green :  Color to use the red channel to output the scale from
+               black to color
+      blue :   Color to use the red channel to output the scale from
+               black to color
+      <b>Method == BLOT_SHADED extra parameters</b>
+      shade :  _nt_
+      See Also
+      <link sack::image::AlphaModifier, Alpha Methods>
+      <link sack::image::blot_methods, Blot Methods>
+      <link sack::image::BlotScaledImage, BlotScaledImage>
+      <link sack::image::BlotScaledImageShaded, BlotScaledImageShaded>
+      <link sack::image::BlotScaledImageShadedAlpha, BlotScaledImageShadedAlpha>
+                                                                                 */
+   IMAGE_PROC  void IMAGE_API IMGVER(BlotScaledImageSizedEx)( Image pifDest, Image pifSrc
+                                   , int32_t xd, int32_t yd
+                                   , uint32_t wd, uint32_t hd
+                                   , int32_t xs, int32_t ys
+                                   , uint32_t ws, uint32_t hs
+                                   , uint32_t nTransparent
+                                   , uint32_t method, ... );
+/* Your basic PLOT functions (Image.C, plotasm.asm)
+   A function pointer to the function which sets a pixel in an
+   image at a specified x, y coordinate.
+   Parameters
+   Image :  The image to get the pixel from
+   X :      x coordinate to get pixel color
+   Y :      y coordinate to get pixel color
+   Color :  color to put at the coordinate. image will be set
+            exactly to this color, and whatever the alpha of the
+            color is.                                            */
+   IMAGE_PROC  void plot       ( Image pi, int32_t x, int32_t y, CDATA c );
+   /* A function pointer to the function which sets a pixel in an
+      image at a specified x, y coordinate.
+      Parameters
+      Image :  The image to get the pixel from
+      X :      x coordinate to get pixel color
+      Y :      y coordinate to get pixel color
+      Color :  color to put at the coordinate. Alpha blending will be
+               done.                                                  */
+   IMAGE_PROC  void plotalpha  ( Image pi, int32_t x, int32_t y, CDATA c );
+   /* A function pointer to the function which gets a pixel from an
+      image at a specified x, y coordinate.
+      Parameters
+      Image :  The image to get the pixel from
+      X :      x coordinate to get pixel color
+      Y :      y coordinate to get pixel color
+      Returns
+      CDATA color in the Image at the specified coordinate.         */
+   IMAGE_PROC  CDATA getpixel  ( Image pi, int32_t x, int32_t y );
+//-------------------------------
+// Line functions  (lineasm.asm) // should include a line.c ... for now core was assembly...
+//-------------------------------
+  // d is color data...
+   IMAGE_PROC  void do_line      ( Image pBuffer, int32_t x, int32_t y, int32_t xto, int32_t yto, CDATA color );
+  // d is color data...
+   IMAGE_PROC  void do_lineAlpha ( Image pBuffer, int32_t x, int32_t y, int32_t xto, int32_t yto, CDATA color);
+   /* This is a function pointer that references a function to do
+      optimized horizontal lines. The function pointer is updated
+      when SetBlotMethod() is called.
+      Parameters
+      Image :   the image to draw to
+      Y :       the y coordinate of the line (how far down from top to
+                draw it)
+      x_from :  X coordinate to draw from
+      x_to :    X coordinate to draw to
+      color :   the color of the line. This color will be set to the
+                surface, the alpha result will be the alpha of this
+                color.                                                 */
+   IMAGE_PROC  void do_hline      ( Image pImage, int32_t y, int32_t xfrom, int32_t xto, CDATA color );
+   /* This is a function pointer that references a function to do
+      optimized vertical lines. The function pointer is updated
+      when SetBlotMethod() is called.
+      Parameters
+      Image :   the image to draw to
+      X :       the x coordinate of the line (how far over to draw
+                it)
+      y_from :  Y coordinate to draw from
+      y_to :    Y coordinate to draw to
+      color :   the color of the line. This color will be set to the
+                surface, the alpha result will be the alpha of this
+                color.                                               */
+   IMAGE_PROC  void do_vline      ( Image pImage, int32_t x, int32_t yfrom, int32_t yto, CDATA color );
+   /* This is a function pointer that references a function to do
+      optimized horizontal lines with alpha blending. The function
+      pointer is updated when SetBlotMethod() is called.
+      Parameters
+      Image :   the image to draw to
+      Y :       the Y coordinate of the line (how far down from top
+                of image to draw it)
+      x_from :  X coordinate to draw from
+      x_to :    X coordinate to draw to
+      color :   the color of the line (alpha component of the color
+                will be applied)                                    */
+   IMAGE_PROC  void do_hlineAlpha ( Image pImage, int32_t y, int32_t xfrom, int32_t xto, CDATA color );
+   /* This is a function pointer that references a function to do
+      optimized vertical lines with alpha blending. The function
+      pointer is updated when SetBlotMethod() is called.
+      Parameters
+      Image :   the image to draw to
+      X :       the x coordinate of the line (how far over to draw
+                it)
+      y_from :  Y coordinate to draw from
+      y_to :    Y coordinate to draw to
+      color :   the color of the line (alpha component of the color
+                will be applied)                                    */
+   IMAGE_PROC  void do_vlineAlpha ( Image pImage, int32_t x, int32_t yfrom, int32_t yto, CDATA color );
+	/* routine which iterates through the points along a lone from
+	   x,y to xto,yto, calling a user function at each point.
+	   Parameters
+	   Image :  the image to pretend to draw on
+	   x :      draw from this x coordinate
+	   y :      draw from this y coordinate
+	   xto :    draw to this x coordinate
+	   yto :    draw to this y coordinate
+	   d :      userdata (color data)
+	   func :   user callback function to a function of type...<p />void
+	            func( Image pif, int32_t x, int32_t y, int d ) ;
+	   Remarks
+	   The Image passed does not HAVE to be an Image, it can be any
+	   user POINTER.
+	   The data passed is limited to 32 bits, and will not hold a
+	   pointer if built for 64 bit platform.
+	   Example
+	   <code lang="c++">
+	   Image image;
+	   void MyPlotter( Image image, int32_t x, int32_t y, CDATA color )
+	   {
+	       // do something with the image at x,y
+	   }
+	   void UseMyPlotter( Image image )
+	   {
+	       do_lineExV( image, 10, 10, 80, 80, BASE_COLOR_BLACK, MyPlotter );
+	   }
+	   </code>                                                               */
+	IMAGE_PROC  void do_lineExV    ( Image pImage, int32_t x, int32_t y
+									, int32_t xto, int32_t yto, uintptr_t color
+		                            , void (*func)( Image pif, int32_t x, int32_t y, uintptr_t d ) );
+   /* \Returns the correct SFTFont pointer to the default font. In all
+      font functions, NULL may be used as the font, and this is the
+      font that will be used.
+      Parameters
+      None.
+      Example
+      <code lang="c++">
+      SFTFont font = GetDefaultFont();
+      </code>                                                       */
+   IMAGE_PROC  SFTFont IMAGE_API IMGVER(GetDefaultFont )( void );
+   /* \Returns the height of a font for purposes of spacing between
+      lines. Characters may render outside of this height.
+      Parameters
+      SFTFont :  SFTFont to get the height of. if NULL returns an internal
+              font's height.
+      Returns
+      the height of the font.                                        */
+   IMAGE_PROC  uint32_t  IMAGE_API IMGVER(GetFontHeight  )( SFTFont );
+   /* \Returns the approximate rectangle that would be used for a
+      string. It only counts using the line measurement. Newlines
+      in strings count to wrap text to subsequent lines and start
+      recounting the width, returning the maximum length of string
+      horizontally.
+      Parameters
+      pString :  The string to measure
+      len :      the length of characters to count in string
+      width :    a pointer to a uint32_t to receive the width of the
+                 string
+      height :   a pointer to a uint32_t to receive the height of the
+                 string
+      UseFont :  A SFTFont to use.
+      Returns
+      \Returns the width parameter. If NULL are passed for width
+      and height, this is OK. One of the simple macros just passes
+      the string and gets the return - this is for how wide the
+      string would be.                                             */
+   IMAGE_PROC  uint32_t  IMAGE_API IMGVER(GetStringSizeFontEx)( CTEXTSTR pString, size_t len, uint32_t *width, uint32_t *height, SFTFont UseFont );
+   /* Fill the width and height with the actual size of the string
+      as it is drawn. (may be above or below the original
+      rectangle)
+      Parameters
+      pString :     the string to measure
+      nLen :        the number of characters in the string
+      width :       a pointer to a 32 bit value to get resulting
+                    width
+      height :      a pointer to a 32 bit value to get resulting
+                    height
+      charheight :  the actual height of the characters (as reports
+                    by line)
+      UseFont :     a SFTFont to use. If NULL use a default internal
+                    font.                                           */
+   IMAGE_PROC  uint32_t IMAGE_API IMGVER(GetStringRenderSizeFontEx )( CTEXTSTR pString, size_t nLen, uint32_t *width, uint32_t *height, uint32_t *charheight, SFTFont UseFont );
+// background of color 0,0,0 is transparent - alpha component does not
+// matter....
+   IMAGE_PROC  void IMAGE_API IMGVER(PutCharacterFont              )( Image pImage
+                                                  , int32_t x, int32_t y
+                                                  , CDATA color, CDATA background,
+                                                   TEXTCHAR c, SFTFont font );
+   /* Outputs a string in the specified font, from the specified
+      point, text is drawn from the point up, with the characters
+      aligned with the top to the left; it goes up from the point.
+      the point becomes the bottom left of the rectangle output.
+      Parameters
+      pImage :      image to draw string into
+      x :           x position of the string
+      y :           y position of the string
+      color :       color of the data drawn in the font
+      background :  color of the data not drawn in the font
+      c :           the character to output
+      font :        the font to use. NULL use an internal default
+                    font.                                          */
+   IMAGE_PROC  void IMAGE_API IMGVER(PutCharacterVerticalFont      )( Image pImage, int32_t x, int32_t y, CDATA color, CDATA background, TEXTCHAR c, SFTFont font );
+   /* Outputs a string in the specified font, from the specified
+      point, text is drawn from the point to the left, with the
+      characters aligned with the top to the left; it goes up from
+      the point. the point becomes the bottom left of the rectangle
+      \output.
+      Parameters
+      pImage :      image to draw string into
+      x :           x position of the string
+      y :           y position of the string
+      color :       color of the data drawn in the font
+      background :  color of the data not drawn in the font
+      pc :          pointer to constant text
+      nLen :        length of text to output
+      font :        the font to use. NULL use an internal default
+                    font.                                           */
+   IMAGE_PROC  void IMAGE_API IMGVER(PutCharacterInvertFont        )( Image pImage, int32_t x, int32_t y, CDATA color, CDATA background, TEXTCHAR c, SFTFont font );
+   /* Outputs a character in the specified font, from the specified
+      point, text is drawn from the point up, with the characters
+      aligned with the top to the left; it goes up from the point. the
+      point becomes the bottom left of the rectangle output.
+      Parameters
+                                                                       */
+   IMAGE_PROC  void IMAGE_API IMGVER(PutCharacterVerticalInvertFont)( Image pImage, int32_t x, int32_t y, CDATA color, CDATA background, TEXTCHAR c, SFTFont font );
+   /* Outputs a string in the specified font, from the specified
+      point, text is drawn right side up and godes from left to
+      right. The point becomes the top left of the rectangle
+      \output.
+      Parameters
+      pImage :      image to draw string into
+      x :           x position of the string
+      y :           y position of the string
+      color :       color of the data drawn in the font
+      background :  color of the data not drawn in the font
+      pc :          pointer to constant text
+      nLen :        length of text to output
+      font :        the font to use. NULL use an internal default
+                    font.                                         */
+   IMAGE_PROC  void IMAGE_API IMGVER(PutStringFontEx              )( Image pImage, int32_t x, int32_t y, CDATA color, CDATA background, CTEXTSTR pc, size_t nLen, SFTFont font );
+   /* justification 0 is left, 1 is right, 2 is center */
+   IMAGE_PROC  void IMAGE_API IMGVER(PutStringFontExx              )( Image pImage, int32_t x, int32_t y, CDATA color, CDATA background, CTEXTSTR pc, size_t nLen, SFTFont font, int justication, uint32_t _width );
+   /* Outputs a string in the specified font, from the specified
+      point, text is drawn from the point down, with the characters
+      aligned with the top to the right; it goes down from the
+      point. the point becomes the top right of the rectangle
+      \output.
+      Parameters
+      pImage :      image to draw string into
+      x :           x position of the string
+      y :           y position of the string
+      color :       color of the data drawn in the font
+      background :  color of the data not drawn in the font
+      pc :          pointer to constant text
+      nLen :        length of text to output
+      font :        the font to use. NULL use an internal default
+                    font.                                           */
+   IMAGE_PROC  void IMAGE_API IMGVER(PutStringVerticalFontEx      )( Image pImage, int32_t x, int32_t y, CDATA color, CDATA background, CTEXTSTR pc, size_t nLen, SFTFont font );
+   /* Outputs a string in the specified font, from the specified
+      point, text is drawn upside down, and goes to the left from
+      the point. the point becomes the bottom right of the
+      rectangle output.
+      Parameters
+      pImage :      image to draw string into
+      x :           x position of the string
+      y :           y position of the string
+      color :       color of the data drawn in the font
+      background :  color of the data not drawn in the font
+      pc :          pointer to constant text
+      nLen :        length of text to output
+      font :        the font to use. NULL use an internal default
+                    font.                                         */
+   IMAGE_PROC  void IMAGE_API IMGVER(PutStringInvertFontEx        )( Image pImage, int32_t x, int32_t y, CDATA color, CDATA background, CTEXTSTR pc, size_t nLen, SFTFont font );
+   /* Outputs a string in the specified font, from the specified
+      point, text is drawn from the point up, with the characters
+      aligned with the top to the left; it goes up from the point. the
+      point becomes the bottom left of the rectangle output.
+      Parameters
+      pImage :      image to draw string into
+      x :           x position of the string
+      y :           y position of the string
+      color :       color of the data drawn in the font
+      background :  color of the data not drawn in the font
+      pc :          pointer to constant text
+      nLen :        length of text to output
+      font :        the font to use. NULL use an internal default
+                    font.                                              */
+   IMAGE_PROC  void IMAGE_API IMGVER(PutStringInvertVerticalFontEx)( Image pImage, int32_t x, int32_t y, CDATA color, CDATA background, CTEXTSTR pc, size_t nLen, SFTFont font );
+   //uint32_t (*PutMenuStringFontEx)            ( Image pImage, int32_t x, int32_t y, CDATA color, CDATA background, CTEXTSTR pc, uint32_t nLen, SFTFont font );
+   //uint32_t (*PutCStringFontEx)               ( Image pImage, int32_t x, int32_t y, CDATA color, CDATA background, CTEXTSTR pc, uint32_t nLen, SFTFont font );
+   IMAGE_PROC  uint32_t IMAGE_API IMGVER(GetMaxStringLengthFont  )( uint32_t width, SFTFont UseFont );
+   /* Used as a proper accessor method to get an image's width and
+      height. Decided to allow the image structure to be mostly
+      public, so the first 4 members are the images x,y, width and
+      height, and are immediately accessable by the Image pointer.
+      Parameters
+      pImage :  image to get the size of
+      width :   pointer to a 32 bit unsigned value to result with the
+                width, if NULL ignored.
+      height :  pointer to a 32 bit unsigned value to result with the
+                height, if NULL ignored.                              */
+   IMAGE_PROC  void IMAGE_API IMGVER(GetImageSize            )( Image pImage, uint32_t *width, uint32_t *height );
+   /* \Returns the pointer to the color buffer currently used
+      \internal to the image.
+      Parameters
+      pImage :  Image to get the surface of.
+      Example
+      <code lang="c#">
+      Image image = MakeImageFile( 100, 100 );
+      PCDATA pointer_color_data = GetImageSurface( image );
+      </code>
+      Note
+      This might be used to do an optimized output routine. Drawing
+      to the image with plot and line are not necessarily the best
+      for things like circles. Provides ability for user to output
+      directly to the color buffer.                                 */
+   IMAGE_PROC  PCDATA IMAGE_API IMGVER(GetImageSurface        )( Image pImage );
+   // would seem silly to load fonts - but for server implementations
+   // the handle received is not the same as the font sent.
+   IMAGE_PROC  SFTFont IMAGE_API IMGVER(LoadFont                )( SFTFont font );
+   /* Destroys a font, releasing all resources associated with
+      character data and font rendering.                       */
+   IMAGE_PROC  void IMAGE_API IMGVER(UnloadFont              )( SFTFont font );
+	/* This is a function used to synchronize image operations when
+	   the image interface is across a message server.              */
+	IMAGE_PROC  void IMAGE_API IMGVER(SyncImage                  )( void );
+	// intersect rectangle, results with the overlapping portion of R1 and R2
+   // into R ...
+   IMAGE_PROC  int IMAGE_API IMGVER(IntersectRectangle )( IMAGE_RECTANGLE *r, IMAGE_RECTANGLE *r1, IMAGE_RECTANGLE *r2 );
+   /* Merges two image rectangles. The resulting rectangle is a
+      rectangle that includes both rectangles.
+      Parameters
+      r :   Pointer to an IMAGE_RECTANGLE for the result.
+      r1 :  PIMAGE_RECTANGLE one rectangle.
+      r2 :  PIMAGE_RECTANGLE the other rectangle.               */
+   IMAGE_PROC  int IMAGE_API IMGVER(MergeRectangle )( IMAGE_RECTANGLE *r, IMAGE_RECTANGLE *r1, IMAGE_RECTANGLE *r2 );
+   /* User applications may use an aux rect attatched to an image. The
+      'Display' render library used this itself however, making
+      this mostly an internal feature.
+      Parameters
+      pImage :  image to get the aux rect of.
+      pRect :   pointer to an IMAGE_RECTANGLE to get the aux
+                rectangle data in.                                     */
+   IMAGE_PROC  void IMAGE_API IMGVER(GetImageAuxRect    )( Image pImage, P_IMAGE_RECTANGLE pRect );
+   /* User applications may use an aux rect attatched to an image.
+      The 'Display' render library used this itself however, making
+      this mostly an internal feature.
+      Parameters
+      pImage :  image to set the aux rect of.
+      pRect :   pointer to an IMAGE_RECTANGLE to set the aux
+                rectangle to.                                       */
+   IMAGE_PROC  void IMAGE_API IMGVER(SetImageAuxRect    )( Image pImage, P_IMAGE_RECTANGLE pRect );
+	/* \ \
+	   Parameters
+	   Filename :  \file name of image to load. Converts image into
+	               sprite automatically, resulting with a sprite.
+	   DBG_PASS :  See <link sack::DBG_PASS, DBG_PASS>              */
+		IMAGE_PROC  PSPRITE IMAGE_API IMGVER(MakeSpriteImageFileEx )( CTEXTSTR fname DBG_PASS );
+      /* create a sprite from an Image */
+	IMAGE_PROC  PSPRITE IMAGE_API IMGVER(MakeSpriteImageEx )( Image image DBG_PASS );
+	/* Release a Sprite. */
+	IMAGE_PROC  void IMAGE_API IMGVER(UnmakeSprite )( PSPRITE sprite, int bForceImageAlso );
+	// angle is a fixed scaled integer with 0x1 0000 0000 being the full circle.
+	IMAGE_PROC  void IMAGE_API IMGVER(rotate_scaled_sprite )(Image bmp, PSPRITE sprite, fixed angle, fixed scale_width, fixed scale_height );
+   /* output a rotated sprite to destination image, using and angle specified.  The angle is represented as 0x1 0000 0000 is 360 degrees */
+	IMAGE_PROC  void IMAGE_API IMGVER(rotate_sprite )(Image bmp, PSPRITE sprite, fixed angle);
+   /* output a sprite at its current location */
+	IMAGE_PROC  void IMAGE_API IMGVER(BlotSprite )( Image pdest, PSPRITE ps );
+/* Sets the point on a sprite which is the 'hotspot' the hotspot
+   is the point that is drawn at the specified coordinate when
+   outputting a sprite.
+   Parameters
+   sprite :  The PSPRITE to set the hotspot of.
+   x :       x coordinate in the sprite's image that becomes the
+             hotspot.
+   y :       y coordinate in the sprite's image that becomes the
+             hotspot.                                            */
+IMAGE_PROC  PSPRITE IMAGE_API IMGVER(SetSpriteHotspot )( PSPRITE sprite, int32_t x, int32_t y );
+/* This function sets the current location of a sprite. When
+   asked to render, the sprite will draw itself here.
+   Parameters
+   sprite :  the sprite to move
+   x :       the new x coordinate of the parent image to draw at
+   y :       the new y coordinate of the parent image to draw at */
+IMAGE_PROC  PSPRITE IMAGE_API IMGVER(SetSpritePosition )( PSPRITE sprite, int32_t x, int32_t y );
+/* Use a font file to get a font that can be used for outputting
+   characters and strings.
+   Parameters
+   file\ :    Filename of a font to render.
+   nWidth :   desired width in pixels to render the font.
+   nHeight :  desired height in pixels to render the font.
+   flags :    0 = render mono. 2=render 2 bits, 3=render 8 bit.  */
+IMAGE_PROC  SFTFont IMAGE_API IMGVER(InternalRenderFontFile )( CTEXTSTR file
+																		, int32_t nWidth
+																		, int32_t nHeight
+																		, PFRACTION width_scale
+																		, PFRACTION height_scale
+																		, uint32_t flags
+																		);
+/* Rerender the current font with a new size. */
+IMAGE_PROC void IMAGE_API IMGVER(RerenderFont)( SFTFont font, int32_t width, int32_t height, PFRACTION width_scale, PFRACTION height_scale );
+	/* Dumps the whole cache to log file, shows family, style, path and filename.
+    Is the same sort of dump that OpenFontFile uses.
+	 */
+IMAGE_PROC void IMAGE_API IMGVER(DumpFontCache)( void );
+#ifndef INTERNAL_DUMP_FONT_FILE
+/* takes a font and dumps a header-file formatted file; then the font can be
+ statically built into code. */
+IMAGE_PROC void IMAGE_API IMGVER(DumpFontFile)( CTEXTSTR name, SFTFont font_to_dump );
+#endif
+/* Creates a font based on indexes from the internal font cache.
+   This is used by the FontPicker dialog to choose a font. The
+   data the dialog used to render the font is available to the
+   application, and may be passed back for rendering a font
+   without knowing specifically what the values mean.
+   Parameters
+   nFamily :  The number of the family in the cache.
+   nStyle :   The number of the style in the cache.
+   nFile :    The number of the file in the cache.
+   nWidth :   the width to use for rendering characters (in
+              pixels)
+   nHeight :  the height to use for rendering characters (in
+              pixels)
+   flags :    0 = render mono. 2=render 2 bits, 3=render 8 bit.
+   Returns
+   A SFTFont which can be used to output. If the file exists. NULL
+   on failure.
+   Example
+   Used internally for FontPicker dialog, see <link sack::image::InternalRenderFontFile@CTEXTSTR@int32_t@int32_t@uint32_t, InternalRenderFontFile> */
+IMAGE_PROC  SFTFont IMAGE_API IMGVER(InternalRenderFont )( uint32_t nFamily
+																  , uint32_t nStyle
+																  , uint32_t nFile
+																  , int32_t nWidth
+																  , int32_t nHeight
+																  , PFRACTION width_scale
+																  , PFRACTION height_scale
+																  , uint32_t flags
+																  );
+/* Releases all resources for a SFTFont.  */
+IMAGE_PROC  void IMAGE_API IMGVER(DestroyFont)( SFTFont *font );
+/* Get the global font data structure. This is an internal
+   structure, and it's definition may not be exported. Currently
+   the definition is in documentation.
+   See Also
+   <link sack::image::FONT_GLOBAL, SFTFont Global>                  */
+IMAGE_PROC  struct font_global_tag * IMAGE_API IMGVER(GetGlobalFonts)( void );
+// types of data which may result...
+typedef struct font_data_tag *PFONTDATA;
+/* Information to render a font from a file to memory. */
+typedef struct render_font_data_tag *PRENDER_FONTDATA;
+/* Recreates a SFTFont based on saved FontData. The resulting font
+   may be scaled from its original size.
+   Parameters
+   pfd :           pointer to font data.
+   width_scale :   FRACTION to scale the original font height
+                   \description by. if NULL uses the original
+                   font's size.
+   height_scale :  FRACTION to scale the original font height
+                   \description by.  if NULL uses the original
+                   font's size.
+   Example
+   <code lang="c++">
+   POINTER some_loaded_data; // pretend it is initialized to something valid
+   SFTFont font = RenderScaledFontData( some_loaded_data, NULL, NULL );
+   PutStringFont( image, 0, 0, BASE_COLOR_WHITE, 0, "Hello World", font );
+   </code>
+   Or, maybe your original designed screen was 1024x768, and
+   it's now showing on 1600x1200, for the text to remain the
+   same...
+   <code lang="c++">
+   FRACTION width_scale;
+   FRACTION height_scale;
+   uint32_t w, h;
+   GetDisplaySize( &amp;w, &amp;h );
+   SetFraction( width_scale, w, 1024 );
+   SetFraction( height_scale, h, 768 );
+   SFTFont font2 = RenderScaledFontData( some_loaded_data, &amp;width_scale, &amp;height_scale );
+   PutStringFont( image, 0, 0, BASE_COLOR_WHITE, 0, "Hello World", font2 );
+   </code>                                                                                     */
+IMAGE_PROC  SFTFont IMAGE_API IMGVER(RenderScaledFontData)( PFONTDATA pfd, PFRACTION width_scale, PFRACTION height_scale );
+/* <combine sack::image::RenderScaledFontData@PFONTDATA@PFRACTION@PFRACTION>
+   \ \                                                                       */
+#define RenderFontData(pfd) RenderScaledFontData( pfd,NULL,NULL )
+#define ogl_RenderFontData(pfd) ogl_RenderScaledFontData( pfd,NULL,NULL )
+/* <combinewith sack::image::RenderScaledFontEx@CTEXTSTR@uint32_t@uint32_t@PFRACTION@PFRACTION@uint32_t@size_t *@POINTER *, sack::image::RenderScaledFontData@PFONTDATA@PFRACTION@PFRACTION>
+   \ \                                                                                                                                                                        */
+IMAGE_PROC SFTFont IMAGE_API IMGVER(RenderScaledFontEx)( CTEXTSTR name, uint32_t width, uint32_t height, PFRACTION width_scale, PFRACTION height_scale, uint32_t flags, size_t *pnFontDataSize, POINTER *pFontData );
+/* Renders a font with a FRACTION scalar for the X and Y sizes.
+   Parameters
+   name :          Name of the font (file).
+   width :         Original width (in pels) to make the font.
+   height :        Original height (in pels) to make the font.
+   width_scale :   scalar to apply to the width
+   height_scale :  scalar to apply to the height
+   flags :         Flags specifying how many bits to render the
+                   font with (and other info?) See enum
+                   FontFlags.                                   */
+IMAGE_PROC SFTFont IMAGE_API IMGVER(RenderScaledFont)( CTEXTSTR name, uint32_t width, uint32_t height, PFRACTION width_scale, PFRACTION height_scale, uint32_t flags );
+#define RenderScaledFont(n,w,h,ws,hs) RenderScaledFontEx(n,w,h,ws,hs,NULL,NULL)
+/* Renders a font file and returns a SFTFont. The font can then be
+   used in string output functions to images.
+   Parameters
+   file\ :           \File name of a font to render. Any font
+                     that freetype supports.
+   width :           width of characters to render in.
+   height :          height of characters to render.
+   flags :           if( ( flags &amp; 3 ) == 3 )<p /> font\-\>flags
+                     = FONT_FLAG_8BIT;<p /> else if( ( flags &amp;
+                     3 ) == 2 )<p /> font\-\>flags =
+                     FONT_FLAG_2BIT;<p /> else<p /> font\-\>flags
+                     = FONT_FLAG_MONO;<p />
+   pnFontDataSize :  optional pointer to a 32 bit value to
+                     receive the size of rendered data.
+   pFontData :       The render data. This data can be used to
+                     recreate this font.                             */
+IMAGE_PROC  SFTFont IMAGE_API IMGVER(RenderFontFileScaledEx )( CTEXTSTR file, uint32_t width, uint32_t height, PFRACTION width_scale, PFRACTION height_scale, uint32_t flags, size_t *pnFontDataSize, POINTER *pFontData );
+/* <combine sack::image::RenderFontFileEx@CTEXTSTR@uint32_t@uint32_t@uint32_t@uint32_t*@POINTER *>
+   \ \                                                                         */
+#define RenderFontFile(file,w,h,flags) RenderFontFileScaledEx(file,w,h,NULL,NULL,flags,NULL,NULL)
+#define RenderFontFileEx(file,w,h,flags,a,b) RenderFontFileScaledEx(file,w,h,NULL,NULL,flags,a,b )
+		/* This can be used to get the internal description of a font,
+		   which the user may then save, and use later to recreate the
+		   font the same way.
+		   Parameters
+		   font :         SFTFont to get the render description from.
+		   fontdata :     a pointer to a pointer which will be filled
+		                  with a pointer buffer that has the font data.
+		   fontdatalen :  a pointer to 32 bit value to receive the length
+		                  of data.                                        */
+		IMAGE_PROC  int IMAGE_API IMGVER(GetFontRenderData )( SFTFont font, POINTER *fontdata, size_t *fontdatalen );
+// exported for the PSI font chooser to set the data for the font
+// to be retreived later when only the font handle remains.
+IMAGE_PROC  void IMAGE_API IMGVER(SetFontRendererData )( SFTFont font, POINTER pResult, size_t size );
+#ifndef PSPRITE_METHOD
+/* <combine sack::image::PSPRITE_METHOD>
+   \ \                                   */
+#define PSPRITE_METHOD PSPRITE_METHOD
+	typedef struct sprite_method_tag *PSPRITE_METHOD;
+#endif
+	// provided for display rendering portion to define this method for sprites to use.
+   // deliberately out of namespace... please do not move this up.
+IMAGE_PROC  void IMAGE_API IMGVER(SetSavePortion )( void (CPROC*_SavePortion )( PSPRITE_METHOD psm, uint32_t x, uint32_t y, uint32_t w, uint32_t h ) );
+/* \Returns the red channel of the color
+   Parameters
+   color :  Color to get the red channel of.
+   Returns
+   The COLOR_CHANNEL (byte) of the red channel in the color. */
+IMAGE_PROC COLOR_CHANNEL IMAGE_API IMGVER(GetRedValue)( CDATA color ) ;
+/* \Returns the green channel of the color
+   Parameters
+   color :  Color to get the green channel of.
+   Returns
+   The COLOR_CHANNEL (byte) of the green channel in the color. */
+IMAGE_PROC COLOR_CHANNEL IMAGE_API IMGVER(GetGreenValue)( CDATA color );
+/* \Returns the blue channel of the color
+   Parameters
+   color :  Color to get the blue channel of.
+   Returns
+   The COLOR_CHANNEL (byte) of the blue channel in the color. */
+IMAGE_PROC COLOR_CHANNEL IMAGE_API IMGVER(GetBlueValue)( CDATA color );
+/* \Returns the alpha channel of the color
+   Parameters
+   color :  Color to get the alpha channel of.
+   Returns
+   The COLOR_CHANNEL (byte) of the alpha channel in the color. */
+IMAGE_PROC COLOR_CHANNEL IMAGE_API IMGVER(GetAlphaValue)( CDATA color );
+/* Sets the red channel in a color value.
+   Parameters
+   color :  Original color to modify
+   b :      new red channel value         */
+IMAGE_PROC CDATA IMAGE_API IMGVER(SetRedValue)( CDATA color, COLOR_CHANNEL r ) ;
+/* Sets the green channel in a color value.
+   Parameters
+   color :  Original color to modify
+   g :      new green channel value         */
+IMAGE_PROC CDATA IMAGE_API IMGVER(SetGreenValue)( CDATA color, COLOR_CHANNEL green );
+/* Sets the blue channel in a color value.
+   Parameters
+   color :  Original color to modify
+   b :      new blue channel value         */
+IMAGE_PROC CDATA IMAGE_API IMGVER(SetBlueValue)( CDATA color, COLOR_CHANNEL b );
+/* Sets the alpha channel in a color value.
+   Parameters
+   color :  Original color to modify
+   a :      new alpha channel value         */
+IMAGE_PROC CDATA IMAGE_API IMGVER(SetAlphaValue)( CDATA color, COLOR_CHANNEL a );
+/* Makes a CDATA color from the RGB components. Sets the alpha
+   as 100% opaque.
+   Parameters
+   r :      red channel of new color
+   green :  green channel of new color
+   b :      blue channel of new color                          */
+IMAGE_PROC CDATA IMAGE_API IMGVER(MakeColor)( COLOR_CHANNEL r, COLOR_CHANNEL green, COLOR_CHANNEL b );
+/* Create a CDATA color from components.
+   Parameters
+   r :      Red channel value
+   green :  green channel value
+   b :      blue channel value
+   a :      alpha channel value
+   Returns
+   A CDATA representing the color specified. */
+IMAGE_PROC CDATA IMAGE_API IMGVER(MakeAlphaColor)( COLOR_CHANNEL r, COLOR_CHANNEL green, COLOR_CHANNEL b, COLOR_CHANNEL a );
+/* With 3d renderer, images have a transformation matrix. This
+   function allows you to get the transformation matrix.
+   Parameters
+   pImage :  image to get the transformation matrix of.        */
+IMAGE_PROC  PTRANSFORM IMAGE_API IMGVER(GetImageTransformation)( Image pImage );
+enum image_translation_relation
+{
+   IMAGE_TRANSFORM_RELATIVE_CENTER = 0,
+   IMAGE_TRANSFORM_RELATIVE_LEFT,
+   IMAGE_TRANSFORM_RELATIVE_RIGHT,
+   IMAGE_TRANSFORM_RELATIVE_TOP,
+   IMAGE_TRANSFORM_RELATIVE_BOTTOM,
+   IMAGE_TRANSFORM_RELATIVE_TOP_LEFT,
+   IMAGE_TRANSFORM_RELATIVE_TOP_RIGHT,
+   IMAGE_TRANSFORM_RELATIVE_BOTTOM_LEFT,
+   IMAGE_TRANSFORM_RELATIVE_BOTTOM_RIGHT,
+ // only mode that uses the 'aux' parameter of SetImageTransformRelation
+   IMAGE_TRANSFORM_RELATIVE_OTHER
+};
+/*
+ This sets flags on the image, so when it's called for rendering to the screen
+ this is how
+    */
+IMAGE_PROC  void IMAGE_API IMGVER(SetImageTransformRelation)( Image pImage, enum image_translation_relation relation, PRCOORD aux );
+/*
+ This just draws the image into the current 3d context.
+ This is a point-sprite engine too....
+ It does not setup anything about rendering this, just generates the texture at the right coords.
+ Parameters
+ render_pixel_scaled : when drawing, reverse compute from the angle of the view, and the depth of the thing to scale orthagonal, but at depth.  (help 3d vision)
+ */
+IMAGE_PROC  void IMAGE_API IMGVER(Render3dImage)( Image pImage, PCVECTOR o, LOGICAL render_pixel_scaled );
+IMAGE_PROC  void IMAGE_API IMGVER(Render3dText)( CTEXTSTR string, int characters, CDATA color, SFTFont font, PCVECTOR o, LOGICAL render_pixel_scaled );
+/*
+  Utilized by fonts with images with reverse_interface set to transfer child images;
+  may be generally useful; but had to be exposed through interface
+  Might be a shallow move....
+ */
+IMAGE_PROC  void IMAGE_API IMGVER(TransferSubImages)( Image pImageTo, Image pImageFrom );
+IMAGE_PROC  LOGICAL IMAGE_API IMGVER(IsImageTargetFinal)( Image image );
+/* These flags are used in SetImageRotation and RotateImageAbout
+   functions - these are part of the 3D driver interface
+   extension. They allow for controlling how the rotation is
+   performed.                                                    */
+enum image_rotation_flags {
+ // relative to center of image (center if not left, right, top or bottom )
+	IMAGE_ROTATE_FLAG_CENTER = 0,
+ // relative to top edge (center if not left or right)
+   IMAGE_ROTATE_FLAG_TOP,
+ // relative to left edge (center if not top or bottom)
+   IMAGE_ROTATE_FLAG_LEFT,
+ // relative to right edge (center if not top or bottom)
+   IMAGE_ROTATE_FLAG_RIGHT,
+ // relative to bottom edge (center if not left or right )
+   IMAGE_ROTATE_FLAG_BOTTOM,
+ // use the offset relative to the image orientation
+	IMAGE_ROTATE_FLAG_ADD_CUSTOM_OFFSET
+};
+/* Sets the rotation matrix of an image to an arbitrary
+   yaw/pitch/roll coordinate.
+   Parameters
+   pImage :     Image to rotate
+   edge_flag :  what edge the rotation is relative to
+   offset_x :   offset from the edge to get the center
+   offset_y :   offset from the edge to get the center
+   rx :         rotation about x axis (horizontal)
+   ry :         rotation about y axis (vertical)
+   rz :         rotation about z axis (into screen)     */
+IMAGE_PROC void IMAGE_API IMGVER(SetImageRotation)( Image pImage, int edge_flag, RCOORD offset_x, RCOORD offset_y, RCOORD rx, RCOORD ry, RCOORD rz );
+/* Allows arbitrary rotation of an image in 3d render mode.
+   Parameters
+   pImage :     image to rotate
+   edge_flag :  see enum image_rotation_flags
+   offset_x :   offset from top left of image to center the
+                rotation
+   offset_y :   offset from top left of image to center the
+                rotation
+   vAxis :      axis to rotate around, can be any arbitrary
+                direction
+   angle :      angle of rotation around the axis.
+   Remarks
+   \See Also <link sack::image::image_rotation_flags, image_rotation_flags Enumeration> */
+IMAGE_PROC void IMAGE_API IMGVER(RotateImageAbout)( Image pImage, int edge_flag, RCOORD offset_x, RCOORD offset_y, PVECTOR vAxis, RCOORD angle );
+IMAGE_PROC void IMAGE_API IMGVER(MarkImageDirty)( Image pImage );
+_INTERFACE_NAMESPACE
+/* Defines a pointer member of the interface structure. */
+#define IMAGE_PROC_PTR(type,name) type (CPROC*_##name)
+/* Macro to build function pointer entries in the image
+   interface.                                           */
+//#define DIMAGE_PROC_PTR(type,name) type (CPROC**_##name)
+/* This defines the interface call table. each function
+   available in the API is reflected in this interface. It
+   provdes a function table so applications don't have to be
+   directly linked to the image API. This allows replacing the
+   image API.                                                  */
+typedef struct image_interface_tag
+{
+/* <combine sack::image::SetStringBehavior@Image@uint32_t>
+   Internal
+   Interface index 4                                  */
+ IMAGE_PROC_PTR( void, SetStringBehavior) ( Image pImage, uint32_t behavior );
+/* <combine sack::image::SetBlotMethod@uint32_t>
+   \ \
+   Internal
+   Interface index 5                        */
+ IMAGE_PROC_PTR( void, SetBlotMethod)     ( uint32_t method );
+/*
+   Internal
+   Interface index 6*/
+   IMAGE_PROC_PTR( Image,BuildImageFileEx) ( PCOLOR pc, uint32_t width, uint32_t height DBG_PASS);
+/* <combine sack::image::MakeImageFileEx@uint32_t@uint32_t Height>
+   Internal
+   Interface index 7*/
+  IMAGE_PROC_PTR( Image,MakeImageFileEx)  (uint32_t Width, uint32_t Height DBG_PASS);
+/* <combine sack::image::MakeSubImageEx@Image@int32_t@int32_t@uint32_t@uint32_t height>
+   Internal
+   Interface index 8                                                                    */
+   IMAGE_PROC_PTR( Image,MakeSubImageEx)   ( Image pImage, int32_t x, int32_t y, uint32_t width, uint32_t height DBG_PASS );
+/* <combine sack::image::RemakeImageEx@Image@PCOLOR@uint32_t@uint32_t height>
+   \ \
+   <b>Internal</b>
+   Interface index 9                                                */
+   IMAGE_PROC_PTR( Image,RemakeImageEx)    ( Image pImage, PCOLOR pc, uint32_t width, uint32_t height DBG_PASS);
+/* <combine sack::image::LoadImageFileEx@CTEXTSTR name>
+   Internal
+   Interface index 10                                                   */
+  IMAGE_PROC_PTR( Image,LoadImageFileEx)  ( CTEXTSTR name DBG_PASS );
+/* <combine sack::image::UnmakeImageFileEx@Image pif>
+   Internal
+   Interface index 11                                                 */
+  IMAGE_PROC_PTR( void,UnmakeImageFileEx) ( Image pif DBG_PASS );
+//-----------------------------------------------------
+/* <combine sack::image::ResizeImageEx@Image@int32_t@int32_t height>
+   Internal
+   Interface index 14                                                          */
+  IMAGE_PROC_PTR( void,ResizeImageEx)     ( Image pImage, int32_t width, int32_t height DBG_PASS);
+/* <combine sack::image::MoveImage@Image@int32_t@int32_t>
+   Internal
+   Interface index 15                                               */
+   IMAGE_PROC_PTR( void,MoveImage)         ( Image pImage, int32_t x, int32_t y );
+//-----------------------------------------------------
+/* <combine sack::image::BlatColor@Image@int32_t@int32_t@uint32_t@uint32_t@CDATA>
+   Internal
+   Interface index 16                                                             */
+   IMAGE_PROC_PTR( void,BlatColor)     ( Image pifDest, int32_t x, int32_t y, uint32_t w, uint32_t h, CDATA color );
+/* <combine sack::image::BlatColorAlpha@Image@int32_t@int32_t@uint32_t@uint32_t@CDATA>
+   Internal
+   Interface index 17                                                                  */
+   IMAGE_PROC_PTR( void,BlatColorAlpha)( Image pifDest, int32_t x, int32_t y, uint32_t w, uint32_t h, CDATA color );
+/* <combine sack::image::BlotImageEx@Image@Image@int32_t@int32_t@uint32_t@uint32_t@...>
+   Internal
+	Interface index 18*/
+   IMAGE_PROC_PTR( void,BlotImageEx)     ( Image pDest, Image pIF, int32_t x, int32_t y, uint32_t nTransparent, uint32_t method, ... );
+ /* <combine sack::image::BlotImageSizedEx@Image@Image@int32_t@int32_t@int32_t@int32_t@uint32_t@uint32_t@uint32_t@uint32_t@...>
+   Internal
+	Interface index 19*/
+   IMAGE_PROC_PTR( void,BlotImageSizedEx)( Image pDest, Image pIF, int32_t x, int32_t y, int32_t xs, int32_t ys, uint32_t wd, uint32_t ht, uint32_t nTransparent, uint32_t method, ... );
+/* <combine sack::image::BlotScaledImageSizedEx@Image@Image@int32_t@int32_t@uint32_t@uint32_t@int32_t@int32_t@uint32_t@uint32_t@uint32_t@uint32_t@...>
+  Internal
+   Interface index  20                                                                                                        */
+   IMAGE_PROC_PTR( void,BlotScaledImageSizedEx)( Image pifDest, Image pifSrc
+                                   , int32_t xd, int32_t yd
+                                   , uint32_t wd, uint32_t hd
+                                   , int32_t xs, int32_t ys
+                                   , uint32_t ws, uint32_t hs
+                                   , uint32_t nTransparent
+                                   , uint32_t method, ... );
+/*Internal
+   Interface index 21*/
+   IMAGE_PROC_PTR( void,plot)      ( Image pi, int32_t x, int32_t y, CDATA c );
+/*Internal
+   Interface index 22*/
+   IMAGE_PROC_PTR( void,plotalpha) ( Image pi, int32_t x, int32_t y, CDATA c );
+/*Internal
+   Interface index 23*/
+   IMAGE_PROC_PTR( CDATA,getpixel) ( Image pi, int32_t x, int32_t y );
+/*Internal
+   Interface index 24*/
+  // d is color data...
+   IMAGE_PROC_PTR( void,do_line)     ( Image pBuffer, int32_t x, int32_t y, int32_t xto, int32_t yto, CDATA color );
+/*Internal
+   Interface index 25*/
+  // d is color data...
+   IMAGE_PROC_PTR( void,do_lineAlpha)( Image pBuffer, int32_t x, int32_t y, int32_t xto, int32_t yto, CDATA color);
+/*Internal
+   Interface index 26*/
+   IMAGE_PROC_PTR( void,do_hline)     ( Image pImage, int32_t y, int32_t xfrom, int32_t xto, CDATA color );
+/*Internal
+   Interface index 27*/
+   IMAGE_PROC_PTR( void,do_vline)     ( Image pImage, int32_t x, int32_t yfrom, int32_t yto, CDATA color );
+/*Internal
+   Interface index 28*/
+   IMAGE_PROC_PTR( void,do_hlineAlpha)( Image pImage, int32_t y, int32_t xfrom, int32_t xto, CDATA color );
+/*Internal
+   Interface index 29*/
+   IMAGE_PROC_PTR( void,do_vlineAlpha)( Image pImage, int32_t x, int32_t yfrom, int32_t yto, CDATA color );
+/* <combine sack::image::GetDefaultFont>
+   Internal
+   Interface index 30                    */
+   IMAGE_PROC_PTR( SFTFont,GetDefaultFont) ( void );
+/* <combine sack::image::GetFontHeight@SFTFont>
+   Internal
+   Interface index 31                                        */
+   IMAGE_PROC_PTR( uint32_t ,GetFontHeight)  ( SFTFont );
+/* <combine sack::image::GetStringSizeFontEx@CTEXTSTR@size_t@uint32_t *@uint32_t *@SFTFont>
+   Internal
+   Interface index 32                                                          */
+   IMAGE_PROC_PTR( uint32_t ,GetStringSizeFontEx)( CTEXTSTR pString, size_t len, uint32_t *width, uint32_t *height, SFTFont UseFont );
+/* <combine sack::image::PutCharacterFont@Image@int32_t@int32_t@CDATA@CDATA@uint32_t@SFTFont>
+   Internal
+   Interface index 33                                                           */
+   IMAGE_PROC_PTR( void,PutCharacterFont)              ( Image pImage, int32_t x, int32_t y, CDATA color, CDATA background, TEXTCHAR c, SFTFont font );
+/* <combine sack::image::PutCharacterVerticalFont@Image@int32_t@int32_t@CDATA@CDATA@TEXTCHAR@SFTFont>
+   Internal
+   Interface index 34                                                                                        */
+   IMAGE_PROC_PTR( void,PutCharacterVerticalFont)      ( Image pImage, int32_t x, int32_t y, CDATA color, CDATA background, TEXTCHAR c, SFTFont font );
+/* <combine sack::image::PutCharacterInvertFont@Image@int32_t@int32_t@CDATA@CDATA@TEXTCHAR@SFTFont>
+   Internal
+   Interface index 35                                                                                      */
+   IMAGE_PROC_PTR( void,PutCharacterInvertFont)        ( Image pImage, int32_t x, int32_t y, CDATA color, CDATA background, TEXTCHAR c, SFTFont font );
+/* <combine sack::image::PutCharacterVerticalInvertFont@Image@int32_t@int32_t@CDATA@CDATA@TEXTCHAR@SFTFont>
+   Internal
+   Interface index 36                                                                                              */
+   IMAGE_PROC_PTR( void,PutCharacterVerticalInvertFont)( Image pImage, int32_t x, int32_t y, CDATA color, CDATA background, TEXTCHAR c, SFTFont font );
+/* <combine sack::image::PutStringFontEx@Image@int32_t@int32_t@CDATA@CDATA@CTEXTSTR@uint32_t@SFTFont>
+   Internal
+   Interface index 37                                                                                   */
+   IMAGE_PROC_PTR( void,PutStringFontEx)              ( Image pImage, int32_t x, int32_t y, CDATA color, CDATA background, CTEXTSTR pc, size_t nLen, SFTFont font );
+/* <combine sack::image::PutStringVerticalFontEx@Image@int32_t@int32_t@CDATA@CDATA@CTEXTSTR@uint32_t@SFTFont>
+   Internal
+   Interface index 38                                                                                           */
+   IMAGE_PROC_PTR( void,PutStringVerticalFontEx)      ( Image pImage, int32_t x, int32_t y, CDATA color, CDATA background, CTEXTSTR pc, size_t nLen, SFTFont font );
+/* <combine sack::image::PutStringInvertFontEx@Image@int32_t@int32_t@CDATA@CDATA@CTEXTSTR@uint32_t@SFTFont>
+   Internal
+   Interface index 39                                                                                         */
+   IMAGE_PROC_PTR( void,PutStringInvertFontEx)        ( Image pImage, int32_t x, int32_t y, CDATA color, CDATA background, CTEXTSTR pc, size_t nLen, SFTFont font );
+/* <combine sack::image::PutStringInvertVerticalFontEx@Image@int32_t@int32_t@CDATA@CDATA@CTEXTSTR@uint32_t@SFTFont>
+   Internal
+   Interface index 40                                                                                                 */
+   IMAGE_PROC_PTR( void,PutStringInvertVerticalFontEx)( Image pImage, int32_t x, int32_t y, CDATA color, CDATA background, CTEXTSTR pc, size_t nLen, SFTFont font );
+/* <combine sack::image::GetMaxStringLengthFont@uint32_t@SFTFont>
+   Internal
+   Interface index 41                                     */
+   IMAGE_PROC_PTR( uint32_t, GetMaxStringLengthFont )( uint32_t width, SFTFont UseFont );
+/* <combine sack::image::GetImageSize@Image@uint32_t *@uint32_t *>
+   Internal
+   Interface index 42                                                    */
+   IMAGE_PROC_PTR( void, GetImageSize)                ( Image pImage, uint32_t *width, uint32_t *height );
+/* <combine sack::image::LoadFont@SFTFont>
+   Internal
+   Interface index 43                                   */
+   IMAGE_PROC_PTR( SFTFont, LoadFont )                   ( SFTFont font );
+         /* <combine sack::image::UnloadFont@SFTFont>
+            \ \                                    */
+         IMAGE_PROC_PTR( void, UnloadFont )                 ( SFTFont font );
+/* Internal
+   Interface index 44
+   This is used by internal methods to transfer image and font
+   data to the render agent.                                   */
+   IMAGE_PROC_PTR( DataState, BeginTransferData )    ( uint32_t total_size, uint32_t segsize, CDATA data );
+/* Internal
+   Interface index 45
+   Used internally to transfer data to render agent. */
+   IMAGE_PROC_PTR( void, ContinueTransferData )      ( DataState state, uint32_t segsize, CDATA data );
+/* Internal
+   Interface index 46
+   Command issues at end of data transfer to decode the data
+   into an image.                                            */
+   IMAGE_PROC_PTR( Image, DecodeTransferredImage )    ( DataState state );
+/* After a data transfer decode the information as a font.
+   Internal
+   Interface index 47                                      */
+   IMAGE_PROC_PTR( SFTFont, AcceptTransferredFont )     ( DataState state );
+/*Internal
+   Interface index 48*/
+   IMAGE_PROC_PTR( CDATA, ColorAverage )( CDATA c1, CDATA c2
+                                              , int d, int max );
+/* <combine sack::image::SyncImage>
+   Internal
+   Interface index 49               */
+   IMAGE_PROC_PTR( void, SyncImage )                 ( void );
+         /* <combine sack::image::GetImageSurface@Image>
+            \ \                                          */
+         IMAGE_PROC_PTR( PCDATA, GetImageSurface )       ( Image pImage );
+         /* <combine sack::image::IntersectRectangle@IMAGE_RECTANGLE *@IMAGE_RECTANGLE *@IMAGE_RECTANGLE *>
+            \ \                                                                                             */
+         IMAGE_PROC_PTR( int, IntersectRectangle )      ( IMAGE_RECTANGLE *r, IMAGE_RECTANGLE *r1, IMAGE_RECTANGLE *r2 );
+   /* <combine sack::image::MergeRectangle@IMAGE_RECTANGLE *@IMAGE_RECTANGLE *@IMAGE_RECTANGLE *>
+      \ \                                                                                         */
+   IMAGE_PROC_PTR( int, MergeRectangle )( IMAGE_RECTANGLE *r, IMAGE_RECTANGLE *r1, IMAGE_RECTANGLE *r2 );
+   /* <combine sack::image::GetImageAuxRect@Image@P_IMAGE_RECTANGLE>
+      \ \                                                            */
+   IMAGE_PROC_PTR( void, GetImageAuxRect )   ( Image pImage, P_IMAGE_RECTANGLE pRect );
+   /* <combine sack::image::SetImageAuxRect@Image@P_IMAGE_RECTANGLE>
+      \ \                                                            */
+   IMAGE_PROC_PTR( void, SetImageAuxRect )   ( Image pImage, P_IMAGE_RECTANGLE pRect );
+   /* <combine sack::image::OrphanSubImage@Image>
+      \ \                                         */
+   IMAGE_PROC_PTR( void, OrphanSubImage )  ( Image pImage );
+   /* <combine sack::image::AdoptSubImage@Image@Image>
+      \ \                                              */
+   IMAGE_PROC_PTR( void, AdoptSubImage )   ( Image pFoster, Image pOrphan );
+	/* <combine sack::image::MakeSpriteImageFileEx@CTEXTSTR fname>
+	   \ \                                                         */
+	IMAGE_PROC_PTR( PSPRITE, MakeSpriteImageFileEx )( CTEXTSTR fname DBG_PASS );
+	/* <combine sack::image::MakeSpriteImageEx@Image image>
+	   \ \                                                  */
+	IMAGE_PROC_PTR( PSPRITE, MakeSpriteImageEx )( Image image DBG_PASS );
+	/* <combine sack::image::rotate_scaled_sprite@Image@PSPRITE@fixed@fixed@fixed>
+	   \ \                                                                         */
+	IMAGE_PROC_PTR( void   , rotate_scaled_sprite )(Image bmp, PSPRITE sprite, fixed angle, fixed scale_width, fixed scale_height);
+	/* <combine sack::image::rotate_sprite@Image@PSPRITE@fixed>
+	   \ \                                                      */
+	IMAGE_PROC_PTR( void   , rotate_sprite )(Image bmp, PSPRITE sprite, fixed angle);
+ /* <combine sack::image::BlotSprite@Image@PSPRITE>
+	 Internal
+   Interface index 61                                              */
+		IMAGE_PROC_PTR( void   , BlotSprite )( Image pdest, PSPRITE ps );
+    /* <combine sack::image::DecodeMemoryToImage@uint8_t*@uint32_t>
+       \ \                                                */
+    IMAGE_PROC_PTR( Image, DecodeMemoryToImage )( uint8_t* buf, size_t size );
+   /* <combine sack::image::InternalRenderFontFile@CTEXTSTR@int32_t@int32_t@uint32_t>
+      \returns a SFTFont                                                      */
+	IMAGE_PROC_PTR( SFTFont, InternalRenderFontFile )( CTEXTSTR file
+																 , int32_t nWidth
+																 , int32_t nHeight
+																		, PFRACTION width_scale
+																		, PFRACTION height_scale
+																 , uint32_t flags
+																 );
+   /* <combine sack::image::InternalRenderFont@uint32_t@uint32_t@uint32_t@int32_t@int32_t@uint32_t>
+      requires knowing the font cache....                                 */
+	IMAGE_PROC_PTR( SFTFont, InternalRenderFont )( uint32_t nFamily
+															, uint32_t nStyle
+															, uint32_t nFile
+															, int32_t nWidth
+															, int32_t nHeight
+																		, PFRACTION width_scale
+																		, PFRACTION height_scale
+															, uint32_t flags
+															);
+/* <combine sack::image::RenderScaledFontData@PFONTDATA@PFRACTION@PFRACTION>
+   \ \                                                                       */
+IMAGE_PROC_PTR( SFTFont, RenderScaledFontData)( PFONTDATA pfd, PFRACTION width_scale, PFRACTION height_scale );
+/* <combine sack::image::RenderFontFileEx@CTEXTSTR@uint32_t@uint32_t@uint32_t@uint32_t*@POINTER *>
+   \ \                                                                         */
+IMAGE_PROC_PTR( SFTFont, RenderFontFileScaledEx )( CTEXTSTR file, uint32_t width, uint32_t height, PFRACTION width_scale, PFRACTION height_scale, uint32_t flags, size_t *size, POINTER *pFontData );
+/* <combine sack::image::DestroyFont@SFTFont *>
+   \ \                                       */
+IMAGE_PROC_PTR( void, DestroyFont)( SFTFont *font );
+/* <combine sack::image::GetGlobalFonts>
+   global_font_data in interface is really a global font data. Don't
+   have to call GetGlobalFont to get this.                           */
+struct font_global_tag *_global_font_data;
+/* <combine sack::image::GetFontRenderData@SFTFont@POINTER *@uint32_t *>
+   \ \                                                           */
+IMAGE_PROC_PTR( int, GetFontRenderData )( SFTFont font, POINTER *fontdata, size_t *fontdatalen );
+/* <combine sack::image::SetFontRendererData@SFTFont@POINTER@uint32_t>
+   \ \                                                         */
+IMAGE_PROC_PTR( void, SetFontRendererData )( SFTFont font, POINTER pResult, size_t size );
+/* <combine sack::image::SetSpriteHotspot@PSPRITE@int32_t@int32_t>
+   \ \                                                       */
+IMAGE_PROC_PTR( PSPRITE, SetSpriteHotspot )( PSPRITE sprite, int32_t x, int32_t y );
+/* <combine sack::image::SetSpritePosition@PSPRITE@int32_t@int32_t>
+   \ \                                                        */
+IMAGE_PROC_PTR( PSPRITE, SetSpritePosition )( PSPRITE sprite, int32_t x, int32_t y );
+	/* <combine sack::image::UnmakeImageFileEx@Image pif>
+	   \ \                                                */
+	IMAGE_PROC_PTR( void, UnmakeSprite )( PSPRITE sprite, int bForceImageAlso );
+/* <combine sack::image::GetGlobalFonts>
+   \ \                                   */
+IMAGE_PROC_PTR( struct font_global_tag *, GetGlobalFonts)( void );
+/* <combinewith sack::image::GetStringRenderSizeFontEx@CTEXTSTR@uint32_t@uint32_t *@uint32_t *@uint32_t *@SFTFont, sack::image::GetStringRenderSizeFontEx@CTEXTSTR@size_t@uint32_t *@uint32_t *@uint32_t *@SFTFont>
+   \ \                                                                                                                                                                     */
+IMAGE_PROC_PTR( uint32_t, GetStringRenderSizeFontEx )( CTEXTSTR pString, size_t nLen, uint32_t *width, uint32_t *height, uint32_t *charheight, SFTFont UseFont );
+IMAGE_PROC_PTR( Image, LoadImageFileFromGroupEx )( INDEX group, CTEXTSTR filename DBG_PASS );
+IMAGE_PROC_PTR( SFTFont, RenderScaledFont )( CTEXTSTR name, uint32_t width, uint32_t height, PFRACTION width_scale, PFRACTION height_scale, uint32_t flags );
+IMAGE_PROC_PTR( SFTFont, RenderScaledFontEx )( CTEXTSTR name, uint32_t width, uint32_t height, PFRACTION width_scale, PFRACTION height_scale, uint32_t flags, size_t *pnFontDataSize, POINTER *pFontData );
+IMAGE_PROC_PTR( COLOR_CHANNEL, GetRedValue )( CDATA color ) ;
+IMAGE_PROC_PTR( COLOR_CHANNEL, GetGreenValue )( CDATA color );
+IMAGE_PROC_PTR( COLOR_CHANNEL, GetBlueValue )( CDATA color );
+IMAGE_PROC_PTR( COLOR_CHANNEL, GetAlphaValue )( CDATA color );
+IMAGE_PROC_PTR( CDATA, SetRedValue )( CDATA color, COLOR_CHANNEL r ) ;
+IMAGE_PROC_PTR( CDATA, SetGreenValue )( CDATA color, COLOR_CHANNEL green );
+IMAGE_PROC_PTR( CDATA, SetBlueValue )( CDATA color, COLOR_CHANNEL b );
+IMAGE_PROC_PTR( CDATA, SetAlphaValue )( CDATA color, COLOR_CHANNEL a );
+IMAGE_PROC_PTR( CDATA, MakeColor )( COLOR_CHANNEL r, COLOR_CHANNEL green, COLOR_CHANNEL b );
+IMAGE_PROC_PTR( CDATA, MakeAlphaColor )( COLOR_CHANNEL r, COLOR_CHANNEL green, COLOR_CHANNEL b, COLOR_CHANNEL a );
+IMAGE_PROC_PTR( PTRANSFORM, GetImageTransformation )( Image pImage );
+IMAGE_PROC_PTR( void, SetImageRotation )( Image pImage, int edge_flag, RCOORD offset_x, RCOORD offset_y, RCOORD rx, RCOORD ry, RCOORD rz );
+IMAGE_PROC_PTR( void, RotateImageAbout )( Image pImage, int edge_flag, RCOORD offset_x, RCOORD offset_y, PVECTOR vAxis, RCOORD angle );
+IMAGE_PROC_PTR( void, MarkImageDirty )( Image pImage );
+IMAGE_PROC_PTR( void, DumpFontCache )( void );
+IMAGE_PROC_PTR( void, RerenderFont )( SFTFont font, int32_t width, int32_t height, PFRACTION width_scale, PFRACTION height_scale );
+// option(1) == use GL_RGBA_EXT; option(2)==clamp; option(4)==repeat
+IMAGE_PROC_PTR( int, ReloadTexture )( Image child_image, int option );
+// option(1) == use GL_RGBA_EXT; option(2)==clamp; option(4)==repeat
+IMAGE_PROC_PTR( int, ReloadShadedTexture )( Image child_image, int option, CDATA color );
+// option(1) == use GL_RGBA_EXT; option(2)==clamp; option(4)==repeat
+IMAGE_PROC_PTR( int, ReloadMultiShadedTexture )( Image child_image, int option, CDATA red, CDATA green, CDATA blue );
+IMAGE_PROC_PTR( void, SetImageTransformRelation )( Image pImage, enum image_translation_relation relation, PRCOORD aux );
+IMAGE_PROC_PTR( void, Render3dImage )( Image pImage, PCVECTOR o, LOGICAL render_pixel_scaled );
+IMAGE_PROC_PTR( void, DumpFontFile )( CTEXTSTR name, SFTFont font_to_dump );
+IMAGE_PROC_PTR( void, Render3dText )( CTEXTSTR string, int characters, CDATA color, SFTFont font, PCVECTOR o, LOGICAL render_pixel_scaled );
+// transfer all sub images to new image using appropriate methods
+// extension for internal fonts to be utilized by external plugins...
+IMAGE_PROC_PTR( void, TransferSubImages )( Image pImageTo, Image pImageFrom );
+// when using reverse interfaces, need a way to get the real image
+// from the fake image (proxy image)
+IMAGE_PROC_PTR( Image, GetNativeImage )( Image pImageTo );
+// low level support for proxy; this exposes some image_common.c routines
+IMAGE_PROC_PTR( Image, GetTintedImage )( Image child_image, CDATA color );
+IMAGE_PROC_PTR( Image, GetShadedImage )( Image child_image, CDATA red, CDATA green, CDATA blue );
+// test for IF_FLAG_FINAL_RENDER (non physical surface/prevent local copy-restore)
+IMAGE_PROC_PTR( LOGICAL, IsImageTargetFinal )( Image image );
+// use image data to create a clone of the image for the new application instance...
+// this is used when a common image resource is used for all application instances
+// it should be triggered during onconnect.
+// it is a new image instance that should be used for future app references...
+IMAGE_PROC_PTR( Image, ReuseImage )( Image image );
+IMAGE_PROC_PTR( void, PutStringFontExx )( Image pImage
+											 , int32_t x, int32_t y
+											 , CDATA color, CDATA background
+											 , CTEXTSTR pc, size_t nLen, SFTFont font, int justification, uint32_t _width );
+// sometimes it's not possible to use blatcolor to clear an imate...
+// sometimes its parent is not redrawn?
+IMAGE_PROC_PTR( void, ResetImageBuffers )( Image image, LOGICAL image_only );
+	IMAGE_PROC_PTR(  LOGICAL, PngImageFile )( Image image, uint8_t* *buf, size_t *size );
+	IMAGE_PROC_PTR(  LOGICAL, JpgImageFile )( Image image, uint8_t* *buf, size_t *size, int Q );
+	IMAGE_PROC_PTR(  void, SetFontBias )( SFTFont font, int32_t x, int32_t y );
+	IMAGE_PROC_PTR( SlicedImage, MakeSlicedImage )( Image source, uint32_t left, uint32_t right, uint32_t top, uint32_t bottom, LOGICAL output_center );
+	IMAGE_PROC_PTR( SlicedImage, MakeSlicedImageComplex )( Image source
+										, uint32_t top_left_x, uint32_t top_left_y, uint32_t top_left_width, uint32_t top_left_height
+										, uint32_t top_x, uint32_t top_y, uint32_t top_width, uint32_t top_height
+										, uint32_t top_right_x, uint32_t top_right_y, uint32_t top_right_width, uint32_t top_right_height
+										, uint32_t left_x, uint32_t left_y, uint32_t left_width, uint32_t left_height
+										, uint32_t center_x, uint32_t center_y, uint32_t center_width, uint32_t center_height
+										, uint32_t right_x, uint32_t right_y, uint32_t right_width, uint32_t right_height
+										, uint32_t bottom_left_x, uint32_t bottom_left_y, uint32_t bottom_left_width, uint32_t bottom_left_height
+										, uint32_t bottom_x, uint32_t bottom_y, uint32_t bottom_width, uint32_t bottom_height
+										, uint32_t bottom_right_x, uint32_t bottom_right_y, uint32_t bottom_right_width, uint32_t bottom_right_height
+										, LOGICAL output_center );
+	IMAGE_PROC_PTR( void, UnmakeSlicedImage )( SlicedImage image );
+	IMAGE_PROC_PTR( void, BlotSlicedImageEx )( Image dest, SlicedImage source, int32_t x, int32_t y, uint32_t width, uint32_t height, int alpha, enum BlotOperation op, ... );
+	IMAGE_PROC_PTR( void, SetSavePortion )( void (CPROC*_SavePortion )( PSPRITE_METHOD psm, uint32_t x, uint32_t y, uint32_t w, uint32_t h ) );
+} IMAGE_INTERFACE, *PIMAGE_INTERFACE;
+/* Method to define automatic name translation from standard
+   names Like BlatColorAlphaEx to the interface the user has
+   specified to be using.                                    */
+#define PROC_ALIAS(name) ((USE_IMAGE_INTERFACE)->_##name)
+/* Method to define automatic name translation from standard
+   names Like BlatColorAlphaEx to the interface the user has
+   specified to be using. For function pointers.             */
+#define PPROC_ALIAS(name) (*(USE_IMAGE_INTERFACE)->_##name)
+#ifdef DEFINE_DEFAULT_IMAGE_INTERFACE
+//static PIMAGE_INTERFACE always_defined_interface_that_makes_this_efficient;
+#  define USE_IMAGE_INTERFACE GetImageInterface()
+#endif
+#if defined( FORCE_NO_INTERFACE ) && !defined( ALLOW_IMAGE_INTERFACES )
+#  undef USE_IMAGE_INTERFACE
+#else
+#  define GetImageInterface() (PIMAGE_INTERFACE)GetInterface( "image" )
+/* <combine sack::image::DropImageInterface@PIMAGE_INTERFACE>
+   \ \                                                        */
+#  define DropImageInterface(x) DropInterface( "image", NULL )
+#endif
+#ifdef USE_IMAGE_INTERFACE
+#define GetRedValue                          PROC_ALIAS(GetRedValue )
+#define GetBlueValue                          PROC_ALIAS(GetBlueValue )
+#define GetGreenValue                          PROC_ALIAS(GetGreenValue )
+#define GetAlphaValue                          PROC_ALIAS(GetAlphaValue )
+#define SetRedValue                          PROC_ALIAS(SetRedValue )
+#define SetBlueValue                          PROC_ALIAS(SetBlueValue )
+#define SetGreenValue                          PROC_ALIAS(SetGreenValue )
+#define SetAlphaValue                          PROC_ALIAS(SetAlphaValue )
+#define MakeColor                          PROC_ALIAS(MakeColor )
+#define MakeAlphaColor                          PROC_ALIAS(MakeAlphaColor )
+#define MarkImageDirty                    PROC_ALIAS(MarkImageDirty)
+#define GetStringRenderSizeFontEx          PROC_ALIAS(GetStringRenderSizeFontEx )
+#define LoadImageFileFromGroupEx          PROC_ALIAS(LoadImageFileFromGroupEx )
+#define SetStringBehavior                  PROC_ALIAS(SetStringBehavior )
+                      //PROC_ALIAS(SetBlotMethod )
+#define SetBlotMethod
+#define BuildImageFileEx                   PROC_ALIAS(BuildImageFileEx )
+#define MakeImageFileEx                    PROC_ALIAS(MakeImageFileEx )
+/* <combine sack::image::MakeImageFileEx@uint32_t@uint32_t>
+   \ \                                                   */
+#define MakeImageFile(w,h)                 PROC_ALIAS(MakeImageFileEx)( w,h DBG_SRC )
+#define MakeSubImageEx                     PROC_ALIAS(MakeSubImageEx )
+/* <combine sack::image::MakeSubImageEx@Image@int32_t@int32_t@uint32_t@uint32_t>
+   \ \                                                                  */
+#define MakeSubImage( image, x, y, w, h )  PROC_ALIAS(MakeSubImageEx)( image, x, y, w, h DBG_SRC )
+#define RemakeImageEx                      PROC_ALIAS(RemakeImageEx )
+#define ResizeImageEx                      PROC_ALIAS(ResizeImageEx )
+#define MoveImage                          PROC_ALIAS(MoveImage )
+#define LoadImageFileEx                    PROC_ALIAS(LoadImageFileEx )
+#define DecodeMemoryToImage                PROC_ALIAS(DecodeMemoryToImage )
+/* <combine sack::image::UnmakeImageFileEx@Image pif>
+   Destroys an image. Does not automatically destroy child
+   images created on the image.
+   Parameters
+   Image :  an image to destroy
+   Example
+   <code lang="c++">
+   Image image = MakeImageFile( 100, 100 );
+   UnmakeImageFile( image );
+   </code>                                                 */
+#define UnmakeImageFile(pif)               PROC_ALIAS(UnmakeImageFileEx )( pif DBG_SRC )
+#define UnmakeImageFileEx                  PROC_ALIAS(UnmakeImageFileEx )
+#define BlatColor                          PROC_ALIAS(BlatColor )
+#define BlatColorAlpha                     PROC_ALIAS(BlatColorAlpha )
+#define BlotImageSizedEx                   PROC_ALIAS(BlotImageSizedEx )
+#define BlotImageEx                        PROC_ALIAS(BlotImageEx )
+#define BlotScaledImageSizedEx             PROC_ALIAS(BlotScaledImageSizedEx )
+#define plot                               PPROC_ALIAS(plot )
+#define plotalpha                          PPROC_ALIAS(plotalpha )
+#define getpixel                           PPROC_ALIAS(getpixel )
+#define do_line                            PPROC_ALIAS(do_line )
+#define do_lineAlpha                       PPROC_ALIAS(do_lineAlpha )
+#define do_hline                           PPROC_ALIAS(do_hline )
+#define do_vline                           PPROC_ALIAS(do_vline )
+#define do_hlineAlpha                      PPROC_ALIAS(do_hlineAlpha )
+#define do_vlineAlpha                      PPROC_ALIAS(do_vlineAlpha )
+#define GetDefaultFont                     PROC_ALIAS(GetDefaultFont )
+#define GetFontHeight                      PROC_ALIAS(GetFontHeight )
+#define GetStringSizeFontEx                PROC_ALIAS(GetStringSizeFontEx )
+#define PutCharacterFont                   PROC_ALIAS(PutCharacterFont )
+#define PutCharacterVerticalFont           PROC_ALIAS(PutCharacterVerticalFont )
+#define PutCharacterInvertFont             PROC_ALIAS(PutCharacterInvertFont )
+#define PutCharacterVerticalInvertFont     PROC_ALIAS(PutCharacterVerticalInvertFont )
+#define PutStringFontExx                   PROC_ALIAS(PutStringFontExx)
+#define PutStringFontEx                    PROC_ALIAS(PutStringFontEx )
+#define PutStringVerticalFontEx            PROC_ALIAS(PutStringVerticalFontEx )
+#define PutStringInvertFontEx              PROC_ALIAS(PutStringInvertFontEx )
+#define PutStringInvertVerticalFontEx      PROC_ALIAS(PutStringInvertVerticalFontEx )
+#define GetMaxStringLengthFont             PROC_ALIAS(GetMaxStringLengthFont )
+#define GetImageSize                       PROC_ALIAS(GetImageSize )
+#define LoadFont                           PROC_ALIAS(LoadFont )
+#define UnloadFont                         PROC_ALIAS(UnloadFont )
+#define ColorAverage                       PPROC_ALIAS(ColorAverage)
+#define TransferSubImages                  PROC_ALIAS(TransferSubImages)
+#define SyncImage                          PROC_ALIAS(SyncImage )
+#define IntersectRectangle                 PROC_ALIAS(IntersectRectangle)
+#define MergeRectangle                     PROC_ALIAS(MergeRectangle)
+#define GetImageSurface                    PROC_ALIAS(GetImageSurface)
+#define SetImageAuxRect                    PROC_ALIAS(SetImageAuxRect)
+#define GetImageAuxRect                    PROC_ALIAS(GetImageAuxRect)
+#define OrphanSubImage                     PROC_ALIAS(OrphanSubImage)
+#define GetGlobalFonts                     PROC_ALIAS(GetGlobalFonts)
+#define GetTintedImage                     PROC_ALIAS(GetTintedImage)
+#define GetShadedImage                     PROC_ALIAS(GetShadedImage)
+#define AdoptSubImage                      PROC_ALIAS(AdoptSubImage)
+#define MakeSpriteImageFileEx   PROC_ALIAS(MakeSpriteImageFileEx)
+#define MakeSpriteImageEx       PROC_ALIAS(MakeSpriteImageEx)
+#define UnmakeSprite            PROC_ALIAS(UnmakeSprite )
+#define rotate_scaled_sprite    PROC_ALIAS(rotate_scaled_sprite)
+#define rotate_sprite           PROC_ALIAS(rotate_sprite)
+#define BlotSprite              PROC_ALIAS(BlotSprite)
+#define SetSpritePosition  PROC_ALIAS(  SetSpritePosition )
+#define SetSpriteHotspot  PROC_ALIAS(  SetSpriteHotspot )
+#define InternalRenderFont          PROC_ALIAS(InternalRenderFont)
+#define InternalRenderFontFile      PROC_ALIAS(InternalRenderFontFile)
+#define RenderScaledFontData              PROC_ALIAS(RenderScaledFontData)
+//#define RenderScaledFont              PROC_ALIAS(RenderScaledFont)
+#define RenderScaledFontEx              PROC_ALIAS(RenderScaledFontEx)
+#define DumpFontCache              PROC_ALIAS(DumpFontCache)
+#define RerenderFont              PROC_ALIAS(RerenderFont)
+// option(1) == use GL_RGBA_EXT; option(2)==clamp; option(4)==repeat
+#define ReloadTexture              PROC_ALIAS(ReloadTexture)
+// option(1) == use GL_RGBA_EXT; option(2)==clamp; option(4)==repeat
+#define ReloadShadedTexture              PROC_ALIAS(ReloadShadedTexture)
+// option(1) == use GL_RGBA_EXT; option(2)==clamp; option(4)==repeat
+#define ReloadMultiShadedTexture              PROC_ALIAS(ReloadMultiShadedTexture)
+#define DestroyFont              PROC_ALIAS(DestroyFont)
+#define GetFontRenderData              PROC_ALIAS(GetFontRenderData)
+#define SetFontRendererData              PROC_ALIAS(SetFontRendererData)
+#define RenderFontFileScaledEx              PROC_ALIAS(RenderFontFileScaledEx)
+#define GetImageTransformation              PROC_ALIAS(GetImageTransformation)
+#define SetImageTransformRelation      PROC_ALIAS( SetImageTransformRelation )
+#define Render3dImage                  PROC_ALIAS( Render3dImage )
+#define Render3dText                   PROC_ALIAS( Render3dText )
+#define DumpFontFile                   PROC_ALIAS( DumpFontFile )
+#define IsImageTargetFinal                   PROC_ALIAS( IsImageTargetFinal )
+#define ReuseImage                      if((USE_IMAGE_INTERFACE)->_ReuseImage) PROC_ALIAS( ReuseImage )
+#define ResetImageBuffers                      if((USE_IMAGE_INTERFACE)->_ResetImageBuffers) PROC_ALIAS( ResetImageBuffers )
+#define PngImageFile                    PROC_ALIAS( PngImageFile )
+#define JpgImageFile                    PROC_ALIAS( JpgImageFile )
+#define SetFontBias                     PROC_ALIAS( SetFontBias )
+#define MakeSlicedImage                 PROC_ALIAS( MakeSlicedImage )
+#define MakeSlicedImageComplex          PROC_ALIAS( MakeSlicedImageComplex )
+#define UnmakeSlicedImage                 PROC_ALIAS( UnmakeSlicedImage )
+#define BlotSlicedImageEx               PROC_ALIAS( BlotSlicedImageEx )
+#define SetSavePortion                          PROC_ALIAS(SetSavePortion )
+//#define global_font_data         (*PROC_ALIAS(global_font_data))
+#endif
+/* <combine sack::image::GetMaxStringLengthFont@uint32_t@SFTFont>
+   \ \                                                    */
+#define GetMaxStringLength(w) GetMaxStringLengthFont(w, NULL )
+#ifdef DEFINE_IMAGE_PROTOCOL
+//#include <msgprotocol.h>
+// need to define BASE_IMAGE_MESSAGE_ID before hand to determine what the base message is.
+//#define MSG_ID(method)  ( ( offsetof( struct image_interface_tag, _##method ) / sizeof( void(*)(void) ) ) + BASE_IMAGE_MESSAGE_ID + MSG_EventUser )
+#define MSG_SetStringBehavior                  MSG_ID( SetStringBehavior )
+#define MSG_SetBlotMethod                      MSG_ID( SetBlotMethod )
+#define MSG_BuildImageFileEx                   MSG_ID( BuildImageFileEx )
+#define MSG_MakeImageFileEx                    MSG_ID( MakeImageFileEx )
+#define MSG_MakeSubImageEx                     MSG_ID( MakeSubImageEx )
+#define MSG_RemakeImageEx                      MSG_ID( RemakeImageEx )
+#define MSG_UnmakeImageFileEx                  MSG_ID( UnmakeImageFileEx )
+#define MSG_ResizeImageEx                      MSG_ID( ResizeImageEx )
+#define DecodeMemoryToImage                    MSG_ID( DecodeMemoryToImage )
+#define MSG_MoveImage                          MSG_ID( MoveImage )
+#define MSG_BlatColor                          MSG_ID( BlatColor )
+#define MSG_BlatColorAlpha                     MSG_ID( BlatColorAlpha )
+#define MSG_BlotImageSizedEx                   MSG_ID( BlotImageSizedEx )
+#define MSG_BlotImageEx                        MSG_ID( BlotImageEx )
+#define MSG_BlotScaledImageSizedEx             MSG_ID( BlotScaledImageSizedEx )
+#define MSG_plot                               MSG_ID( plot )
+#define MSG_plotalpha                          MSG_ID( plotalpha )
+#define MSG_getpixel                           MSG_ID( getpixel )
+#define MSG_do_line                            MSG_ID( do_line )
+#define MSG_do_lineAlpha                       MSG_ID( do_lineAlpha )
+#define MSG_do_hline                           MSG_ID( do_hline )
+#define MSG_do_vline                           MSG_ID( do_vline )
+#define MSG_do_hlineAlpha                      MSG_ID( do_hlineAlpha )
+#define MSG_do_vlineAlpha                      MSG_ID( do_vlineAlpha )
+#define MSG_GetDefaultFont                     MSG_ID( GetDefaultFont )
+#define MSG_GetFontHeight                      MSG_ID( GetFontHeight )
+#define MSG_GetStringSizeFontEx                MSG_ID( GetStringSizeFontEx )
+#define MSG_PutCharacterFont                   MSG_ID( PutCharacterFont )
+#define MSG_PutCharacterVerticalFont           MSG_ID( PutCharacterVerticalFont )
+#define MSG_PutCharacterInvertFont             MSG_ID( PutCharacterInvertFont )
+#define MSG_PutCharacterVerticalInvertFont     MSG_ID( PutCharacterVerticalInvertFont )
+#define MSG_PutStringFontEx                    MSG_ID( PutStringFontEx )
+#define MSG_PutStringVerticalFontEx            MSG_ID( PutStringVerticalFontEx )
+#define MSG_PutStringInvertFontEx              MSG_ID( PutStringInvertFontEx )
+#define MSG_PutStringInvertVerticalFontEx      MSG_ID( PutStringInvertVerticalFontEx )
+#define MSG_GetMaxStringLengthFont             MSG_ID( GetMaxStringLengthFont )
+#define MSG_GetImageSize                       MSG_ID( GetImageSize )
+#define MSG_ColorAverage                       MSG_IC( ColorAverage )
+// these messages follow all others... and are present to handle
+// LoadImageFile
+// #define MSG_LoadImageFile (no message)
+// #define MSG_LoadFont      (no message)
+#define MSG_UnloadFont                         MSG_ID( UnloadFont )
+#define MSG_BeginTransferData                  MSG_ID( BeginTransferData )
+#define MSG_ContinueTransferData               MSG_ID( ContinueTransferData )
+#define MSG_DecodeTransferredImage             MSG_ID( DecodeTransferredImage )
+#define MSG_AcceptTransferredFont              MSG_ID( AcceptTransferredFont )
+#define MSG_SyncImage                          MSG_ID( SyncImage )
+#define MSG_IntersectRectangle                 MSG_ID( IntersectRectangle )
+#define MSG_MergeRectangle                     MSG_ID( MergeRectangle)
+#define MSG_GetImageSurface                    MSG_ID( GetImageSurface )
+#define MSG_SetImageAuxRect                    MSG_ID(SetImageAuxRect)
+#define MSG_GetImageAuxRect                    MSG_ID(GetImageAuxRect)
+#define MSG_OrphanSubImage                     MSG_ID(OrphanSubImage)
+#define MSG_GetGlobalFonts                     MSG_ID(GetGlobalFonts)
+#define MSG_AdoptSubImage                      MSG_ID(AdoptSubImage)
+#define MSG_MakeSpriteImageFileEx   MSG_ID(MakeSpriteImageFileEx)
+#define MSG_MakeSpriteImageEx       MSG_ID(MakeSpriteImageEx)
+#define MSG_UnmakeSprite            MSG_ID(UnmakeSprite )
+#define MSG_rotate_scaled_sprite    MSG_ID(rotate_scaled_sprite)
+#define MSG_rotate_sprite           MSG_ID(rotate_sprite)
+#define MSG_BlotSprite              MSG_ID(BlotSprite)
+#define MSG_SetSpritePosition  MSG_ID(  SetSpritePosition )
+#define MSG_SetSpriteHotspot  MSG_ID(  SetSpriteHotspot )
+#define MSG_InternalRenderFont          MSG_ID(InternalRenderFont)
+#define MSG_InternalRenderFontFile      MSG_ID(InternalRenderFontFile)
+#define MSG_RenderScaledFontData              MSG_ID(RenderScaledFontData)
+#define MSG_RenderScaledFont              MSG_ID(RenderScaledFont)
+#define MSG_RenderFontData              MSG_ID(RenderFontData)
+#define MSG_DestroyFont              MSG_ID(DestroyFont)
+#define MSG_GetFontRenderData              MSG_ID(GetFontRenderData)
+#define MSG_SetFontRendererData              MSG_ID(SetFontRendererData)
+#endif
+#ifdef USE_IMAGE_LEVEL
+#define PASTELEVEL(level,name) level##name
+#define LEVEL_ALIAS(name)      PASTELEVEL(USE_IMAGE_LEVEL,name)
+#  ifdef STUPID_NO_DATA_EXPORTS
+#define PLEVEL_ALIAS(name)      (*PASTELEVEL(USE_IMAGE_LEVEL,_PASTE(_,name)))
+#  else
+#define PLEVEL_ALIAS(name)      (*PASTELEVEL(USE_IMAGE_LEVEL,name))
+#  endif
+#define SetStringBehavior                  LEVEL_ALIAS(SetStringBehavior )
+                      //LEVEL_ALIAS(SetBlotMethod )
+#define SetBlotMethod
+#define BuildImageFileEx                   LEVEL_ALIAS(BuildImageFileEx )
+#define MakeImageFileEx                    LEVEL_ALIAS(MakeImageFileEx )
+#define MakeSubImageEx                     LEVEL_ALIAS(MakeSubImageEx )
+#define RemakeImageEx                      LEVEL_ALIAS(RemakeImageEx )
+#define ResizeImageEx                      LEVEL_ALIAS(ResizeImageEx )
+#define MoveImage                          LEVEL_ALIAS(MoveImage )
+#define LoadImageFileEx                    LEVEL_ALIAS(LoadImageFileEx )
+#define DecodeMemoryToImage                LEVEL_ALIAS(DecodeMemoryToImage )
+#define UnmakeImageFileEx                  LEVEL_ALIAS(UnmakeImageFileEx )
+#define BlatColor                          LEVEL_ALIAS(BlatColor )
+#define BlatColorAlpha                     LEVEL_ALIAS(BlatColorAlpha )
+#define BlotImageSizedEx                   LEVEL_ALIAS(BlotImageSizedEx )
+#define BlotImageEx                        LEVEL_ALIAS(BlotImageEx )
+#define BlotScaledImageSizedEx             LEVEL_ALIAS(BlotScaledImageSizedEx )
+#define plot                               LEVEL_ALIAS(plot )
+#define plotalpha                          LEVEL_ALIAS(plotalpha )
+#error 566
+#define getpixel                           LEVEL_ALIAS(getpixel )
+#define do_line                            LEVEL_ALIAS(do_line )
+#define do_lineAlpha                       LEVEL_ALIAS(do_lineAlpha )
+#define do_hline                           LEVEL_ALIAS(do_hline )
+#define do_vline                           LEVEL_ALIAS(do_vline )
+#define do_hlineAlpha                      LEVEL_ALIAS(do_hlineAlpha )
+#define do_vlineAlpha                      LEVEL_ALIAS(do_vlineAlpha )
+#define GetDefaultFont                     LEVEL_ALIAS(GetDefaultFont )
+#define GetFontHeight                      LEVEL_ALIAS(GetFontHeight )
+#define GetStringSizeFontEx                LEVEL_ALIAS(GetStringSizeFontEx )
+#define PutCharacterFont                   LEVEL_ALIAS(PutCharacterFont )
+#define PutCharacterVerticalFont           LEVEL_ALIAS(PutCharacterVerticalFont )
+#define PutCharacterInvertFont             LEVEL_ALIAS(PutCharacterInvertFont )
+#define PutCharacterVerticalInvertFont     LEVEL_ALIAS(PutCharacterVerticalInvertFont )
+#define PutStringFontEx                    LEVEL_ALIAS(PutStringFontEx )
+#define PutStringVerticalFontEx            LEVEL_ALIAS(PutStringVerticalFontEx )
+#define PutStringInvertFontEx              LEVEL_ALIAS(PutStringInvertFontEx )
+#define PutStringInvertVerticalFontEx      LEVEL_ALIAS(PutStringInvertVerticalFontEx )
+#define GetMaxStringLengthFont             LEVEL_ALIAS(GetMaxStringLengthFont )
+#define GetImageSize                       LEVEL_ALIAS(GetImageSize )
+#define LoadFont                           LEVEL_ALIAS(LoadFont )
+#define UnloadFont                         LEVEL_ALIAS(UnloadFont )
+#define ColorAverage                       LEVEL_ALIAS(ColorAverage)
+#define SyncImage                          LEVEL_ALIAS(SyncImage )
+#define IntersectRectangle                 LEVEL_ALIAS( IntersectRectangle )
+#define MergeRectangle                     LEVEL_ALIAS(MergeRectangle)
+#define GetImageSurface                    LEVEL_ALIAS(GetImageSurface)
+#define SetImageAuxRect                    LEVEL_ALIAS(SetImageAuxRect)
+#define GetImageAuxRect                    LEVEL_ALIAS(GetImageAuxRect)
+#define OrphanSubImage                     LEVEL_ALIAS(OrphanSubImage)
+#define GetGlobalFonts                     LEVEL_ALIAS(GetGlobalFonts)
+#define AdoptSubImage                      LEVEL_ALIAS(AdoptSubImage)
+#define InternalRenderFont          LEVEL_ALIAS(InternalRenderFont)
+#define InternalRenderFontFile      LEVEL_ALIAS(InternalRenderFontFile)
+#define RenderScaledFontData              LEVEL_ALIAS(RenderScaledFontData)
+#define RenderFontData              LEVEL_ALIAS(RenderFontData)
+#define RenderFontFileScaledEx              LEVEL_ALIAS(RenderFontFileScaledEx)
+#endif
+_INTERFACE_NAMESPACE_END
+#ifdef __cplusplus
+#ifdef _D3D_DRIVER
+	using namespace sack::image::d3d::Interface;
+#elif defined( _D3D10_DRIVER )
+	using namespace sack::image::d3d10::Interface;
+#elif defined( _D3D11_DRIVER )
+	using namespace sack::image::d3d11::Interface;
+#else
+	using namespace sack::image::Interface;
+#endif
+#endif
+// these macros provide common extensions for
+// commonly used shorthands of the above routines.
+// no worry - one way or another, the extra data is
+// created, and the base function called, it's a sad
+// truth of life, that one codebase is easier to maintain
+// than a duplicate copy for each minor case.
+// although - special forwards - such as DBG_SRC will just dissappear
+// in certain compilation modes (NON_DEBUG)
+/* <combine sack::image::BuildImageFileEx@PCOLOR@uint32_t@uint32_t>
+   \ \                                                           */
+#define BuildImageFile(p,w,h) BuildImageFileEx( p,w,h DBG_SRC )
+/* <combine sack::image::RemakeImageEx@Image@PCOLOR@uint32_t@uint32_t>
+   \ \                                                              */
+#define RemakeImage(p,pc,w,h) RemakeImageEx(p,pc,w,h DBG_SRC)
+/* <combine sack::image::ResizeImageEx@Image@uint32_t@uint32_t>
+   \ \                                                              */
+#define ResizeImage( p,w,h) ResizeImageEx( p,w,h DBG_SRC )
+/* <combine sack::image::MakeSpriteImageEx@Image image>
+   \ \                                                  */
+#define MakeSpriteImage(image) MakeSpriteImageEx(image DBG_SRC)
+/* <combine sack::image::MakeSpriteImageFileEx@CTEXTSTR fname>
+   \ \                                                         */
+#define MakeSpriteImageFile(file) MakeSpriteImageFileEx( image DBG_SRC )
+/* This function flips an image top to bottom. This if for
+   building windows compatible images. Internally images are
+   kept in platform-native direction. If an image is created
+   from another source, this might be a method to flip the image
+   top-to-bottom if required.
+   Parameters
+   pImage :                           Image to flip.
+   <link sack::DBG_PASS, DBG_PASS> :  _nt_
+   Note
+   There has been a warning around flip image for a while, it
+   does its job right now (reversing jpeg images on windows),
+   but not necessarily suited for the masses.                    */
+IMAGE_PROC  void IMAGE_API IMGVER(FlipImageEx )( Image pif DBG_PASS );
+/* <combine sack::image::FlipImageEx@Image pif>
+   \ \                                          */
+#define FlipImage(pif) FlipImageEx( pif DBG_SRC )
+/* <combine sack::image::LoadImageFileEx@CTEXTSTR name>
+   \ \                                                  */
+#define LoadImageFile(file) LoadImageFileEx( file DBG_SRC )
+/* <combine sack::image::LoadImageFileEx@CTEXTSTR name>
+   \ \                                                  */
+#define LoadImageFileFromGroup(group,file) LoadImageFileFromGroupEx( group, file DBG_SRC )
+/* <combine sack::image::BlatColor@Image@int32_t@int32_t@uint32_t@uint32_t@CDATA>
+   \ \                                                            */
+#define ClearImageTo(img,color) BlatColor(img,0,0,(img)->width,(img)->height, color )
+#define ogl_ClearImageTo(img,color) ogl_BlatColor(img,0,0,(img)->width,(img)->height, color )
+/* <combine sack::image::BlatColor@Image@int32_t@int32_t@uint32_t@uint32_t@CDATA>
+   \ \                                                            */
+#define ClearImage(img) BlatColor(img,0,0,(img)->width,(img)->height, 0 )
+#define ogl_ClearImage(img) ogl_BlatColor(img,0,0,(img)->width,(img)->height, 0 )
+/* Copy one image to another. Copies the source from 0,0 to the
+   destination 0,0 of the minimum width and height of the
+   smaller of the source or destination.
+   Parameters
+   pifDest :  Image to copy to
+   pifSrc :   Image to copy from
+   X :        left coordinate to copy image to
+   Y :        upper coordinate to copy image to
+   Example
+   This creates an image to write to, creates an image to copy
+   (a 64 by 64 square that is filled with 50% green color). And
+   copies the image to the output buffer.
+   <code>
+   Image output = MakeImageFile( 1024, 768 );
+   Image source = MakeImageFile( 64, 64 );
+   // 50% transparent
+   ClearImageTo( source, SetAlpha( BASE_COLOR_GREEN, 128 ) );
+   ClearImage( output );
+   BlotImage( output, source, 100, 100 );
+   BlotImageAlpha( output, source, 200, 200 );
+   </code>                                                      */
+#define BlotImage( pd, ps, x, y ) BlotImageEx( pd, ps, x, y, 0, BLOT_COPY )
+#define ogl_BlotImage( pd, ps, x, y ) ogl_BlotImageEx( pd, ps, x, y, 0, BLOT_COPY )
+/* Output a sliced image to an image surface
+  sliced images scale center portions, but copy output corner images
+  */
+#define BlotSlicedImage( pd, ps, x, y, w, h ) BlotSlicedImageEx( pd, ps, x, y, w, h, ALPHA_TRANSPARENT, BLOT_COPY )
+/* Copy one image to another at the specified coordinate in the
+   destination.
+   Parameters
+   Destination :  Image to output to
+   Source :       Image to copy
+   X :            Location to copy to
+   Y :            Location to copy to <link sack::image::AlphaModifier, Alpha>
+                  \: Specify how to write the alpha                            */
+#define BlotImageAlpha( pd, ps, x, y, a ) BlotImageEx( pd, ps, x, y, a, BLOT_COPY )
+/* <combine sack::image::BlotImageSizedEx@Image@Image@int32_t@int32_t@int32_t@int32_t@uint32_t@uint32_t@uint32_t@uint32_t@...>
+   \ \                                                                                         */
+#define BlotImageSized( pd, ps, x, y, w, h ) BlotImageSizedEx( pd, ps, x, y, 0, 0, w, h, TRUE, BLOT_COPY )
+#define ogl_BlotImageSized( pd, ps, x, y, w, h ) ogl_BlotImageSizedEx( pd, ps, x, y, 0, 0, w, h, TRUE, BLOT_COPY )
+/* <combine sack::image::BlotImageSizedEx@Image@Image@int32_t@int32_t@int32_t@int32_t@uint32_t@uint32_t@uint32_t@uint32_t@...>
+   \ \                                                                                         */
+#define BlotImageSizedAlpha( pd, ps, x, y, w, h, a ) BlotImageSizedEx( pd, ps, x, y, 0, 0, w, h, a, BLOT_COPY )
+#define ogl_BlotImageSizedAlpha( pd, ps, x, y, w, h, a ) ogl_BlotImageSizedEx( pd, ps, x, y, 0, 0, w, h, a, BLOT_COPY )
+/* <combine sack::image::BlotImageSizedEx@Image@Image@int32_t@int32_t@int32_t@int32_t@uint32_t@uint32_t@uint32_t@uint32_t@...>
+   \ \                                                                                         */
+#define BlotImageSizedTo( pd, ps, xd, yd, xs, ys, w, h )  BlotImageSizedEx( pd, ps, xd, yd, xs, ys, w, h, TRUE, BLOT_COPY )
+#define ogl_BlotImageSizedTo( pd, ps, xd, yd, xs, ys, w, h )  ogl_BlotImageSizedEx( pd, ps, xd, yd, xs, ys, w, h, TRUE, BLOT_COPY )
+/* Copy one image to another at the specified coordinate in the
+   destination. Shade the image on copy with a color.
+   Parameters
+   Destination :  Image to output to
+   Source :       Image to copy
+   X :            Location to copy to
+   Y :            Location to copy to
+   Color :        color to multiply the source color by to shade
+                  on copy.                                       */
+#define BlotImageShaded( pd, ps, xd, yd, c ) BlotImageEx( pd, ps, xd, yd, TRUE, BLOT_SHADED, c )
+/* <combine sack::image::BlotImageSizedEx@Image@Image@int32_t@int32_t@int32_t@int32_t@uint32_t@uint32_t@uint32_t@uint32_t@...>
+   \ \                                                                                         */
+#define BlotImageShadedSized( pd, ps, xd, yd, xs, ys, ws, hs, c ) BlotImageSizedEx( pd, ps, xd, yd, xs, ys, ws, hs, TRUE, BLOT_SHADED, c )
+#define ogl_BlotImageShadedSized( pd, ps, xd, yd, xs, ys, ws, hs, c ) ogl_BlotImageSizedEx( pd, ps, xd, yd, xs, ys, ws, hs, TRUE, BLOT_SHADED, c )
+/* Copy one image to another at the specified coordinate in the
+   destination. Scale RGB channels to specified colors.
+   Parameters
+   Destination :  Image to output to
+   Source :       Image to copy
+   X :            Location to copy to
+   Y :            Location to copy to
+   X_source :     the left coordinate of the image source
+   Y_source :     the top coordinate of the image source
+   Width :        How wide to copy the image
+   Height :       How wide to copy the image
+   color :        color mutiplier to shade the image.           */
+#define BlotImageMultiShaded( pd, ps, xd, yd, r, g, b ) BlotImageEx( pd, ps, xd, yd, ALPHA_TRANSPARENT, BLOT_MULTISHADE, r, g, b )
+/* Copy one image to another at the specified coordinate in the
+   destination. Scale RGB channels to specified colors.
+   Parameters
+   Destination :  Image to output to
+   Source :       Image to copy
+   X :            Location to copy to
+   Y :            Location to copy to
+   X_source :     the left coordinate of the image source
+   Y_source :     the top coordinate of the image source
+   Width :        How wide to copy the image
+   Height :       How wide to copy the image
+   color :        color mutiplier to shade the image.           */
+#define BlotImageMultiShadedSized( pd, ps, xd, yd, xs, ys, ws, hs, r, g, b ) BlotImageSizedEx( pd, ps, xd, yd, xs, ys, ws, hs, TRUE, BLOT_MULTISHADE, r, g, b )
+#define ogl_BlotImageMultiShadedSized( pd, ps, xd, yd, xs, ys, ws, hs, r, g, b ) ogl_BlotImageSizedEx( pd, ps, xd, yd, xs, ys, ws, hs, TRUE, BLOT_MULTISHADE, r, g, b )
+/* <combine sack::image::BlotScaledImageSizedEx@Image@Image@int32_t@int32_t@uint32_t@uint32_t@int32_t@int32_t@uint32_t@uint32_t@uint32_t@uint32_t@...>
+   \ \                                                                                                       */
+#define BlotScaledImageSized( pd, ps, xd, yd, wd, hd, xs, ys, ws, hs ) BlotScaledImageSizedEx( pd, ps, xd, yd, wd, hd, xs, ys, ws, hs, 0, BLOT_COPY )
+/* <combine sack::image::BlotScaledImageSizedEx@Image@Image@int32_t@int32_t@uint32_t@uint32_t@int32_t@int32_t@uint32_t@uint32_t@uint32_t@uint32_t@...>
+   \ \                                                                                                       */
+#define BlotScaledImageSizedMultiShaded( pd, ps, xd, yd, wd, hd, xs, ys, ws, hs,r,g,b ) BlotScaledImageSizedEx( pd, ps, xd, yd, wd, hd, xs, ys, ws, hs, 0, BLOT_MULTISHADE,r,g,b )
+/* <combine sack::image::BlotScaledImageSizedEx@Image@Image@int32_t@int32_t@uint32_t@uint32_t@int32_t@int32_t@uint32_t@uint32_t@uint32_t@uint32_t@...>
+   \ \                                                                                                       */
+#define BlotScaledImageSizedTo( pd, ps, xd, yd, wd, hd) BlotScaledImageSizedEx( pd, ps, xd, yd, wd, hd, 0, 0, (ps)->width, (ps)->height, 0, BLOT_COPY )
+/* <combine sack::image::BlotScaledImageSizedEx@Image@Image@int32_t@int32_t@uint32_t@uint32_t@int32_t@int32_t@uint32_t@uint32_t@uint32_t@uint32_t@...>
+   \ \                                                                                                       */
+#define BlotScaledImageSizedToAlpha( pd, ps, xd, yd, wd, hd, a) BlotScaledImageSizedEx( pd, ps, xd, yd, wd, hd, 0, 0, (ps)->width, (ps)->height, a, BLOT_COPY )
+/* <combine sack::image::BlotScaledImageSizedEx@Image@Image@int32_t@int32_t@uint32_t@uint32_t@int32_t@int32_t@uint32_t@uint32_t@uint32_t@uint32_t@...>
+   \ \                                                                                                       */
+#define BlotScaledImageSizedToShaded( pd, ps, xd, yd, wd, hd,shade) BlotScaledImageSizedEx( pd, ps, xd, yd, wd, hd, 0, 0, (ps)->width, (ps)->height, 0,BLOT_SHADED, shade )
+/* <combine sack::image::BlotScaledImageSizedEx@Image@Image@int32_t@int32_t@uint32_t@uint32_t@int32_t@int32_t@uint32_t@uint32_t@uint32_t@uint32_t@...>
+   \ \                                                                                                       */
+#define BlotScaledImageSizedToShadedAlpha( pd, ps, xd, yd, wd, hd,a,shade) BlotScaledImageSizedEx( pd, ps, xd, yd, wd, hd, 0, 0, (ps)->width, (ps)->height, a, BLOT_SHADED, shade )
+/* <combine sack::image::BlotScaledImageSizedEx@Image@Image@int32_t@int32_t@uint32_t@uint32_t@int32_t@int32_t@uint32_t@uint32_t@uint32_t@uint32_t@...>
+   \ \                                                                                                       */
+#define BlotScaledImageSizedToMultiShaded( pd, ps, xd, yd, wd, hd,r,g,b) BlotScaledImageSizedEx( pd, ps, xd, yd, wd, hd, 0, 0, (ps)->width, (ps)->height, 0,BLOT_MULTISHADE, r,g,b )
+/* <combine sack::image::BlotScaledImageSizedEx@Image@Image@int32_t@int32_t@uint32_t@uint32_t@int32_t@int32_t@uint32_t@uint32_t@uint32_t@uint32_t@...>
+   \ \                                                                                                       */
+#define BlotScaledImageSizedToMultiShadedAlpha( pd, ps, xd, yd, wd, hd,a,r,g,b) BlotScaledImageSizedEx( pd, ps, xd, yd, wd, hd, 0, 0, (ps)->width, (ps)->height, a,BLOT_MULTISHADE, r,g,b )
+/* <combine sack::image::BlotScaledImageSizedEx@Image@Image@int32_t@int32_t@uint32_t@uint32_t@int32_t@int32_t@uint32_t@uint32_t@uint32_t@uint32_t@...>
+   \ \                                                                                                       */
+#define BlotScaledImageAlpha( pd, ps, t ) BlotScaledImageSizedEx( pd, ps, 0, 0, (pd)->width, (pd)->height, 0, 0, (ps)->width, (ps)->height, t, BLOT_COPY )
+/* <combine sack::image::BlotScaledImageSizedEx@Image@Image@int32_t@int32_t@uint32_t@uint32_t@int32_t@int32_t@uint32_t@uint32_t@uint32_t@uint32_t@...>
+   \ \                                                                                                       */
+#define BlotScaledImageShadedAlpha( pd, ps, t, shade ) BlotScaledImageSizedEx( pd, ps, 0, 0, (pd)->width, (pd)->height, 0, 0, (ps)->width, (ps)->height, t, BLOT_SHADED, shade )
+/* <combine sack::image::BlotScaledImageSizedEx@Image@Image@int32_t@int32_t@uint32_t@uint32_t@int32_t@int32_t@uint32_t@uint32_t@uint32_t@uint32_t@...>
+   \ \                                                                                                       */
+#define BlotScaledImageMultiShadedAlpha( pd, ps, t, r, g, b ) BlotScaledImageSizedEx( pd, ps, 0, 0, (pd)->width, (pd)->height, 0, 0, (ps)->width, (ps)->height, t, BLOT_MULTISHADE, r, g, b )
+/* <combine sack::image::BlotScaledImageSizedEx@Image@Image@int32_t@int32_t@uint32_t@uint32_t@int32_t@int32_t@uint32_t@uint32_t@uint32_t@uint32_t@...>
+   \ \                                                                                                       */
+#define BlotScaledImage( pd, ps ) BlotScaledImageSizedEx( pd, ps, 0, 0, (pd)->width, (pd)->height, 0, 0, (ps)->width, (ps)->height, 0, BLOT_COPY )
+/* <combine sack::image::BlotScaledImageSizedEx@Image@Image@int32_t@int32_t@uint32_t@uint32_t@int32_t@int32_t@uint32_t@uint32_t@uint32_t@uint32_t@...>
+   \ \                                                                                                       */
+#define BlotScaledImageShaded( pd, ps, shade ) BlotScaledImageSizedEx( pd, ps, 0, 0, (pd)->width, (pd)->height, 0, 0, (ps)->width, (ps)->height, 0, BLOT_SHADED, shade )
+/* <combine sack::image::BlotScaledImageSizedEx@Image@Image@int32_t@int32_t@uint32_t@uint32_t@int32_t@int32_t@uint32_t@uint32_t@uint32_t@uint32_t@...>
+   \ \                                                                                                       */
+#define BlotScaledImageMultiShaded( pd, ps, r, g, b ) BlotScaledImageSizedEx( pd, ps, 0, 0, (pd)->width, (pd)->height, 0, 0, (ps)->width, (ps)->height, 0, BLOT_MULTISHADE, r, g, b )
+/* <combine sack::image::BlotScaledImageSizedEx@Image@Image@int32_t@int32_t@uint32_t@uint32_t@int32_t@int32_t@uint32_t@uint32_t@uint32_t@uint32_t@...>
+   \ \                                                                                                       */
+#define BlotScaledImageTo( pd, ps )  BlotScaledImageToEx( pd, ps, FALSE, BLOT_COPY )
+/* now why would we need an inverse line? I don't get it....
+   anyhow this would draw from the end to the start... basically
+   this accounts for rounding errors on the orward way.          */
+#define do_inv_line(pb,x,y,xto,yto,d) do_line( pb,y,x,yto,xto,d)
+/* <combine sack::image::PutCharacterFont@Image@int32_t@int32_t@CDATA@CDATA@TEXTCHAR@SFTFont>
+   \ \                                                                               */
+#define PutCharacter(i,x,y,fore,back,c)               PutCharacterFont(i,x,y,fore,back,c,NULL )
+/* <combine sack::image::PutCharacterVerticalFont@Image@int32_t@int32_t@CDATA@CDATA@TEXTCHAR@SFTFont>
+   Passes default font if not specified.                                                     */
+#define PutCharacterVertical(i,x,y,fore,back,c)       PutCharacterVerticalFont(i,x,y,fore,back,c,NULL )
+/* <combine sack::image::PutCharacterInvertFont@Image@int32_t@int32_t@CDATA@CDATA@TEXTCHAR@SFTFont>
+   \ \                                                                                     */
+#define PutCharacterInvert(i,x,y,fore,back,c)         PutCharacterInvertFont(i,x,y,fore,back,c,NULL )
+/* <combine sack::image::PutCharacterVerticalInvertFont@Image@int32_t@int32_t@CDATA@CDATA@TEXTCHAR@SFTFont>
+   \ \                                                                                             */
+#define PutCharacterInvertVertical(i,x,y,fore,back,c) PutCharacterInvertVerticalFont(i,x,y,fore,back,c,NULL )
+/* <combine sack::image::PutCharacterVerticalInvertFont@Image@int32_t@int32_t@CDATA@CDATA@TEXTCHAR@SFTFont>
+   \ \                                                                                             */
+#define PutCharacterInvertVerticalFont(i,x,y,fore,back,c,f) PutCharacterVerticalInvertFont(i,x,y,fore,back,c,f )
+/* <combine sack::image::PutStringFontEx@Image@int32_t@int32_t@CDATA@CDATA@CTEXTSTR@uint32_t@SFTFont>
+   \ \                                                                                  */
+#define PutString(pi,x,y,fore,back,pc) PutStringFontEx( pi, x, y, fore, back, pc, StrLen(pc), NULL )
+/* <combine sack::image::PutStringFontEx@Image@int32_t@int32_t@CDATA@CDATA@CTEXTSTR@uint32_t@SFTFont>
+   \ \                                                                                  */
+#define PutStringEx(pi,x,y,color,back,pc,len) PutStringFontEx( pi, x, y, color,back,pc,len,NULL )
+/* <combine sack::image::PutStringFontEx@Image@int32_t@int32_t@CDATA@CDATA@CTEXTSTR@uint32_t@SFTFont>
+   \ \                                                                                  */
+#define PutStringFont(pi,x,y,fore,back,pc,font) PutStringFontEx(pi,x,y,fore,back,pc,StrLen(pc), font )
+/* <combine sack::image::PutStringVerticalFontEx@Image@int32_t@int32_t@CDATA@CDATA@CTEXTSTR@uint32_t@SFTFont>
+   \ \                                                                                          */
+#define PutStringVertical(pi,x,y,fore,back,pc) PutStringVerticalFontEx( pi, x, y, fore, back, pc, StrLen(pc), NULL )
+/* <combine sack::image::PutStringVerticalFontEx@Image@int32_t@int32_t@CDATA@CDATA@CTEXTSTR@uint32_t@SFTFont>
+   \ \                                                                                          */
+#define PutStringVerticalEx(pi,x,y,color,back,pc,len) PutStringVerticalFontEx( pi, x, y, color,back,pc,len,NULL )
+/* <combine sack::image::PutStringVerticalFontEx@Image@int32_t@int32_t@CDATA@CDATA@CTEXTSTR@uint32_t@SFTFont>
+   \ \                                                                                          */
+#define PutStringVerticalFont(pi,x,y,fore,back,pc,font) PutStringVerticalFontEx(pi,x,y,fore,back,pc,StrLen(pc), font )
+/* <combine sack::image::PutStringInvertFontEx@Image@int32_t@int32_t@CDATA@CDATA@CTEXTSTR@uint32_t@SFTFont>
+   \ \                                                                                        */
+#define PutStringInvert( pi, x, y, fore, back, pc ) PutStringInvertFontEx( pi, x, y, fore, back, pc,StrLen(pc), NULL )
+/* <combine sack::image::PutStringInvertFontEx@Image@int32_t@int32_t@CDATA@CDATA@CTEXTSTR@uint32_t@SFTFont>
+   \ \                                                                                        */
+#define PutStringInvertEx( pi, x, y, fore, back, pc, nLen ) PutStringInvertFontEx( pi, x, y, fore, back, pc, nLen, NULL )
+/* <combine sack::image::PutStringInvertFontEx@Image@int32_t@int32_t@CDATA@CDATA@CTEXTSTR@uint32_t@SFTFont>
+   The non Ex Version doesn't pass the string length.                                         */
+#define PutStringInvertFont( pi, x, y, fore, back, pc, nLen ) PutStringInvertFontEx( pi, x, y, fore, back, pc, StrLen(pc), font )
+/* <combine sack::image::PutStringInvertVerticalFontEx@Image@int32_t@int32_t@CDATA@CDATA@CTEXTSTR@uint32_t@SFTFont>
+   \ \                                                                                                */
+#define PutStringInvertVertical( pi, x, y, fore, back, pc ) PutStringInvertVerticalFontEx( pi, x, y, fore, back, pc, StrLen(pc), NULL )
+/* <combine sack::image::PutStringInvertVerticalFontEx@Image@int32_t@int32_t@CDATA@CDATA@CTEXTSTR@uint32_t@SFTFont>
+   \ \                                                                                                */
+#define PutStringInvertVerticalEx( pi, x, y, fore, back, pc, nLen ) PutStringInvertVerticalFontEx( pi, x, y, fore, back, pc, nLen, NULL )
+/* <combine sack::image::PutStringInvertVerticalFontEx@Image@int32_t@int32_t@CDATA@CDATA@CTEXTSTR@uint32_t@SFTFont>
+   \ \                                                                                                */
+#define PutStringInvertVerticalFont( pi, x, y, fore, back, pc, font ) PutStringInvertVerticalFontEx( pi, x, y, fore, back, pc, StrLen(pc), font )
+//IMG_PROC uint32_t PutMenuStringFontEx        ( ImageFile *pImage, int32_t x, int32_t y, CDATA color, CDATA background, CTEXTSTR pc, uint32_t nLen, PFONT font );
+//#define PutMenuStringFont(img,x,y,fore,back,string,font) PutMenuStringFontEx( img,x,y,fore,back,string,StrLen(string),font)
+//#define PutMenuString(img,x,y,fore,back,str)           PutMenuStringFont(img,x,y,fore,back,str,NULL)
+//
+//IMG_PROC uint32_t PutCStringFontEx           ( ImageFile *pImage, int32_t x, int32_t y, CDATA color, CDATA background, CTEXTSTR pc, uint32_t nLen, PFONT font );
+//#define PutCStringFont(img,x,y,fore,back,string,font) PutCStringFontEx( img,x,y,fore,back,string,StrLen(string),font)
+//#define PutCString( img,x,y,fore,back,string) PutCStringFont(img,x,y,fore,back,string,NULL )
+/* <combine sack::image::GetStringSizeFontEx@CTEXTSTR@uint32_t@uint32_t *@uint32_t *@SFTFont>
+   \ \                                                                      */
+#define GetStringSizeEx(s,len,pw,ph) GetStringSizeFontEx( (s),len,pw,ph,NULL)
+/* <combine sack::image::GetStringSizeFontEx@CTEXTSTR@size_t@uint32_t *@uint32_t *@SFTFont>
+   \ \                                                                         */
+#define GetStringSize(s,pw,ph)       GetStringSizeFontEx( (s),StrLen(s),pw,ph,NULL)
+/* <combine sack::image::GetStringSizeFontEx@CTEXTSTR@uint32_t@uint32_t *@uint32_t *@SFTFont>
+   \ \                                                                      */
+#define GetStringSizeFont(s,pw,ph,f) GetStringSizeFontEx( (s),StrLen(s),pw,ph,f )
+#ifdef __cplusplus
+IMAGE_NAMESPACE_END
+#ifdef _D3D_DRIVER
+using namespace sack::image::d3d;
+#elif defined( _D3D10_DRIVER )
+using namespace sack::image::d3d10;
+#elif defined( _D3D11_DRIVER )
+using namespace sack::image::d3d11;
+#else
+using namespace sack::image;
+#endif
+#endif
+#endif
+/*   */
+#ifndef __NO_INTERFACES__
+   // for interface, can omit if no interfaces
+#endif
+#ifndef __NO_MSGSVR__
+  // for interface across the message service
+#ifndef MESSAGE_SERVICE_PROTOCOL
+#define MESSAGE_SERVICE_PROTOCOL
+#ifdef __cplusplus
+using namespace sack;
+#endif
+#ifdef __cplusplus
+#define _MSG_NAMESPACE  namespace msg {
+#define _PROTOCOL_NAMESPACE namespace protocol {
+#define MSGPROTOCOL_NAMESPACE namespace sack { _MSG_NAMESPACE _PROTOCOL_NAMESPACE
+#define MSGPROTOCOL_NAMESPACE_END }} }
+#else
+#define _MSG_NAMESPACE
+#define _PROTOCOL_NAMESPACE
+#define MSGPROTOCOL_NAMESPACE
+#define MSGPROTOCOL_NAMESPACE_END
+#endif
+SACK_NAMESPACE
+	/* This namespace contains an implmentation of inter process
+	   communications using a set of message queues which result
+	   from 'msgget' 'msgsnd' and 'msgrcv'. This are services
+	   available under a linux kernel. Reimplemented a version to
+	   service for windows. This is really a client/service
+	   registration and message routing system, it is not the
+	   message queue itself. See <link sack::containers::message, message>
+	   for the queue implementation (again, under linux, does not
+	   use this custom queue).
+	   See Also
+	   RegisterService
+	   LoadService                                                         */
+	_MSG_NAMESPACE
+/* Defines structures and methods for receiving and sending
+	   messages. Also defines some utility macros for referencing
+		message ID from a user interface structure.                */
+	_PROTOCOL_NAMESPACE
+#define MSGQ_ID_BASE "Srvr"
+// this is a fun thing, in order to use it,
+// undefine MyInterface, and define your own to your
+// library's interface structure name (the tag of the structure)
+#define MSG_ID(method)  BASE_MESSAGE_ID,( ( offsetof( struct MyInterface, _##method ) / sizeof( void(*)(void) ) ) +  MSG_EventUser )
+#define MSG_OFFSET(method)  ( ( offsetof( struct MyInterface, _##method ) / sizeof( void(*)(void) ) ) + MSG_EventUser )
+#define INTERFACE_METHOD(type,name) type (CPROC*_##name)
+// this is the techincal type of SYSV IPC MSGQueues
+#define MSGIDTYPE long
+#ifdef __64__
+#  ifdef __LINUX__
+#    define _MsgID_f  _64fs
+#  else
+#    define _MsgID_f  _32fs
+#  endif
+#else
+#  define _MsgID_f  _32fs
+#endif
+// this will determine the length of parameter list
+// based on the first and last parameters.
+#define ParamLength( first, last ) ( ((uintptr_t)((&(last))+1)) - ((uintptr_t)(&(first))) )
+#ifdef _MSC_VER
+#pragma pack (push, 1)
+#endif
+typedef PREFIX_PACKED struct buffer_len_tag {
+	CPOINTER buffer;
+	size_t len;
+} PACKED BUFFER_LENGTH_PAIR;
+#ifdef _MSC_VER
+#pragma pack (pop)
+#endif
+// Dispach Pending - particularly display mouse event messages
+//                   needed to be accumulated before being dispatched
+//                   this event is generated when no more messages
+//                   have been received.
+#define MSG_EventDispatchPending   0
+#define MSG_DispatchPending   MSG_EventDispatchPending
+// these are event message definitions.
+// server events come through their function table, clients
+// register an event handler... these are low numbered since
+// they are guaranteed from the client/server respectively.
+// Mate ended - for the client, this means that the server
+//              has become defunct.  For the server, this
+//              means that a client is no longer present.
+//              also issued when a client volentarily leaves
+//              which in effect is the same as being discovered gone.
+//    param[0] = Process ID of client disconnecting
+//  result_length = INVALID_INDEX - NO RESULT DATA, PLEASE!
+#define MSG_MateEnded         MSG_ServiceUnload
+#define MSG_ServiceUnload     0
+//#define MSG_ServiceClose    MSG_ServiceUnload
+//#define MSG_ServiceUnload        MSG_MateEnded
+// finally - needed to define a way for the service
+// to actually know when a client connects... so that
+// it may validate commands as being froma good source.
+// also, a multiple service server may want this to know which
+// service is being loaded.
+//     params + 0 = text string of the service to load
+//  on return result[1] is the number of messages this routine
+//  expects.
+//     result[0] is the number of events this service may generate
+#define MSG_MateStarted      1
+#define MSG_ServiceLoad      MSG_MateStarted
+// Service is about to be unloaded - here's a final chance to
+// cleanup before being yanked from existance.
+// Last reference to the service is now gone, going to do the unload.
+#define MSG_UndefinedMessage2      2
+// no defined mesasage fo this
+#define MSG_UndefinedMessage3       3
+// Other messages may be filled in here...
+// skip a couple messages so we don't have to recompile everything
+// very soon...
+#define MSG_EventUser       MSG_UserServiceMessages
+#define MSG_UserServiceMessages 16
+// skip a couple messages so we don't have to recompile everything
+// very soon...
+#define MSG_EventInternal       MSG_InternalServiceMessages
+#define MSG_InternalServiceMessages 4
+enum server_event_messages {
+	// these messages are sent to client's event channel
+	// within the space of core service requests (0-256?)
+	// it's on top of client event user - cause the library
+	// may also receive client_disconnect/connect messages
+   //
+	MSG_SERVICE_DATA = MSG_EventInternal
+ // end of list - zero or more MSG_SERVICE_DATA mesasges will preceed this.
+      , MSG_SERVICE_NOMORE
+	, MSG_SERVICE_MAX_ID
+};
+enum server_failure_messages {
+	CLIENT_UNKNOWN
+									  , MESSAGE_UNKNOWN
+ // sending server(sourced) messages to server
+									  , MESSAGE_INVALID
+ // could not find a service for the message.
+									  , SERVICE_UNKNOWN
+									  , UNABLE_TO_LOAD
+};
+enum service_messages {
+ // no message ID 0 ever.
+	INVALID_MESSAGE  = 0
+ // server responce to clients - failure
+							 , SERVER_FAILURE   = 0x80000000
+							 // failure may result for the above reasons.
+ // server responce to clients - success
+							 , SERVER_SUCCESS   = 0x40000000
+ // server needs more time to complete...
+							 , SERVER_NEED_TIME = 0x20000000
+ // server had no method to process the message
+							 , SERVER_UNHANDLED = 0x10000000
+ // client requests a service (load by name)
+							 , CLIENT_LOAD_SERVICE = 1
+ // client no longer needs a service (unload msgbase)
+							 , CLIENT_UNLOAD_SERVICE
+       // new client wants to connect
+							 , CLIENT_CONNECT
+    // client disconnects (no responce)
+							 , CLIENT_DISCONNECT
+             // server/client message to other requesting status
+							 , RU_ALIVE
+             // server/client message to other responding status
+							 , IM_ALIVE
+ // client register service (name, serivces, callback table.)
+							 , CLIENT_REGISTER_SERVICE
+ // client requests a list of services (optional param partial filter?)
+                      , CLIENT_LIST_SERVICES
+   // Service needs more time, and passes back a millisecond delay-reset
+                      , IM_TARDY
+};
+#define LOWEST_BASE_MESSAGE 0x100
+typedef struct ServiceRoute_tag SERVICE_ROUTE;
+typedef struct ServiceRoute_tag *PSERVICE_ROUTE;
+typedef struct ServiceEndPoint_tag SERVICE_ENDPOINT, *PSERVICE_ENDPOINT;
+// this is part of the message structure
+//
+// this structure is avaialble at ((PSERVICE_ROUTE)(((uint32_t*)params)-1)[-1])
+// (to explain that, the first uint32_t back is the MsgID... to get JUST the route tag
+//  have to go back one Dword then back a service_route struct...
+#ifdef _MSC_VER
+#pragma pack (push, 1)
+#endif
+PREFIX_PACKED struct ServiceEndPoint_tag
+{
+   // remote process ID
+	MSGIDTYPE process_id;
+   // service (either served or connected as client) remote id
+	MSGIDTYPE service_id;
+}PACKED;
+PREFIX_PACKED struct ServiceRoute_tag
+{
+   SERVICE_ENDPOINT dest;
+	//MSGIDTYPE process_id;   // remote process ID
+   //MSGIDTYPE service_id;   // service (either served or connected as client) remote id
+   SERVICE_ENDPOINT source;
+   //uint32_t source_process_id; // need this defined here anyway; so this can be used in receivers
+	//uint32_t source_service_id;  // the service this is connected to, or is a connection for local ID
+}PACKED;
+#ifdef _MSC_VER
+#pragma pack (pop)
+#endif
+#define GetServiceRoute(data)   ((PSERVICE_ROUTE)(((uint32_t*)data)-1)-1)
+// server functions will return TRUE if no failure
+// server functions will return FALSE on failure
+// FAILURE or SUCCESS will be returned to the client,
+//   along with any result data set.
+// native mode (unspecified... one would assume
+// stack passing, but the world is bizarre and these are
+// probably passed by registers.
+typedef int (CPROC *server_message_handler)( PSERVICE_ROUTE SourceRouteID, uint32_t MsgID
+														 , uint32_t *params, size_t param_length
+														 , uint32_t *result, size_t *result_length );
+typedef int (CPROC *server_message_handler_ex)( uintptr_t psv
+															 , PSERVICE_ROUTE SourceRouteID, uint32_t MsgID
+															 , uint32_t *params, size_t param_length
+															 , uint32_t *result, size_t *result_length );
+// params[-1] == Source Process ID
+// params[-2] == Source Route ID
+typedef int (CPROC *server_function)( PSERVICE_ROUTE route, uint32_t *params, size_t param_length
+										 , uint32_t *result, size_t *result_length );
+typedef struct server_function_entry_tag{
+#if defined( _DEBUG ) || defined( _DEBUG_INFO )
+	CTEXTSTR name;
+#endif
+	server_function function;
+} SERVER_FUNCTION;
+#if defined( _DEBUG ) || defined( _DEBUG_INFO )
+#define ServerFunctionEntry(name) { #name, name }
+#else
+#define ServerFunctionEntry(name) { name }
+#endif
+typedef SERVER_FUNCTION *server_function_table;
+// MsgID will be < MSG_EventUser if it's a system message...
+// MsgID will be service msgBase + Remote ID...
+//    so the remote needs to specify a unique base... so ...
+//    entries must still be used...
+typedef int (CPROC*EventHandlerFunction)( MSGIDTYPE MsgID, uint32_t*params, size_t paramlen);
+typedef int (CPROC*EventHandlerFunctionEx)( PSERVICE_ROUTE SourceID, MSGIDTYPE MsgID, uint32_t*params, size_t paramlen);
+typedef int (CPROC*EventHandlerFunctionExx)( uintptr_t psv, PSERVICE_ROUTE SourceID, MSGIDTYPE MsgID
+														 , uint32_t*params, size_t paramlen);
+// result of EventHandlerFunction shall be one fo the following values...
+//   EVENT_HANDLED
+// 0 - no futher action required
+//   EVENT_WAIT_DISPATCH
+// 1 - when no further events are available, please send event_dispatched.
+//     this Event was handled by an internal queuing for later processing.
+enum EventResult {
+	EVENT_HANDLED = 0,
+	EVENT_WAIT_DISPATCH = 1
+};
+//------------------- Begin Server Message Structs ----------------
+#ifdef _MSC_VER
+#pragma pack (push, 1)
+#endif
+typedef struct MsgSvr_RegisterRequest_msg MsgSvr_RegisterRequest;
+PREFIX_PACKED struct MsgSvr_RegisterRequest_msg
+{
+	MSGIDTYPE RouteID;
+  // service_id...
+   MSGIDTYPE ClientID;
+}PACKED;
+typedef struct MsgSrv_ReplyServiceLoad_msg MsgSrv_ReplyServiceLoad;
+PREFIX_PACKED struct MsgSrv_ReplyServiceLoad_msg
+{
+	MSGIDTYPE ServiceID;
+ // if this is a local service, it's dispatched this way?
+	THREAD_ID thread;
+}PACKED;
+#ifdef _MSC_VER
+#pragma pack (pop)
+#endif
+MSGPROTOCOL_NAMESPACE_END
+#ifdef __cplusplus
+using namespace sack::msg::protocol;
+#endif
+#endif
+#endif
+#ifndef SECOND_RENDER_LEVEL
+#define SECOND_RENDER_LEVEL
+#define PASTE(sym,name) name
+#else
+#define PASTE2(sym,name) sym##name
+#define PASTE(sym,name) PASTE2(sym,name)
+#endif
+#ifdef USE_API_ALIAS_PREFIX
+#  define RVER(n)   IMGVER_(USE_API_ALIAS_PREFIX,n)
+#else
+#  define RVER(n)   n
+#endif
+#        ifdef RENDER_LIBRARY_SOURCE
+#           define RENDER_PROC(type,name) EXPORT_METHOD type CPROC PASTE(SECOND_RENDER_LEVEL,RVER(name))
+#        else
+#           define RENDER_PROC(type,name) IMPORT_METHOD type CPROC PASTE(SECOND_RENDER_LEVEL,RVER(name))
+#        endif
+SACK_NAMESPACE
+/* <copy render.h>
+   \ \             */
+BASE_IMAGE_NAMESPACE
+/* PRENDERER is the primary object this namespace deals with.
+   See Also
+   <link render.h>                                            */
+_RENDER_NAMESPACE
+/* Application layer abstract structure to handle displays. This
+ is the type returned by OpenDisplay.                          */
+typedef struct HVIDEO_tag *PRENDERER;
+typedef struct key_function  KEY_FUNCTION;
+typedef struct key_function *PKEY_FUNCTION;
+// disable this functionality, it was never fully implemented, and is a lot to document.
+#if ACTIVE_MESSAGE_IMPLEMENTED
+// Message IDs 0-99 are reserved for
+// very core level messages.
+// Message IDs 100-999 are for general purpose window input/output
+// Message ID 1000+ Usable by applications to transport messages via
+//                  the image's default message loop.
+enum active_msg_id {
+    // Message ID 0 - contains a active image to respond to
+   ACTIVE_MSG_PING
+    // Message ID 0 - contains a active image to respond to
+   , ACTIVE_MSG_PONG
+   , ACTIVE_MSG_MOUSE = 100
+   , ACTIVE_MSG_GAIN_FOCUS
+   , ACTIVE_MSG_LOSE_FOCUS
+   , ACTIVE_MSG_DRAG
+   , ACTIVE_MSG_KEY
+   , ACTIVE_MSG_DRAW
+   , ACTIVE_MSG_CREATE
+   , ACTIVE_MSG_DESTROY
+   , ACTIVE_MSG_USER = 1000
+};
+typedef struct {
+   enum active_msg_id ID;
+ // the size of the cargo potion of the message. (mostly data.raw)
+   uint32_t  size;
+   union {
+  //--------------------
+      struct {
+         PRENDERER respondto;
+      } ping;
+  //--------------------
+      struct {
+         int x, y, b;
+      } mouse;
+  //--------------------
+      struct {
+         PRENDERER lose;
+      } gain_focus;
+  //--------------------
+      struct {
+         PRENDERER gain;
+      } lose_focus;
+  //--------------------
+      struct {
+         uint8_t no_informaiton;
+      } draw;
+  //--------------------
+      struct {
+         uint8_t no_informaiton;
+      } close;
+  //--------------------
+      struct {
+         uint8_t no_informaiton;
+      } create;
+  //--------------------
+      struct {
+         uint8_t no_informaiton;
+      } destroy;
+  //--------------------
+      struct {
+         uint32_t key;
+      } key;
+  //--------------------
+      uint8_t raw[1];
+   } data;
+} ACTIVEMESSAGE, *PACTIVEMESSAGE;
+#endif
+// Event Message ID's CANNOT be 0
+// Message Event ID (base+0) is when the
+// server teriminates, and ALL client resources
+// are lost.
+// Message Event ID (base+1) is when the
+// final message has been received, and any
+// pending events collected should be dispatched.
+#ifndef __NO_MSGSVR__
+enum {
+   /* These are internal messages to pass to the display handling
+    thread. most are unimplemented.                             */
+ MSG_CloseMethod = MSG_EventUser,
+  /* These are internal messages to pass to the display handling
+    thread. most are unimplemented.                             */
+ MSG_RedrawMethod
+ ,
+ /* These are internal messages to pass to the display handling
+    thread. most are unimplemented.                             */
+ MSG_MouseMethod
+ ,
+ /* These are internal messages to pass to the display handling
+    thread. most are unimplemented.                             */
+ MSG_LoseFocusMethod
+ ,
+ /* These are internal messages to pass to the display handling
+    thread. most are unimplemented.                             */
+ MSG_KeyMethod
+ ,
+ /* These are internal messages to pass to the display handling
+    thread. most are unimplemented.                             */
+ MSG_GeneralMethod
+ ,
+ /* These are internal messages to pass to the display handling
+    thread. most are unimplemented.                             */
+ MSG_RedrawFractureMethod
+ ,
+ /* These are internal messages to pass to the display handling
+    thread. most are unimplemented.                             */
+ MSG_ThreadEventPost
+};
+#endif
+#ifdef __WATCOMC__
+#if ( __WATCOMC__ < 1291 )
+#define NO_TOUCH
+#endif
+#endif
+#ifndef WIN32
+#define NO_TOUCH
+#endif
+#if defined( __LINUX__ )
+#define NO_TOUCH
+#endif
+#if defined( __ANDROID__ )
+// definately IS touch
+#undef NO_TOUCH
+#define MINGW_SUX
+#endif
+// static void OnBeginShutdown( "Unique Name" )( void ) { /* run shutdown code */ }
+#define OnBeginShutdown(name)	 DefineRegistryMethod("SACK",BeginShutdown,"System","Begin Shutdown",name "_begin_shutdown",void,(void),__LINE__)
+/* function signature for the close callback  which can be specified to handle events to close the display.  see SetCloseHandler. */
+typedef void (CPROC*CloseCallback)( uintptr_t psvUser );
+/* function signature to define hide/restore callback, it just gets the user data of the callback... */
+typedef void (CPROC*HideAndRestoreCallback)( uintptr_t psvUser );
+/* function signature for the redraw callback  which can be specified to handle events to redraw the display.  see SetRedrawHandler. */
+typedef void (CPROC*RedrawCallback)( uintptr_t psvUser, PRENDERER self );
+/* function signature for the mouse callback  which can be specified to handle events from mouse motion on the display.  see SetMouseHandler.
+  would be 'wise' to retun 0 if ignored, 1 if observed (perhaps not used), but NOT ignored.*/
+typedef uintptr_t  (CPROC*MouseCallback)( uintptr_t psvUser, int32_t x, int32_t y, uint32_t b );
+typedef struct input_point
+{
+   //
+	RCOORD x, y;
+	struct {
+  // set on first down, clear on subsequent events
+		BIT_FIELD new_event : 1;
+ // set on first up, clear on first down,
+		BIT_FIELD end_event : 1;
+	} flags;
+} *PINPUT_POINT;
+#ifndef NO_TOUCH
+#if defined( MINGW_SUX )
+/*
+ * Touch input mask values (TOUCHINPUT.dwMask)
+ */
+  // the dwTime field contains a system generated value
+#define TOUCHINPUTMASKF_TIMEFROMSYSTEM  0x0001
+  // the dwExtraInfo field is valid
+#define TOUCHINPUTMASKF_EXTRAINFO       0x0002
+  // the cxContact and cyContact fields are valid
+#define TOUCHINPUTMASKF_CONTACTAREA     0x0004
+#ifndef __ANDROID__
+typedef HANDLE HTOUCHINPUT;
+#endif
+#define WM_TOUCH 0x0240
+#define TWF_FINETOUCH 0x00000001
+#define TWF_WANTPALM 0x00000002
+#endif
+ // added to flags as touches are used.  Controls may use some of the touches but not all.
+#define TOUCHEVENTF_USED 0x8000
+/* function signature for the touch callback  which can be specified to handle events from touching the display.  see SetMouseHandler.
+  would be 'wise' to retun 0 if ignored, 1 if observed (perhaps not used), but NOT ignored.  Return 1 if some of the touches are used.
+  This will trigger a check to see if there are unused touches to continue sending... oh but on renderer there's only one callback, more
+  important as a note of the control touch event handerer.
+  */
+typedef int  (CPROC*TouchCallback)( uintptr_t psvUser, PINPUT_POINT pTouches, int nTouches );
+#endif
+/* function signature for the close callback  which can be specified to handle events to redraw the display.  see SetLoseFocusHandler. */
+typedef void (CPROC*LoseFocusCallback)( uintptr_t dwUser, PRENDERER pGain );
+// without a keyproc, you will still get key notification in the mousecallback
+// if KeyProc returns 0 or is NULL, then bound keys are checked... otherwise
+// priority is given to controls with focus that handle keys.
+typedef int (CPROC*KeyProc)( uintptr_t dwUser, uint32_t keycode );
+// without any other proc, you will get a general callback message.
+#if ACTIVE_MESSAGE_IMPLEMENTED
+typedef void (CPROC*GeneralCallback)( uintptr_t psvUser
+                                     , PRENDERER image
+												, PACTIVEMESSAGE msg );
+#endif
+typedef void (CPROC*RenderReadCallback)(uintptr_t psvUser, PRENDERER pRenderer, TEXTSTR buffer, INDEX len );
+// called before redraw callback to update the background on the scene...
+typedef void (CPROC*_3DUpdateCallback)( uintptr_t psvUser );
+// callback type for clipborad event reception.
+typedef void (CPROC*ClipboardCallback)(uintptr_t psvUser);
+//----------------------------------------------------------
+//   Mouse Button definitions
+//----------------------------------------------------------
+// the prefix of these may either be interpreted as MAKE - as in
+// a make/break state of a switch.  Or may be interpreted as
+// MouseKey.... such as KB_ once upon a time stood for KeyBoard,
+// and not Keebler as some may have suspected.
+enum ButtonFlags {
+#ifndef MK_LBUTTON
+ // left mouse button  MouseKey_ ?
+	MK_LBUTTON = 0x01,
+#endif
+#ifndef MK_MBUTTON
+  // right mouse button MouseKey_ ?
+	MK_RBUTTON = 0x02,
+#endif
+#ifndef MK_RBUTTON
+  // middle mouse button MouseKey_ ?
+	MK_MBUTTON = 0x10,
+#endif
+#ifndef MK_CONTROL
+  // the control key on the keyboard
+  MK_CONTROL = 0x08,
+#endif
+#ifndef MK_ALT
+   // the alt key on the keyboard
+  MK_ALT = 0x20,
+#endif
+#ifndef MK_SHIFT
+   // the shift key on the keyboard
+  MK_SHIFT = 0x40,
+#endif
+  // scroll wheel click down
+  MK_SCROLL_DOWN  = 0x100,
+  // scroll wheel click up
+  MK_SCROLL_UP    = 0x200,
+  // scroll wheel click left
+  MK_SCROLL_LEFT  = 0x400,
+  // scroll wheel click right
+  MK_SCROLL_RIGHT = 0x800,
+#ifndef MK_NO_BUTTON
+// used to indicate that there is
+// no known button information available.  The mouse
+// event which triggered this was beyond the realm of
+// this mouse handler, but it is entitled to know that
+// it now knows nothing.
+  MK_NO_BUTTON = 0xFFFFFFFF,
+#endif
+// this bit will NEVER NEVER NEVER be set
+// for ANY reason whatsoever. ( okay except when it's in MK_NO_BUTTON )
+  MK_INVALIDBUTTON = 0x80000000,
+// One or more other buttons were pressed.  These
+// buttons are available by querying the keyboard state.
+ // any other button (keyboard)
+  MK_OBUTTON = 0x80,
+ // any other button (keyboard) went up
+  MK_OBUTTON_UP = 0x1000
+};
+// mask to test to see if some button (physical mouse, not logical)
+// is currently pressed...
+#define MK_SOMEBUTTON       (MK_LBUTTON|MK_RBUTTON|MK_MBUTTON)
+// test to see if any button is clicked */
+#define MAKE_SOMEBUTTONS(b)     ((b)&(MK_SOMEBUTTON))
+// test to see if a specific button is clicked
+#define BUTTON_STILL_DOWN(b,button)     ((b)&(button))
+// test a button variable to see if no buttons are currently pressed
+// NOBUTTON, NOBUTTONS may be confusing, consider renaming these....
+#define MAKE_NOBUTTONS(b)     ( !((b) & MK_SOMEBUTTON ) )
+// break of some button
+#define BREAK_NEWBUTTON(b,_b) ((((b)^(_b))&(_b))&MK_SOMEBUTTON)
+// break a specific button (the last up of the button)
+#define BREAK_A_BUTTON(b,_b,button) ((((b)^(_b))&(_b))&(button))
+// make of some button (the first down of a button)
+#define MAKE_NEWBUTTON(b,_b) ((((b)^(_b))&(b))&MK_SOMEBUTTON)
+// make a specific button (the first down of the button)
+#define MAKE_A_BUTTON(b,_b,button) ((((b)^(_b))&(b))&(button))
+// test current b vs prior _b to see if the  last button pressed is
+// now not pressed...
+#define BREAK_LASTBUTTON(b,_b)  ( BREAK_NEWBUTTON(b,_b) && MAKE_NOBUTTONS(b) )
+// test current b vs prior _b to see if there is now some button pressed
+// when previously there were no buttons pressed...
+#define MAKE_FIRSTBUTTON(b,_b) ( MAKE_NEWBUTTON(b,_b) && MAKE_NOBUTTONS(_b) )
+// these button states may reflect the current
+// control, alt, shift key states.  There may be further
+// definitions (meta?) And as of the writing of this comment
+// these states may not be counted on, if you care about these
+// please do validate that the code gives them to you all the way
+// from the initial mouse message through all layers to the final
+// application handler.
+enum sizeDisplayValues {
+	wrsdv_one  = 0,
+	wrsdv_top = 1,
+	wrsdv_bottom = 2,
+	wrsdv_left = 4,
+	wrsdv_right = 8,
+};
+//----------------------------------------------------------
+enum DisplayAttributes {
+   /* when used by the Display Lib manager, this describes how to manage the subsurface */
+  PANEL_ATTRIBUTE_ALPHA    = 0x10000,
+   /* when used by the Display Lib manager, this describes how to manage the subsurface */
+  PANEL_ATTRIBUTE_HOLEY    = 0x20000,
+// when used by the Display Lib manager, this describes how to manage the subsurface
+// focus on this window excludes any of it's parent/sibling panels
+// from being able to focus.
+  PANEL_ATTRIBUTE_EXCLUSIVE = 0x40000,
+// when used by the Display Lib manager, this describes how to manage the subsurface
+// child attribute affects the child is contained within this parent
+  PANEL_ATTRIBUTE_INTERNAL  = 0x88000,
+    // open the window as layered - allowing full transparency.
+  DISPLAY_ATTRIBUTE_LAYERED = 0x0100,
+    // window will not be in alt-tab list
+  DISPLAY_ATTRIBUTE_CHILD = 0x0200,
+    // set to WS_EX_TRANSPARENT - all mouse is passed, regardless of alpha/shape
+  DISPLAY_ATTRIBUTE_NO_MOUSE = 0x0400,
+    // when created, the display does not attempt to set itself into focus, otherwise we try to focus self.
+  DISPLAY_ATTRIBUTE_NO_AUTO_FOCUS = 0x0800,
+  // when created, set topmost as soon as possible
+  DISPLAY_ATTRIBUTE_TOPMOST = 0x1000,
+};
+ // does not HAVE to be called but may
+    RENDER_PROC( int , InitDisplay) (void);
+	 // this generates a mouse event though the mouse system directly
+    // there is no queuing, and the mouse is completed before returning.
+    RENDER_PROC( void, GenerateMouseRaw)( int32_t x, int32_t y, uint32_t b );
+	 /* Create mouse events to self?
+	    Parameters
+	    x :  x of the mouse
+	    y :  y of the mouse
+	    b :  buttons of the mouse    */
+	 RENDER_PROC( void, GenerateMouseDeltaRaw )( int32_t x, int32_t y, uint32_t b );
+    /* Sets the title of the application window. Once upon a time,
+       applications only were able to make a SINGLE window. Internally,
+       all windows are mounted against a hidden application window,
+       and this appilcation window gets the title.
+       Parameters
+       title :  Title for the application                               */
+    RENDER_PROC( void , SetApplicationTitle) (const TEXTCHAR *title );
+    /* Sets the title of the window (shows up in windows when
+       alt-tabbing). Also shows up on the task tray icon (if there
+       is one)
+       Parameters
+       render :  display to set the title of
+       title :   new text for the title.                           */
+    RENDER_PROC( void , SetRendererTitle) ( PRENDERER render, const TEXTCHAR *title );
+    /* Sets the icon to show for the application's window.
+       Parameters
+       Icon :  this really has to be an HICON I think... it's for
+               setting the icon on Windows' windows.              */
+    RENDER_PROC( void , SetApplicationIcon)  (Image Icon);
+    /* Gets the size of the default desktop screen.
+       Parameters
+       width :   pointer to a 32 value for the display's width.
+       height :  pointer to a 32 value for the display's height.
+       Example
+       <code lang="c++">
+       uint32_t w, h;
+       GetDisplaySize( &amp;w, &amp;h );
+       </code>
+       See Also
+       <link sack::image::render::GetDisplaySizeEx@int@int32_t *@int32_t *@uint32_t *@uint32_t *, GetDisplaySizeEx> */
+    RENDER_PROC( void , GetDisplaySize)      ( uint32_t *width, uint32_t *height );
+	 /* \	     Parameters
+	    nDisplay :  display to get the coordinates of. 0 is the
+	                default display from GetDesktopWindow(). 1\-n are
+	                displays for multiple display systems, 1,2,3,4
+	                etc..
+	    x :         left screen coordinate of this display
+	    y :         top screen coordinate of this display
+	    width :     how wide this display is
+	    height :    how tall this display is
+	    Example
+	    <code lang="c#">
+	    int32_t x, y;
+	    uint32_t w, h;
+	    GetDisplaySizeEx( 1, &amp;x, &amp;y, &amp;w, &amp;h );
+	    </code>                                                       */
+	 RENDER_PROC (void, GetDisplaySizeEx) ( int nDisplay
+													  , int32_t *x, int32_t *y
+													  , uint32_t *width, uint32_t *height);
+    /* Sets the first displayed physical window to a certain size. This
+       should actually adjust the screen size. Like GetDisplaySize
+       \returns the size of the actual display, this should set the
+       size of the actual display.
+       Parameters
+       width :   new width of the screen
+       height :  new height of the screen.                              */
+    RENDER_PROC( void , SetDisplaySize)      ( uint32_t width, uint32_t height );
+#ifdef WIN32
+    /* Enable logging when updates happen to the real display.
+       Parameters
+       bEnable :  TRUE to enable, FALSE to disable.            */
+    RENDER_PROC (void, EnableLoggingOutput)( LOGICAL bEnable );
+	 /* A method to promote any arbitrary HWND to a PRENDERER. This
+	    can be used to put SACK display surfaces in .NET
+	    applications.
+	    Parameters
+	    hWnd :  HWND to make into a renderer.
+	    Returns
+	    PRENDERER new renderer that uses HWND to update to.         */
+	 RENDER_PROC (PRENDERER, MakeDisplayFrom) (HWND hWnd);
+#endif
+    /* This opens a display for output. It is opened hidden, so the
+       application might draw to its surface before it is shown.
+       This is not the most capable creation routine, but it is the
+       most commonly aliased.
+       Parameters
+       attributes :  one or more <link sack::image::render::DisplayAttributes, DisplayAttributes>
+                     or'ed togeteher.
+       width :       width of the display
+       height :      height of the display
+       x :           x position of left the display
+       y :           y position of the top of the display                                         */
+    RENDER_PROC( PRENDERER, OpenDisplaySizedAt)     ( uint32_t attributes, uint32_t width, uint32_t height, int32_t x, int32_t y );
+    /* This opens a display for output. It is opened hidden, so the
+       application might draw to its surface before it is shown.
+       This is not the most capable creation routine, but it is the
+       most commonly aliased.
+       Parameters
+       attributes :  one or more <link sack::image::render::DisplayAttributes, DisplayAttributes>
+                     or'ed togeteher.
+       width :       width of the display
+       height :      height of the display
+       x :           x position of left the display
+       y :           y position of the top of the display
+       above :       display to put this one above.                                               */
+    RENDER_PROC( PRENDERER, OpenDisplayAboveSizedAt)( uint32_t attributes, uint32_t width, uint32_t height, int32_t x, int32_t y, PRENDERER above );
+    /* This opens a display for output. It is opened hidden, so the
+       application might draw to its surface before it is shown.
+       This is not the most capable creation routine, but it is the
+       most commonly aliased.
+       Parameters
+       attributes :  one or more <link sack::image::render::DisplayAttributes, DisplayAttributes>
+                     or'ed togeteher.
+       width :       width of the display
+       height :      height of the display
+       x :           x position of left the display
+       y :           y position of the top of the display
+       above :       display to put this one above.
+       below :       display to put this one under. (for building
+                     behind a cover window)                                                       */
+    RENDER_PROC( PRENDERER, OpenDisplayAboveUnderSizedAt)( uint32_t attributes, uint32_t width, uint32_t height, int32_t x, int32_t y, PRENDERER above, PRENDERER under );
+	 /* Sets the alpha level of the overall display window.
+	    Parameters
+	    hVideo :  display to set the overall fade level on
+	    level :   the level of fade from 0 (transparent) to 255
+	              (opaque)
+	    Example
+	    <code lang="c++">
+	    PRENDERER render = OpenDisplay( 0 );
+	    int i;
+	    UpdateDisplay( render );
+	    </code>
+	    <code>
+	    // the window will slowly fade out
+	    for( i = 255; i \> 0; i-- )
+	    </code>
+	    <code lang="c++">
+	        SetDisplayFade( render, i );
+	    CloseDisplay( render );  // Hiding the display works too, if it is to be reused.
+	    </code>                                                                          */
+	 RENDER_PROC( void, SetDisplayFade )( PRENDERER hVideo, int level );
+    /* closes a display, releasing all resources assigned to it.
+       Parameters
+       hDisplay :  Render display to close.                      */
+    RENDER_PROC( void         , CloseDisplay) ( PRENDERER );
+    /* Updates just a portion of a display window. Minimizing the
+       size required for screen output greatly increases efficiency.
+       Also on vista+, this will update just a portion of a
+       transparent display.
+       Parameters
+       hVideo :  the display to update
+       x :       the left coordinate of the region to update
+       y :       the top coordinate of the region to update
+       width :   the width of the region to update
+       height :  the height of the region to update
+       DBG_PASS information is used to track who is doing updates
+       when update logging is enabled.                               */
+    RENDER_PROC( void , UpdateDisplayPortionEx) ( PRENDERER, int32_t x, int32_t y, uint32_t width, uint32_t height DBG_PASS );
+/* <combine sack::image::render::UpdateDisplayPortionEx@PRENDERER@int32_t@int32_t@uint32_t@uint32_t height>
+   \ \                                                                                      */
+#define UpdateDisplayPortion(r,x,y,w,h) UpdateDisplayPortionEx(r,x,y,w,h DBG_SRC )
+	 /* Updates the entire surface of a display.
+	    Parameters
+	    display :  display to update
+	    DBG_PASS information is passed for logging writing to
+	    physical display.
+	                                                          */
+	 RENDER_PROC( void , UpdateDisplayEx)        ( PRENDERER DBG_PASS );
+#define UpdateDisplay(r) UpdateDisplayEx(r DBG_SRC)
+/* Gets the current location and size of a display.
+       Parameters
+       hVideo :  display to get the position of
+       x :       pointer to a signed 32 bit value to get the left
+                 edge of the display.
+       y :       pointer to a signed 32 bit value to get the top edge
+                 of the display.
+       width :   pointer to a unsigned 32 bit value to get the width.
+       height :  pointer to a unsigned 32 bit value to get the
+                 height.                                              */
+    RENDER_PROC( void, GetDisplayPosition)   ( PRENDERER, int32_t *x, int32_t *y, uint32_t *width, uint32_t *height );
+    /* Moves a display to an absolute position.
+       Parameters
+       render :  the display to move
+       x :       new X coordinate for the left of the display
+       y :       new Y coordinate for the top of the display  */
+    RENDER_PROC( void , MoveDisplay)          ( PRENDERER, int32_t x, int32_t y );
+    /* Moves a display relative to its current position.
+       Parameters
+       render :  the display to move
+       delx :    a signed amount to add to its X coordiante
+       dely :    a signed amount ot add to its Y coordinate. ( bigger
+                 values go down the screen )                          */
+    RENDER_PROC( void , MoveDisplayRel)       ( PRENDERER, int32_t delx, int32_t dely );
+    /* Sets the display's current size. If it is different than
+       before, will invoke render's redraw callback.
+       Parameters
+       display :  the display to set the size of
+       w :        new width of the display
+       h :        new height of the display                     */
+    RENDER_PROC( void , SizeDisplay)          ( PRENDERER, uint32_t w, uint32_t h );
+    /* Sets the display's current size relative to what it currently
+       is. If it is different than before, will invoke render's
+       redraw callback.
+       Parameters
+       display :  the display to set the size of
+       w :        signed value to add to current width
+       h :        signed value to add to current height              */
+    RENDER_PROC( void , SizeDisplayRel)       ( PRENDERER, int32_t delw, int32_t delh );
+   /* Change the position and size of a display.
+      Parameters
+      hVideo :  display to move and size
+      x :       new left coordinate of the display
+      y :       new top coordinate of the display
+      w :       new width of the display
+      h :       new height of the display          */
+   RENDER_PROC( void, MoveSizeDisplay )( PRENDERER hVideo
+                                        , int32_t x, int32_t y
+                                        , int32_t w, int32_t h );
+   /* Moves and changes the display size relative to its current
+      size. All parameters are relative to current.
+      Parameters
+      hVideo :  display to move and change the size of
+      delx :    amount to modify the left coordinate by
+      dely :    amount to modify the top coordinate by
+      delw :    amount to change the width by
+      delh :    amount to change the height by                   */
+   RENDER_PROC( void, MoveSizeDisplayRel )( PRENDERER hVideo
+                                        , int32_t delx, int32_t dely
+                                        , int32_t delw, int32_t delh );
+		/* Put the display above another display. This makes sure that
+		   the displays are stacked at least in this order.
+		   Parameters
+		   this_display :  the display to put above another
+		   that_display :  the display that will be on the bottom.     */
+		RENDER_PROC( void , PutDisplayAbove)      ( PRENDERER this_display, PRENDERER that_display );
+      /* put this in container
+	   Parameters
+	   hVideo :      Display to put into another display surface
+	   hContainer :  The new parent window of the hVideo.
+	   Example
+	   <code lang="c#">
+	   Render render = OpenDisplay( 0 );
+	   Render parent = OpenDisplay( 0 );
+	   PutDisplayIn( render, parent );
+	   </code>                                                   */
+	 RENDER_PROC (void, PutDisplayIn) (PRENDERER hVideo, PRENDERER hContainer);
+    /* Gets the Image from the Render.
+       Parameters
+       renderer :  the display window to get the surface of.
+       Returns
+       Image that is the surface of the window to draw to.   */
+    RENDER_PROC( Image , GetDisplayImage)     ( PRENDERER );
+    /* Sets the close handler callback. Called when a window is
+       closed externally.
+       Parameters
+       hVideo :     display to set the close handler for
+       callback :   close method to call when the display is called
+       user_data :  user data passed to close method when invoked.  */
+    RENDER_PROC( void , SetCloseHandler)      ( PRENDERER, CloseCallback, uintptr_t );
+    /* Specifies the mouse event handler for a display.
+       Parameters
+       hVideo :     display to set the mouse handler for
+       callback :   the routine to call when a mouse event happens.
+       user_data :  this value is passed to the callback routine when
+                    it is called.                                     */
+    RENDER_PROC( void , SetMouseHandler)      ( PRENDERER, MouseCallback, uintptr_t );
+    /* Specifies the hide event handler for a display.
+       Parameters
+       hVideo :     display to set the hide handler for
+       callback :   the routine to call when a hide event happens.
+       user_data :  this value is passed to the callback routine when
+                    it is called.                                     */
+    RENDER_PROC( void , SetHideHandler)      ( PRENDERER, HideAndRestoreCallback, uintptr_t );
+    /* Specifies the restore event handler for a display.
+       Parameters
+       hVideo :     display to set the restore handler for
+       callback :   the routine to call when a restore event happens.
+       user_data :  this value is passed to the callback routine when
+                    it is called.                                     */
+    RENDER_PROC( void , SetRestoreHandler)      ( PRENDERER, HideAndRestoreCallback, uintptr_t );
+#ifndef NO_TOUCH
+    /* Specifies the touch event handler for a display.
+       Parameters
+       hVideo :     display to set the touch handler for
+       callback :   the routine to call when a touch event happens.
+       user_data :  this value is passed to the callback routine when
+                    it is called.                                     */
+	   RENDER_PROC( void , SetTouchHandler)      ( PRENDERER, TouchCallback, uintptr_t );
+#endif
+	 /* Sets the function to call when a redraw event is required.
+	    Parameters
+	    hVideo :     display to set the handler for
+	    callback :   function to call when a redraw is required (or
+	                 requested).
+	    user_data :  this value is passed to the redraw callback.
+	    Example
+	    See <link render.h>
+	    See Also
+	    <link sack::image::render::Redraw@PRENDERER, Redraw>        */
+	 RENDER_PROC( void , SetRedrawHandler)     ( PRENDERER, RedrawCallback, uintptr_t );
+	 // call this to call the callback registered. as appropriate.  Said callback
+    // should never be directly called by application.
+    RENDER_PROC( void, Redraw )( PRENDERER hVideo );
+    /* Sets the keyboard handler callback for a display
+       Parameters
+       hVideo :     display to receive key events for.
+       callback :   callback invoked when a key event happens.
+       user_data :  user data passed to the callback when invoked.
+       Remarks
+       the keyboard handler may make use of the scan code itself for
+       PKEYDEFINE structures. There are also a variety of methods
+       for checking the 32 bit key value. The value passed to the
+       keyboard handler contains most all of the information about
+       the state of the keyboard and specific key.                   */
+    RENDER_PROC( void , SetKeyboardHandler)   ( PRENDERER, KeyProc, uintptr_t );
+    /* Sets a callback handler called when focus is gained or lost
+       by the display.
+       Parameters
+       hVideo :     display to set the event on
+       callback :   the user callback to call when focus is lost or
+                    gained.
+       user_data :  user data passed to the callback when invoked.
+       Note
+       When the LoseFocusCallback is called, the renderer is the one
+       that is getting the focus. This may be you, may be NULL
+       (everyone losing focus) or may be another PRENDERER in your
+       application.                                                  */
+    RENDER_PROC( void , SetLoseFocusHandler)  ( PRENDERER, LoseFocusCallback, uintptr_t );
+    /* Undefined */
+    RENDER_PROC( void, SetRenderReadCallback )( PRENDERER pRenderer, RenderReadCallback callback, uintptr_t psv );
+#if ACTIVE_MESSAGE_IMPLEMENTED
+    RENDER_PROC( void , SetDefaultHandler)    ( PRENDERER, GeneralCallback, uintptr_t );
+#endif
+    /* Receives the current global mouse state, and position in
+       screen coordinates.
+       Parameters
+       x :  pointer to a signed 32 bit value for the mouse X position.
+       y :  pointer to a signed 32 bit value for the mouse Y position.
+       b :  current state of mouse buttons. See <link sack::image::render::ButtonFlags, ButtonFlags>. */
+    RENDER_PROC( void , GetMouseState )        ( int32_t *x, int32_t *y, uint32_t *b );
+    /* Gets the current mouse position in screen coordinates.
+       Parameters
+       x :  pointer to a signed 32 bit value for the mouse position
+       y :  pointer to a signed 32 bit value for the mouse position
+       Example
+       <code lang="c++">
+       int32_t x, y;
+       GetMousePosition( &amp;x, &amp;y );
+       </code>                                                      */
+    RENDER_PROC( void , GetMousePosition)     ( int32_t *x, int32_t *y );
+    /* Sets the mouse pointer at the specified display coordinates.
+       Parameters
+       hDisplay :  display to use to where to position the mouse. Will
+                   fault if NULL is passed.
+       x :         x relative to the display to set the mouse
+       y :         y relative to the display to set the mouse          */
+    RENDER_PROC( void , SetMousePosition)     ( PRENDERER, int32_t x, int32_t y );
+    /* Test a display to see if it is focused.
+       Parameters
+       hVideo :  display to check to see if it has focus. (keyboard
+                 \input)
+       Returns
+       TRUE if focused, else FALSE.                                 */
+    RENDER_PROC( LOGICAL , HasFocus)          ( PRENDERER );
+#if ACTIVE_MESSAGE_IMPLEMENTED
+    RENDER_PROC( int, SendActiveMessage)     ( PRENDERER dest, PACTIVEMESSAGE msg );
+    RENDER_PROC( PACTIVEMESSAGE , CreateActiveMessage) ( int ID, int size, ... );
+#endif
+    /* Translates a key's scancode into text. Handles things like
+       capslock, shift...
+       Parameters
+       key :  KEY_ to translate
+       Returns
+       char that the key represents. (should implement a method to
+       get back the UNICODE character).                            */
+    RENDER_PROC( const TEXTCHAR *, GetKeyText)             ( int key );
+    /* Simple check to see if a key is in a pressed state.
+       Parameters
+       display :  display to check the key state in
+       key :      KEY_ symbol to check.                    */
+    RENDER_PROC( uint32_t, IsKeyDown )              ( PRENDERER display, int key );
+    /* \        Parameters
+       display :  display to test the key status in
+       key :      KEY_ symbol to check if the key is pressed
+       Returns
+       TRUE if the key is down, else FALSE.                  */
+    RENDER_PROC( uint32_t, KeyDown )                ( PRENDERER display, int key );
+    /* Sometimes displays can be closed by external forces (the
+       close button on most windows). This tests to see if a display
+       is still valid, or if it has been closed externally.
+       Returns
+       TRUE if display is still okay. FALSE if the display is no
+       longer able to be used.
+       Parameters
+       display :  the display to check the validity of.              */
+    RENDER_PROC( LOGICAL, DisplayIsValid )     ( PRENDERER display );
+    /* Assigns all mouse input to a window. This allows the window
+       to process messages which are outside of itself normally.
+       Parameters
+       display :  which window wants to own the mouse
+       own :      1 to own, 0 to release ownership.                */
+    RENDER_PROC( void, OwnMouseEx )            ( PRENDERER display, uint32_t bOwn DBG_PASS );
+    /* Proprietary routine for reading touch screen serial devices
+       directly and performing self calibration. Should rely on
+       system driver and it's calibration instead.                 */
+    RENDER_PROC( int, BeginCalibration )       ( uint32_t points );
+    /* Used when display is accessed via a remote message pipe, this
+       allows all render operations to be flushed and processed.
+       Parameters
+       display :  display to flush                                   */
+    RENDER_PROC( void, SyncRender )            ( PRENDERER display );
+/* Makes a display topmost. There isn't a way to un-topmost a
+   window.
+   Parameters
+   hVideo :  display to make topmost
+   Note
+   Windows maintains at least two distinct stacks of windows. Normal
+   windows in the normal window stack, and a set of windows that
+   are above all other windows (except other windows that are
+   also topmost).                                                    */
+RENDER_PROC( void, MakeTopmost )( PRENDERER hVideo );
+/* This makes the display topmost, but more so, any window that
+   gets put over it it will attempt put itself over it.
+   Parameters
+   hVideo :  display to make top top most.                      */
+RENDER_PROC (void, MakeAbsoluteTopmost) (PRENDERER hVideo);
+/* Tests a display to see if it is set as topmost.
+   Parameters
+   hVideo :  display to inquire if it's topmost.
+   Returns
+   TRUE if display is topmost, else FALSE.         */
+RENDER_PROC( int, IsTopmost )( PRENDERER hVideo );
+/* Hides a display. That is, the content no longer shows on the
+   users display.
+   Parameters
+   hVideo :  the handle of the Render to hide.
+   See Also
+   <link sack::image::render::RestoreDisplay@PRENDERER, RestoreDisplay> */
+RENDER_PROC( void, HideDisplay )( PRENDERER hVideo );
+/* Puts a display back on the screen. This is used in
+   conjunction with HideDisplay().
+   Parameters
+   hVideo :  display to restore                       */
+RENDER_PROC( void, RestoreDisplay )( PRENDERER hVideo );
+	RENDER_PROC( void, RestoreDisplayEx )( PRENDERER hVideo DBG_PASS );
+#define RestoreDisplay(n) RestoreDisplayEx( n DBG_SRC )
+/* A check to see if HideDisplay has been applied to the
+   display.
+   Returns
+   TRUE if the display is hidden, otherwise FALSE.
+   Parameters
+   video :  the display to check if hidden               */
+RENDER_PROC( LOGICAL, IsDisplayHidden )( PRENDERER video );
+// set focus to display, no events are generated if display already
+// has the focus.
+RENDER_PROC( void, ForceDisplayFocus )( PRENDERER display );
+// display set as topmost within it's group (normal/bottommost/topmost)
+RENDER_PROC( void, ForceDisplayFront )( PRENDERER display );
+// display is force back one layer... or forced to bottom?
+// alt-n pushed the display to the back... alt-tab is different...
+RENDER_PROC( void, ForceDisplayBack )( PRENDERER display );
+/* Not implemented on windows native, is for getting back
+   display information over message service abstraction.
+   if a readcallback is enabled, then this will be no-wait, and
+   one will expect to receive the read data in the callback.
+   Otherwise this will return any data which is present already,
+   also non wait. Returns length read, INVALID_INDEX if no data
+   read.
+   If there IS a read callback, return will be 1 if there was no
+   previous read queued, and 0 if there was already a read
+   pending there may be one and only one read queued (for now)
+   In either case if the read could not be queued, it will be
+   0..
+   If READLINE is true - then the result of the read will be a
+   completed line. if there is no line present, and no callback
+   defined, this will return INVALID_INDEX characters... 0
+   characters is a n only (in line mode) 0 will be returned for
+   no characters in non line mode...
+   it will not have the end of line terminator (as generated by
+   a non-bound enter key) I keep thinking there must be some
+   kinda block mode read one can do, but no, uhh no, there's no
+   way to get the user to put in X characters exactly....?
+   Parameters
+   pRenderer :  display to read from
+   buffer :     buffer to read into
+   maxlen :     maximum length of buffer to read
+   bReadLine :  ???                                              */
+RENDER_PROC( uint32_t, ReadDisplayEx )( PRENDERER pRenderer, TEXTSTR buffer, uint32_t maxlen, LOGICAL bReadLine );
+/* Unused. Incomplete. */
+#define ReadDisplay(r,b,len)      ReadDisplayEx(r,b,len,FALSE)
+/* Unused. Incomplete. */
+#define ReadDisplayLine(r,b,len)  ReadDisplayEx(r,b,len,TRUE)
+/* Issues an update to a layered (transparent) window. This does
+   the update directly, and does not have to be done within the
+   redraw event.
+   Parameters
+   hVideo :    display to update a part of
+   bContent :  TRUE is only the passed rectangle should update
+   x :         left coordinate of the region to update to
+               physical display
+   y :         top coordinate of the region to update to physical
+               display
+   w :         width of the region to update to physical display
+   h :         height of the region to update to physical display */
+RENDER_PROC( void, IssueUpdateLayeredEx )( PRENDERER hVideo, LOGICAL bContent, int32_t x, int32_t y, uint32_t w, uint32_t h DBG_PASS );
+#ifndef KEY_STRUCTURE_DEFINED
+typedef LOGICAL (CPROC*KeyTriggerHandler)(uintptr_t,uint32_t keycode);
+typedef struct KeyDefine *PKEYDEFINE;
+#endif
+/* Can create an external key binder to store key event
+   bindings. One of these is available per display.
+   Example
+   <code lang="c++">
+   void Alt_A_Pressed(uintptr_t user_data,uint32_t keycode)
+   {
+       // do something when alt-a is pressed.
+   }
+   {
+      PKEYDEFINE my_key_events = CreateKeyBinder();
+      BindKeyToEventEx( my_key_events, KEY_A, KEY_MOD_ALT, Alt_A_Pressed, 0 );
+   }
+   // then later, in a KeyProc handler...
+   HandleKeyEvents( my_key_events, keycode );
+   </code>                                                                     */
+RENDER_PROC( PKEYDEFINE, CreateKeyBinder )( void );
+/* Destroyes a PKEYDEFINE previously created with
+   CreateKeyBinder.
+   Parameters
+   pKeyDef :  key binder to destroy.              */
+RENDER_PROC( void, DestroyKeyBinder )( PKEYDEFINE pKeyDef );
+/* Evaluates a key against the key defines to trigger possible
+   events.
+   Parameters
+   KeyDefs :  PKEYDEFINE keystate which has keys bound to it.
+   keycode :  the keycode passed to a KeyProc handler.         */
+RENDER_PROC( int, HandleKeyEvents )( PKEYDEFINE KeyDefs, uint32_t keycode );
+/* Assigns a callback routine to a key event.
+   Parameters
+   KeyDefs :   pointer to key table to set event in
+   scancode :  scancode of the key \- this is a KEY_ code from
+               keybrd.h
+   modifier :  specific modifiers pressed for this event (control,
+               alt, shift)
+   trigger :   the trigger function to invoke when the key is
+               pressed
+   psv :       a uintptr_t user data passed to the trigger function
+               when invoked.                                       */
+RENDER_PROC( int, BindEventToKeyEx )( PKEYDEFINE KeyDefs, uint32_t scancode, uint32_t modifier, KeyTriggerHandler trigger, uintptr_t psv );
+/* Binds a key to a display.
+   Parameters
+   pRenderer :  display to set the event in (each display has a
+                PKEYDEFINE internally. If this is NULL, then the
+                event is bound to global events, an applies for
+                any display window that gets a key input.
+   scancode :   key scancode (a KEY_ identifier from keybrd.h)
+   modifier :   key state modifier to apply to match the trigger
+                on (control, alt, shift)
+   trigger :    callback to invoke when the key combination is
+                pressed
+   psv :        user data to pass to the trigger when invoked.   */
+RENDER_PROC( int, BindEventToKey )( PRENDERER pRenderer, uint32_t scancode, uint32_t modifier, KeyTriggerHandler trigger, uintptr_t psv );
+/* Remove a previous binding to a key.
+   Parameters
+   pRenderer :  renderer to remove the key bind from
+   scancode :   key scancode to stop checking
+   modifier :   key modifier to stop checking        */
+RENDER_PROC( int, UnbindKey )( PRENDERER pRenderer, uint32_t scancode, uint32_t modifier );
+/* A way to test to see if the current input device is a touch
+   display. This can affect how mouse clicks are handles for
+   things like buttons.
+   Parameters
+   None.
+   Returns
+   0.                                                          */
+RENDER_PROC( int, IsTouchDisplay )( void );
+// static void OnInputTouch( "Touch Handler" )(
+#define OnSurfaceInput(name)	 DefineRegistryMethod("sack/render",SurfaceInput,"surface input","SurfaceInput",name,void,( int nInputs, PINPUT_POINT pInputs ),__LINE__)
+#ifndef PSPRITE_METHOD
+/* Unused. Incomplete. */
+#define PSPRITE_METHOD PSPRITE_METHOD
+RENDER_NAMESPACE_END
+IMAGE_NAMESPACE
+   /* define sprite draw method structure */
+	typedef struct sprite_method_tag *PSPRITE_METHOD;
+IMAGE_NAMESPACE_END
+RENDER_NAMESPACE
+#endif
+/* Adds a sprite rendering method to the display. Just before
+   updating to the display, the display is saved, and sprite
+   update callbacks are issued. then the resulting display is
+   \output. Sprite data only exists on the output image just
+   before it is put on the physical display.
+   Parameters
+   render :    the display to attach a sprite render method to
+   callback :  callback to draw sprites
+   psv :       user data passed to callback when it is called
+   Returns
+   Pointer to a SpriteMethod that can be used in SavePortion...
+   uhmm
+   Note
+   Has fallen into disrepair, and may need work before sprites
+   work this way.                                               */
+RENDER_PROC( PSPRITE_METHOD, EnableSpriteMethod )(PRENDERER render, void(CPROC*RenderSprites)(uintptr_t psv, PRENDERER renderer, int32_t x, int32_t y, uint32_t w, uint32_t h ), uintptr_t psv );
+/* signature for callback method to pass to
+   WinShell_AcceptDroppedFiles.             */
+typedef LOGICAL (CPROC*dropped_file_acceptor)(uintptr_t psv, CTEXTSTR filename, int32_t x, int32_t y );
+/* Adds a callback to call when a file is dropped. Each callback
+   can return 0 that it did not accept the file, or 1 that it
+   did. once the file is accepted by a handler, it is not passed
+   to any other handlers.
+   Parameters
+   renderer :  display to handle dropped files for
+   f :         callback to acceptor
+   psvUser :   user data passed to acceptor when it is invoked   */
+RENDER_PROC( void, WinShell_AcceptDroppedFiles )( PRENDERER renderer, dropped_file_acceptor f, uintptr_t psvUser );
+/* Enables a timer on the mouse to hide the cursor after a
+   second that the mouse is not being moved.
+   Parameters
+   hVideo :   display to hide the mouse automatically for
+   bEnable :  enable automatic hiding. After a few seconds, the
+              mouse goes away until it moves(not click).        */
+RENDER_PROC (void, DisableMouseOnIdle) (PRENDERER hVideo, LOGICAL bEnable );
+/* Sets whether the display wants to get any mouse events at
+   all.
+   Parameters
+   hVideo :    display to set the property for
+   bNoMouse :  if 1, disables any mouse events. if 0, enables mouse
+               events to the display.                               */
+RENDER_PROC( void, SetDisplayNoMouse )( PRENDERER hVideo, int bNoMouse );
+#ifdef WIN32
+	/* \returns the native handle used to output to. this can be an
+	   SDL_Screen or HWND depending on platform.
+	   Parameters
+	   video :  display to get the native handle for
+	   Returns
+	   the system handle of the display object being used to output. */
+	RENDER_PROC( HWND, GetNativeHandle )( PRENDERER video );
+#endif
+/* <combine sack::image::render::OwnMouseEx@PRENDERER@uint32_t bOwn>
+   \ \                                                          */
+#define OwnMouse(d,o) OwnMouseEx( d, o DBG_SRC )
+/* <combine sack::image::render::OpenDisplaySizedAt@uint32_t@uint32_t@uint32_t@int32_t@int32_t>
+   \ \                                                                     */
+#define OpenDisplay(a)            OpenDisplaySizedAt(a,-1,-1,-1,-1)
+/* <combine sack::image::render::OpenDisplaySizedAt@uint32_t@uint32_t@uint32_t@int32_t@int32_t>
+   \ \                                                                     */
+#define OpenDisplaySized(a,w,h)   OpenDisplaySizedAt(a,w,h,-1,-1)
+/* <combine sack::image::render::OpenDisplayAboveSizedAt@uint32_t@uint32_t@uint32_t@int32_t@int32_t@PRENDERER>
+   \ \                                                                                    */
+#define OpenDisplayAbove(p,a)            OpenDisplayAboveSizedAt(p,-1,-1,-1,-1,a)
+/* <combine sack::image::render::OpenDisplayAboveSizedAt@uint32_t@uint32_t@uint32_t@int32_t@int32_t@PRENDERER>
+   \ \                                                                                    */
+#define OpenDisplayAboveSized(p,a,w,h)   OpenDisplayAboveSizedAt(p,w,h,-1,-1,a)
+/* <combine sack::image::render::OpenDisplayAboveUnderSizedAt@uint32_t@uint32_t@uint32_t@int32_t@int32_t@PRENDERER@PRENDERER>
+   \ \                                                                                                   */
+#define OpenDisplayUnderSizedAt(p,a,w,h,x,y) OpenDisplayAboveUnderSizedAt(a,w,h,x,y,NULL,p)
+/* Lock the renderer for this thread to use. */
+RENDER_PROC( void, LockRenderer )( PRENDERER render );
+/* Unlock the renderer for other threads to use. */
+RENDER_PROC( void, UnlockRenderer )( PRENDERER render );
+/* Function to check if the draw mode of the renderer requires
+   an ALL update (opengl/direct3d) every frame the whole display
+   must be drawn.                                                */
+RENDER_PROC( LOGICAL, RequiresDrawAll )( void );
+RENDER_PROC( void, MarkDisplayUpdated )( PRENDERER );
+#ifndef __NO_INTERFACES__
+/* Interface defines the functions that are exported from the
+   render library. This interface may be retrieved with
+   LoadInterface( "\<appropriate name" ).                     */
+_INTERFACE_NAMESPACE
+/* Macro to define exports for render.h */
+#define RENDER_PROC_PTR(type,name) type  (CPROC*_##name)
+/* <combine sack::image::render::render_interface_tag>
+	\ \                                                 */
+typedef struct render_interface_tag RENDER_INTERFACE;
+/* <combine sack::image::render::render_interface_tag>
+	\ \                                                 */
+typedef struct render_interface_tag *PRENDER_INTERFACE;
+/* This is a function table interface to the video library. Allows
+   application to not be linked to the video portion directly,
+   allowing dynamic replacement.                                   */
+struct render_interface_tag
+{
+      /* <combine sack::image::render::InitDisplay>
+         \ \                                        */
+       RENDER_PROC_PTR( int , InitDisplay) (void);
+       /* <combine sack::image::render::SetApplicationTitle@TEXTCHAR *>
+          \ \                                                           */
+			 RENDER_PROC_PTR( void , SetApplicationTitle) (const TEXTCHAR *title );
+          /* <combine sack::image::render::SetApplicationIcon@Image>
+                                                    \ \                                                     */
+       RENDER_PROC_PTR( void , SetApplicationIcon)  (Image Icon);
+    /* <combine sack::image::render::GetDisplaySize@uint32_t *@uint32_t *>
+       \ \                                                       */
+    RENDER_PROC_PTR( void , GetDisplaySize)      ( uint32_t *width, uint32_t *height );
+    /* <combine sack::image::render::SetDisplaySize@uint32_t@uint32_t>
+       \ \                                                   */
+    RENDER_PROC_PTR( void , SetDisplaySize)      ( uint32_t width, uint32_t height );
+    /* <combine sack::image::render::OpenDisplaySizedAt@uint32_t@uint32_t@uint32_t@int32_t@int32_t>
+       \ \                                                                     */
+    RENDER_PROC_PTR( PRENDERER , OpenDisplaySizedAt)     ( uint32_t attributes, uint32_t width, uint32_t height, int32_t x, int32_t y );
+    /* <combine sack::image::render::OpenDisplayAboveSizedAt@uint32_t@uint32_t@uint32_t@int32_t@int32_t@PRENDERER>
+       \ \                                                                                    */
+    RENDER_PROC_PTR( PRENDERER , OpenDisplayAboveSizedAt)( uint32_t attributes, uint32_t width, uint32_t height, int32_t x, int32_t y, PRENDERER above );
+    /* <combine sack::image::render::CloseDisplay@PRENDERER>
+       \ \                                                   */
+    RENDER_PROC_PTR( void        , CloseDisplay) ( PRENDERER );
+    /* <combine sack::image::render::UpdateDisplayPortionEx@PRENDERER@int32_t@int32_t@uint32_t@uint32_t height>
+       \ \                                                                                      */
+    RENDER_PROC_PTR( void, UpdateDisplayPortionEx) ( PRENDERER, int32_t x, int32_t y, uint32_t width, uint32_t height DBG_PASS );
+    /* <combine sack::image::render::UpdateDisplayEx@PRENDERER>
+       \ \                                                      */
+    RENDER_PROC_PTR( void, UpdateDisplayEx)        ( PRENDERER DBG_PASS);
+    /* <combine sack::image::render::GetDisplayPosition@PRENDERER@int32_t *@int32_t *@uint32_t *@uint32_t *>
+       \ \                                                                                   */
+    RENDER_PROC_PTR( void, GetDisplayPosition)   ( PRENDERER, int32_t *x, int32_t *y, uint32_t *width, uint32_t *height );
+    /* <combine sack::image::render::MoveDisplay@PRENDERER@int32_t@int32_t>
+       \ \                                                            */
+    RENDER_PROC_PTR( void, MoveDisplay)          ( PRENDERER, int32_t x, int32_t y );
+    /* <combine sack::image::render::MoveDisplayRel@PRENDERER@int32_t@int32_t>
+       \ \                                                               */
+    RENDER_PROC_PTR( void, MoveDisplayRel)       ( PRENDERER, int32_t delx, int32_t dely );
+    /* <combine sack::image::render::SizeDisplay@PRENDERER@uint32_t@uint32_t>
+       \ \                                                          */
+    RENDER_PROC_PTR( void, SizeDisplay)          ( PRENDERER, uint32_t w, uint32_t h );
+    /* <combine sack::image::render::SizeDisplayRel@PRENDERER@int32_t@int32_t>
+       \ \                                                               */
+    RENDER_PROC_PTR( void, SizeDisplayRel)       ( PRENDERER, int32_t delw, int32_t delh );
+    /* <combine sack::image::render::MoveSizeDisplayRel@PRENDERER@int32_t@int32_t@int32_t@int32_t>
+       \ \                                                                             */
+    RENDER_PROC_PTR( void, MoveSizeDisplayRel )  ( PRENDERER hVideo
+                                                 , int32_t delx, int32_t dely
+                                                 , int32_t delw, int32_t delh );
+    RENDER_PROC_PTR( void, PutDisplayAbove)      ( PRENDERER, PRENDERER );
+ /* <combine sack::image::render::PutDisplayAbove@PRENDERER@PRENDERER>
+                                                              \ \                                                                */
+    /* <combine sack::image::render::GetDisplayImage@PRENDERER>
+       \ \                                                      */
+    RENDER_PROC_PTR( Image, GetDisplayImage)     ( PRENDERER );
+    /* <combine sack::image::render::SetCloseHandler@PRENDERER@CloseCallback@uintptr_t>
+       \ \                                                                             */
+    RENDER_PROC_PTR( void, SetCloseHandler)      ( PRENDERER, CloseCallback, uintptr_t );
+    /* <combine sack::image::render::SetMouseHandler@PRENDERER@MouseCallback@uintptr_t>
+       \ \                                                                             */
+    RENDER_PROC_PTR( void, SetMouseHandler)      ( PRENDERER, MouseCallback, uintptr_t );
+    /* <combine sack::image::render::SetRedrawHandler@PRENDERER@RedrawCallback@uintptr_t>
+       \ \                                                                               */
+    RENDER_PROC_PTR( void, SetRedrawHandler)     ( PRENDERER, RedrawCallback, uintptr_t );
+    /* <combine sack::image::render::SetKeyboardHandler@PRENDERER@KeyProc@uintptr_t>
+       \ \                                                                          */
+    RENDER_PROC_PTR( void, SetKeyboardHandler)   ( PRENDERER, KeyProc, uintptr_t );
+    /* <combine sack::image::render::SetLoseFocusHandler@PRENDERER@LoseFocusCallback@uintptr_t>
+       \ \                                                                                     */
+    RENDER_PROC_PTR( void, SetLoseFocusHandler)  ( PRENDERER, LoseFocusCallback, uintptr_t );
+    /* <combine sack::image::render::SetDefaultHandler@PRENDERER@GeneralCallback@uintptr_t>
+       \ \                                                                                 */
+#if ACTIVE_MESSAGE_IMPLEMENTED
+			 RENDER_PROC_PTR( void, SetDefaultHandler)    ( PRENDERER, GeneralCallback, uintptr_t );
+#else
+       POINTER junk1;
+#endif
+    /* <combine sack::image::render::GetMousePosition@int32_t *@int32_t *>
+		 \ \                                                           */
+    RENDER_PROC_PTR( void, GetMousePosition)     ( int32_t *x, int32_t *y );
+    /* <combine sack::image::render::SetMousePosition@PRENDERER@int32_t@int32_t>
+       \ \                                                                 */
+    RENDER_PROC_PTR( void, SetMousePosition)     ( PRENDERER, int32_t x, int32_t y );
+    /* <combine sack::image::render::HasFocus@PRENDERER>
+       \ \                                               */
+    RENDER_PROC_PTR( LOGICAL, HasFocus)          ( PRENDERER );
+    /* <combine sack::image::render::GetKeyText@int>
+       \ \                                           */
+    RENDER_PROC_PTR( const TEXTCHAR *, GetKeyText)           ( int key );
+    /* <combine sack::image::render::IsKeyDown@PRENDERER@int>
+       \ \                                                    */
+    RENDER_PROC_PTR( uint32_t, IsKeyDown )        ( PRENDERER display, int key );
+    /* <combine sack::image::render::KeyDown@PRENDERER@int>
+       \ \                                                  */
+    RENDER_PROC_PTR( uint32_t, KeyDown )         ( PRENDERER display, int key );
+    /* <combine sack::image::render::DisplayIsValid@PRENDERER>
+       \ \                                                     */
+    RENDER_PROC_PTR( LOGICAL, DisplayIsValid )  ( PRENDERER display );
+    /* <combine sack::image::render::OwnMouseEx@PRENDERER@uint32_t bOwn>
+       \ \                                                          */
+    RENDER_PROC_PTR( void, OwnMouseEx )            ( PRENDERER display, uint32_t Own DBG_PASS);
+    /* <combine sack::image::render::BeginCalibration@uint32_t>
+       \ \                                                 */
+    RENDER_PROC_PTR( int, BeginCalibration )       ( uint32_t points );
+    /* <combine sack::image::render::SyncRender@PRENDERER>
+       \ \                                                 */
+    RENDER_PROC_PTR( void, SyncRender )            ( PRENDERER pDisplay );
+    /* DEPRICATED; left in structure for compatibility.  Removed define and export definition. */
+	 /* <combine sack::image::render::MoveSizeDisplay@PRENDERER@int32_t@int32_t@int32_t@int32_t>
+	    \ \                                                                          */
+	 RENDER_PROC_PTR( void, MoveSizeDisplay )( PRENDERER hVideo
+                                        , int32_t x, int32_t y
+                                        , int32_t w, int32_t h );
+   /* <combine sack::image::render::MakeTopmost@PRENDERER>
+      \ \                                                  */
+   RENDER_PROC_PTR( void, MakeTopmost )    ( PRENDERER hVideo );
+   /* <combine sack::image::render::HideDisplay@PRENDERER>
+      \ \                                                  */
+   RENDER_PROC_PTR( void, HideDisplay )      ( PRENDERER hVideo );
+   /* <combine sack::image::render::RestoreDisplay@PRENDERER>
+      \ \                                                     */
+   RENDER_PROC_PTR( void, RestoreDisplay )   ( PRENDERER hVideo );
+	/* <combine sack::image::render::ForceDisplayFocus@PRENDERER>
+	   \ \                                                        */
+	RENDER_PROC_PTR( void, ForceDisplayFocus )( PRENDERER display );
+	/* <combine sack::image::render::ForceDisplayFront@PRENDERER>
+	   \ \                                                        */
+	RENDER_PROC_PTR( void, ForceDisplayFront )( PRENDERER display );
+	/* <combine sack::image::render::ForceDisplayBack@PRENDERER>
+	   \ \                                                       */
+	RENDER_PROC_PTR( void, ForceDisplayBack )( PRENDERER display );
+	/* <combine sack::image::render::BindEventToKey@PRENDERER@uint32_t@uint32_t@KeyTriggerHandler@uintptr_t>
+	   \ \                                                                                        */
+	RENDER_PROC_PTR( int, BindEventToKey )( PRENDERER pRenderer, uint32_t scancode, uint32_t modifier, KeyTriggerHandler trigger, uintptr_t psv );
+	/* <combine sack::image::render::UnbindKey@PRENDERER@uint32_t@uint32_t>
+	   \ \                                                        */
+	RENDER_PROC_PTR( int, UnbindKey )( PRENDERER pRenderer, uint32_t scancode, uint32_t modifier );
+	/* <combine sack::image::render::IsTopmost@PRENDERER>
+	   \ \                                                */
+	RENDER_PROC_PTR( int, IsTopmost )( PRENDERER hVideo );
+	/* Used as a point to sync between applications and the message
+	   display server; Makes sure that all draw commands which do
+	   not have a response are done.
+	   Waits until all commands are processed; which is wait until
+	   this command is processed.                                   */
+	RENDER_PROC_PTR( void, OkaySyncRender )            ( void );
+   /* <combine sack::image::render::IsTouchDisplay>
+      \ \                                           */
+   RENDER_PROC_PTR( int, IsTouchDisplay )( void );
+	/* <combine sack::image::render::GetMouseState@int32_t *@int32_t *@uint32_t *>
+	   \ \                                                              */
+	RENDER_PROC_PTR( void , GetMouseState )        ( int32_t *x, int32_t *y, uint32_t *b );
+	/* <combine sack::image::render::EnableSpriteMethod@PRENDERER@void__cdecl*RenderSpritesPTRSZVAL psv\, PRENDERER renderer\, int32_t x\, int32_t y\, uint32_t w\, uint32_t h@uintptr_t>
+	   \ \                                                                                                                                                               */
+	RENDER_PROC_PTR ( PSPRITE_METHOD, EnableSpriteMethod )(PRENDERER render, void(CPROC*RenderSprites)(uintptr_t psv, PRENDERER renderer, int32_t x, int32_t y, uint32_t w, uint32_t h ), uintptr_t psv );
+	/* <combine sack::image::render::WinShell_AcceptDroppedFiles@PRENDERER@dropped_file_acceptor@uintptr_t>
+	   \ \                                                                                                 */
+	RENDER_PROC_PTR( void, WinShell_AcceptDroppedFiles )( PRENDERER renderer, dropped_file_acceptor f, uintptr_t psvUser );
+	/* <combine sack::image::render::PutDisplayIn@PRENDERER@PRENDERER>
+	   \ \                                                             */
+	RENDER_PROC_PTR(void, PutDisplayIn) (PRENDERER hVideo, PRENDERER hContainer);
+#ifdef WIN32
+	/* <combine sack::image::render::MakeDisplayFrom@HWND>
+	   \ \                                                 */
+			RENDER_PROC_PTR (PRENDERER, MakeDisplayFrom) (HWND hWnd) ;
+#else
+      POINTER junk4;
+#endif
+	/* <combine sack::image::render::SetRendererTitle@PRENDERER@TEXTCHAR *>
+	   \ \                                                                  */
+	RENDER_PROC_PTR( void , SetRendererTitle) ( PRENDERER render, const TEXTCHAR *title );
+	/* <combine sack::image::render::DisableMouseOnIdle@PRENDERER@LOGICAL>
+	   \ \                                                                 */
+	RENDER_PROC_PTR (void, DisableMouseOnIdle) (PRENDERER hVideo, LOGICAL bEnable );
+	/* <combine sack::image::render::OpenDisplayAboveUnderSizedAt@uint32_t@uint32_t@uint32_t@int32_t@int32_t@PRENDERER@PRENDERER>
+	   \ \                                                                                                   */
+	RENDER_PROC_PTR( PRENDERER, OpenDisplayAboveUnderSizedAt)( uint32_t attributes, uint32_t width, uint32_t height, int32_t x, int32_t y, PRENDERER above, PRENDERER under );
+	/* <combine sack::image::render::SetDisplayNoMouse@PRENDERER@int>
+	   \ \                                                            */
+	RENDER_PROC_PTR( void, SetDisplayNoMouse )( PRENDERER hVideo, int bNoMouse );
+	/* <combine sack::image::render::Redraw@PRENDERER>
+	   \ \                                             */
+	RENDER_PROC_PTR( void, Redraw )( PRENDERER hVideo );
+	/* <combine sack::image::render::MakeAbsoluteTopmost@PRENDERER>
+	   \ \                                                          */
+	RENDER_PROC_PTR(void, MakeAbsoluteTopmost) (PRENDERER hVideo);
+	/* <combine sack::image::render::SetDisplayFade@PRENDERER@int>
+	   \ \                                                         */
+	RENDER_PROC_PTR( void, SetDisplayFade )( PRENDERER hVideo, int level );
+	/* <combine sack::image::render::IsDisplayHidden@PRENDERER>
+	   \ \                                                      */
+	RENDER_PROC_PTR( LOGICAL, IsDisplayHidden )( PRENDERER video );
+#ifdef WIN32
+	/* <combine sack::image::render::GetNativeHandle@PRENDERER>
+	   \ \                                                      */
+	RENDER_PROC_PTR( HWND, GetNativeHandle )( PRENDERER video );
+#endif
+		 /* <combine sack::image::render::GetDisplaySizeEx@int@int32_t *@int32_t *@uint32_t *@uint32_t *>
+		    \ \                                                                           */
+		 RENDER_PROC_PTR (void, GetDisplaySizeEx) ( int nDisplay
+														  , int32_t *x, int32_t *y
+														  , uint32_t *width, uint32_t *height);
+	/* Locks a video display. Applications shouldn't be locking
+	   this, but if for some reason they require it; use this
+	   function.                                                */
+	RENDER_PROC_PTR( void, LockRenderer )( PRENDERER render );
+	/* Release renderer lock critical section. Applications
+	   shouldn't be locking this surface.                   */
+	RENDER_PROC_PTR( void, UnlockRenderer )( PRENDERER render );
+	/* Provides a way for applications to cause the window to flush
+	   to the display (if it's a transparent window)                */
+	RENDER_PROC_PTR( void, IssueUpdateLayeredEx )( PRENDERER hVideo, LOGICAL bContent, int32_t x, int32_t y, uint32_t w, uint32_t h DBG_PASS );
+	/* Check to see if the render mode is always redraw; changes how
+	   smudge works in PSI. If always redrawn, then the redraw isn't
+	   done during the smudge, and instead is delayed until a draw
+	   is triggered at which time all controls are drawn.
+	   Returns
+	   TRUE if full screen needs to be drawn during a draw,
+	   otherwise partial updates may be done.                        */
+	RENDER_PROC_PTR( LOGICAL, RequiresDrawAll )( void );
+#ifndef NO_TOUCH
+		/* <combine sack::image::render::SetTouchHandler@PRENDERER@fte inc asdfl;kj
+		 fteTouchCallback@uintptr_t>
+       \ \                                                                             */
+			RENDER_PROC_PTR( void, SetTouchHandler)      ( PRENDERER, TouchCallback, uintptr_t );
+#endif
+    RENDER_PROC_PTR( void, MarkDisplayUpdated )( PRENDERER );
+    /* <combine sack::image::render::SetHideHandler@PRENDERER@HideAndRestoreCallback@uintptr_t>
+       \ \                                                                             */
+    RENDER_PROC_PTR( void, SetHideHandler)      ( PRENDERER, HideAndRestoreCallback, uintptr_t );
+    /* <combine sack::image::render::SetRestoreHandler@PRENDERER@HideAndRestoreCallback@uintptr_t>
+       \ \                                                                             */
+    RENDER_PROC_PTR( void, SetRestoreHandler)      ( PRENDERER, HideAndRestoreCallback, uintptr_t );
+		 RENDER_PROC_PTR( void, RestoreDisplayEx )   ( PRENDERER hVideo DBG_PASS );
+		 /* added for android extensions; call to enable showing the keyboard in the correct thread
+        ; may have applications for windows tablets
+		  */
+       RENDER_PROC_PTR( void, SACK_Vidlib_ShowInputDevice )( void );
+		 /* added for android extensions; call to enable hiding the keyboard in the correct thread
+		  ; may have applications for windows tablets */
+       RENDER_PROC_PTR( void, SACK_Vidlib_HideInputDevice )( void );
+	/* Check to see if the render mode is allows updates from any thread.
+	   If supported can simplify updates (requiring less scheduling queues).
+	   If it is not supported (such as an X display where only a single thread
+	   can write to the server, otherwise the socket state gets confused) then
+	   Redraw() should be used to dispatch appriorately.  PSI Implements this
+	   internally, so smudge() on a control will behave appriopriately.
+	   If RequiresDrawAll() this is irrelavent.
+	   Returns
+	   TRUE if any thread is allowed to generate UpdateDisplayPortion().
+	   otherwise must call Redraw() on the surface to get a event in the
+	   correct thread.*/
+			 RENDER_PROC_PTR( LOGICAL, AllowsAnyThreadToUpdate )( void );
+		/* This method takes the renderer and either A) resizes it to the display
+		 and issues a redraw; or it sets the screen to the size of the renderer
+		 and scales the image direct to the display.  Pass NULL or another window
+		 to clear the current fullscreen app.
+		 Second paramter is the display to show full on; 0 is 'default'...
+		 1, 2, 3, etc... will be absolute number... if not supported will be same a 0 */
+		RENDER_PROC_PTR( void, SetDisplayFullScreen )( PRENDERER renderer, int nDisplay );
+		/* like full screen, some applications may want to
+       enable owning the screen... (media player) */
+      RENDER_PROC_PTR( void, SuspendSystemSleep )( int bool_suspend_enable );
+	RENDER_PROC_PTR( LOGICAL, RenderIsInstanced )( void );
+	RENDER_PROC_PTR( LOGICAL, VidlibRenderAllowsCopy )( void );
+	RENDER_PROC_PTR( void, SetDisplayCursor )( CTEXTSTR nCursor );
+	RENDER_PROC_PTR( LOGICAL, IsDisplayRedrawForced )( PRENDERER renderer );
+ // only valid during a headless display event....
+	RENDER_PROC_PTR( void, ReplyCloseDisplay )( void );
+		/* Clipboard Callback */
+	RENDER_PROC_PTR( void, SetClipboardEventCallback )(PRENDERER pRenderer, ClipboardCallback callback, uintptr_t psv);
+	// where ever the current mouse is, lock the mouse to the window, and allow the mouse to move it.
+	//
+	RENDER_PROC_PTR( void, BeginMoveDisplay )(PRENDERER pRenderer );
+	// where ever the current mouse is, lock the mouse to the window, and allow the mouse to move it.
+	//
+	RENDER_PROC_PTR( void, BeginSizeDisplay )(PRENDERER pRenderer, enum sizeDisplayValues sizeFrom );
+};
+#ifdef DEFINE_DEFAULT_RENDER_INTERFACE
+#define USE_RENDER_INTERFACE GetDisplayInterface()
+#endif
+#ifdef FORCE_NO_INTERFACE
+#undef USE_RENDER_INTERFACE
+#endif
+#ifdef FORCE_NO_RENDER_INTERFACE
+#undef USE_RENDER_INTERFACE
+#endif
+#if !defined(FORCE_NO_RENDER_INTERFACE)
+/* RENDER_PROC( PRENDER_INTERFACE, GetDisplayInterface )( void
+ );
+   Gets the interface the proper way - by name.
+   Returns
+   Pointer to the render interface.                            */
+#  define GetDisplayInterface() (PRENDER_INTERFACE)GetInterface( "render" )
+/* RENDER_PROC( void, DropDisplayInterface )( PRENDER_INTERFACE interface );
+   release the interface (could be cleanup, most are donothing....
+   parameters
+   interface   - Pointer to the render interface.                            */
+#  define DropDisplayInterface(x) DropInterface( "render", x )
+#endif
+#ifdef USE_RENDER_INTERFACE
+typedef int check_this_variable;
+// these methods are provided for backwards compatibility
+// these should not be used - but rather use the interface defined below
+// (the ones not prefixed by ActImage_ - except for ActImage_Init, which
+// may(should) be called before any other function.
+#define REND_PROC_ALIAS(name) ((USE_RENDER_INTERFACE)->_##name)
+#define REND_PROC_ALIAS_VOID(name) if(USE_RENDER_INTERFACE)(USE_RENDER_INTERFACE)->_##name
+#define SetApplicationTitle       REND_PROC_ALIAS(SetApplicationTitle)
+#define SetRendererTitle       REND_PROC_ALIAS(SetRendererTitle)
+#define SetApplicationIcon        REND_PROC_ALIAS(SetApplicationIcon)
+#define GetDisplaySize            REND_PROC_ALIAS(GetDisplaySize)
+#define GetDisplaySizeEx            REND_PROC_ALIAS(GetDisplaySizeEx)
+#define MarkDisplayUpdated            REND_PROC_ALIAS(MarkDisplayUpdated)
+#define SetDisplaySize            REND_PROC_ALIAS(SetDisplaySize)
+#define GetDisplayPosition        REND_PROC_ALIAS(GetDisplayPosition)
+#define IssueUpdateLayeredEx      REND_PROC_ALIAS(IssueUpdateLayeredEx)
+#define MakeDisplayFrom        REND_PROC_ALIAS(MakeDisplayFrom)
+#define OpenDisplaySizedAt        REND_PROC_ALIAS(OpenDisplaySizedAt)
+#define OpenDisplayAboveSizedAt   REND_PROC_ALIAS(OpenDisplayAboveSizedAt)
+#define OpenDisplayAboveUnderSizedAt   REND_PROC_ALIAS(OpenDisplayAboveUnderSizedAt)
+#define CloseDisplay              REND_PROC_ALIAS(CloseDisplay)
+#define UpdateDisplayPortionEx    REND_PROC_ALIAS(UpdateDisplayPortionEx)
+#define UpdateDisplayEx             REND_PROC_ALIAS(UpdateDisplayEx)
+#define SetMousePosition          REND_PROC_ALIAS(SetMousePosition)
+#define GetMousePosition          REND_PROC_ALIAS(GetMousePosition)
+#define GetMouseState          REND_PROC_ALIAS(GetMouseState)
+#define EnableSpriteMethod          REND_PROC_ALIAS(EnableSpriteMethod)
+#define WinShell_AcceptDroppedFiles REND_PROC_ALIAS(WinShell_AcceptDroppedFiles)
+#define MoveDisplay               REND_PROC_ALIAS(MoveDisplay)
+#define MoveDisplayRel            REND_PROC_ALIAS(MoveDisplayRel)
+#define SizeDisplay               REND_PROC_ALIAS(SizeDisplay)
+#define Redraw               REND_PROC_ALIAS(Redraw)
+#define RequiresDrawAll()        (USE_RENDER_INTERFACE)?((USE_RENDER_INTERFACE)->_RequiresDrawAll()):0
+#define SizeDisplayRel            REND_PROC_ALIAS(SizeDisplayRel)
+#define MoveSizeDisplay        REND_PROC_ALIAS(MoveSizeDisplay)
+#define MoveSizeDisplayRel        REND_PROC_ALIAS(MoveSizeDisplayRel)
+#define PutDisplayAbove           REND_PROC_ALIAS(PutDisplayAbove)
+#define PutDisplayIn           REND_PROC_ALIAS(PutDisplayIn)
+#define GetDisplayImage           REND_PROC_ALIAS(GetDisplayImage)
+#define LockRenderer              REND_PROC_ALIAS(LockRenderer)
+#define UnlockRenderer              REND_PROC_ALIAS(UnlockRenderer)
+#define SetCloseHandler           REND_PROC_ALIAS(SetCloseHandler)
+#define SetMouseHandler           REND_PROC_ALIAS(SetMouseHandler)
+#define SetHideHandler           REND_PROC_ALIAS(SetHideHandler)
+#define SetRestoreHandler           REND_PROC_ALIAS(SetRestoreHandler)
+#define AllowsAnyThreadToUpdate()          ((USE_RENDER_INTERFACE)?((USE_RENDER_INTERFACE)->_AllowsAnyThreadToUpdate)?(USE_RENDER_INTERFACE)->_AllowsAnyThreadToUpdate():1:1)
+#define VidlibRenderAllowsCopy()        ((USE_RENDER_INTERFACE)?((USE_RENDER_INTERFACE)->_VidlibRenderAllowsCopy)?(USE_RENDER_INTERFACE)->_VidlibRenderAllowsCopy():1:1)
+#ifndef __LINUX__
+#define SetTouchHandler           REND_PROC_ALIAS(SetTouchHandler)
+#endif
+#define SetRedrawHandler          REND_PROC_ALIAS(SetRedrawHandler)
+#define SetKeyboardHandler        REND_PROC_ALIAS(SetKeyboardHandler)
+#define SetLoseFocusHandler       REND_PROC_ALIAS(SetLoseFocusHandler)
+#define SetDefaultHandler         REND_PROC_ALIAS(SetDefaultHandler)
+#define GetKeyText                REND_PROC_ALIAS(GetKeyText)
+#define HasFocus                  REND_PROC_ALIAS(HasFocus)
+#define SACK_Vidlib_ShowInputDevice REND_PROC_ALIAS( SACK_Vidlib_ShowInputDevice )
+#define SACK_Vidlib_HideInputDevice REND_PROC_ALIAS( SACK_Vidlib_HideInputDevice )
+#define CreateMessage             REND_PROC_ALIAS(CreateMessage)
+#define SendActiveMessage         REND_PROC_ALIAS(SendActiveMessage)
+#define IsKeyDown                 REND_PROC_ALIAS(IsKeyDown)
+#define KeyDown                   REND_PROC_ALIAS(KeyDown)
+#define DisplayIsValid            REND_PROC_ALIAS(DisplayIsValid)
+#define OwnMouseEx                REND_PROC_ALIAS(OwnMouseEx)
+#define BeginCalibration          REND_PROC_ALIAS(BeginCalibration)
+#define SyncRender                REND_PROC_ALIAS(SyncRender)
+#define OkaySyncRender                REND_PROC_ALIAS(OkaySyncRender)
+#define HideDisplay               REND_PROC_ALIAS(HideDisplay)
+#define IsDisplayHidden               REND_PROC_ALIAS(IsDisplayHidden)
+/* <combine sack::image::render::GetNativeHandle@PRENDERER>
+   \ \                                                      */
+#define GetNativeHandle             REND_PROC_ALIAS(GetNativeHandle)
+//#define RestoreDisplay             REND_PROC_ALIAS(RestoreDisplay)
+#define RestoreDisplayEx             REND_PROC_ALIAS(RestoreDisplayEx)
+#define MakeTopmost               REND_PROC_ALIAS_VOID(MakeTopmost)
+#define MakeAbsoluteTopmost               REND_PROC_ALIAS_VOID(MakeAbsoluteTopmost)
+#define IsTopmost               REND_PROC_ALIAS(IsTopmost)
+#define SetDisplayFade               REND_PROC_ALIAS(SetDisplayFade)
+#define ForceDisplayFocus         REND_PROC_ALIAS(ForceDisplayFocus)
+#define ForceDisplayFront       REND_PROC_ALIAS(ForceDisplayFront)
+#define ForceDisplayBack          REND_PROC_ALIAS(ForceDisplayBack)
+#define BindEventToKey          REND_PROC_ALIAS(BindEventToKey)
+#define UnbindKey               REND_PROC_ALIAS(UnbindKey)
+#define IsTouchDisplay          REND_PROC_ALIAS(IsTouchDisplay)
+#define DisableMouseOnIdle      REND_PROC_ALIAS(DisableMouseOnIdle )
+#define SetDisplayNoMouse      REND_PROC_ALIAS(SetDisplayNoMouse )
+#define SetTouchHandler        REND_PROC_ALIAS(SetTouchHandler)
+#define ReplyCloseDisplay      if(USE_RENDER_INTERFACE) if((USE_RENDER_INTERFACE)->_ReplyCloseDisplay) (USE_RENDER_INTERFACE)->_ReplyCloseDisplay
+#define SetClipboardEventCallback   REND_PROC_ALIAS( SetClipboardEventCallback )
+#define SetDisplayFullScreen    REND_PROC_ALIAS_VOID( SetDisplayFullScreen )
+#define SuspendSystemSleep      REND_PROC_ALIAS_VOID( SuspendSystemSleep )
+#define RenderIsInstanced()       ((USE_RENDER_INTERFACE)?((USE_RENDER_INTERFACE)->_RenderIsInstanced)?(USE_RENDER_INTERFACE)->_RenderIsInstanced():0:0)
+#define SetDisplayCursor(n)           {if((USE_RENDER_INTERFACE)&&(USE_RENDER_INTERFACE)->_SetDisplayCursor)REND_PROC_ALIAS(SetDisplayCursor)(n);}
+#define IsDisplayRedrawForced(r)    ((USE_RENDER_INTERFACE)?((USE_RENDER_INTERFACE)->_IsDisplayRedrawForced)?(USE_RENDER_INTERFACE)->_IsDisplayRedrawForced(r):0:0)
+#define BeginMoveDisplay(r)   ((USE_RENDER_INTERFACE)?((USE_RENDER_INTERFACE)->_BeginMoveDisplay)?((USE_RENDER_INTERFACE)->_BeginMoveDisplay(r),1):0:0)
+#define BeginSizeDisplay(r,m)   ((USE_RENDER_INTERFACE)?((USE_RENDER_INTERFACE)->_BeginSizeDisplay)?((USE_RENDER_INTERFACE)->_BeginSizeDisplay(r,m),1):0:0)
+#endif
+	_INTERFACE_NAMESPACE_END
+#ifdef __cplusplus
+#ifdef _D3D_DRIVER
+	using namespace sack::image::render::d3d::Interface;
+#elif defined( _D3D10_DRIVER )
+	using namespace sack::image::render::d3d10::Interface;
+#elif defined( _D3D11_DRIVER )
+	using namespace sack::image::render::d3d11::Interface;
+#else
+	using namespace sack::image::render::Interface;
+#endif
+#endif
+#endif
+#ifndef __NO_MSGSVR__
+#ifdef DEFINE_RENDER_PROTOCOL
+  // offsetof
+// need to define BASE_RENDER_MESSAGE_ID before including this.
+//#define MSG_ID(method)  ( ( offsetof( struct render_interface_tag, _##method ) / sizeof( void(*)(void) ) ) + BASE_RENDER_MESSAGE_ID + MSG_EventUser )
+#define MSG_DisplayClientClose        MSG_ID(DisplayClientClose)
+#define MSG_SetApplicationTitle       MSG_ID(SetApplicationTitle)
+#define MSG_SetRendererTitle       MSG_ID(SetRendererTitle)
+#define MSG_SetApplicationIcon        MSG_ID(SetApplicationTitle)
+#define MSG_GetDisplaySize            MSG_ID(GetDisplaySize)
+#define MSG_SetDisplaySize            MSG_ID(SetDisplaySize)
+#define MSG_GetDisplayPosition        MSG_ID(GetDisplayPosition)
+#define MSG_OpenDisplaySizedAt        MSG_ID(OpenDisplaySizedAt)
+#define MSG_OpenDisplayAboveSizedAt   MSG_ID(OpenDisplayAboveSizedAt)
+#define MSG_CloseDisplay              MSG_ID(CloseDisplay)
+#define MSG_UpdateDisplayPortionEx    MSG_ID(UpdateDisplayPortionEx)
+#define MSG_UpdateDisplay             MSG_ID(UpdateDisplayEx)
+#define MSG_SetMousePosition          MSG_ID(SetMousePosition)
+#define MSG_GetMousePosition          MSG_ID(GetMousePosition)
+#define MSG_GetMouseState             MSG_ID(GetMouseState )
+#define MSG_Redraw               MSG_ID(Redraw)
+#define MSG_EnableSpriteMethod             MSG_ID(EnableSpriteMethod )
+#define MSG_WinShell_AcceptDroppedFiles    MSG_ID(WinShell_AcceptDroppedFiles )
+#define MSG_MoveDisplay               MSG_ID(MoveDisplay)
+#define MSG_MoveDisplayRel            MSG_ID(MoveDisplayRel)
+#define MSG_SizeDisplay               MSG_ID(SizeDisplay)
+#define MSG_SizeDisplayRel            MSG_ID(SizeDisplayRel)
+#define MSG_MoveSizeDisplay           MSG_ID(MoveSizeDisplay)
+#define MSG_MoveSizeDisplayRel        MSG_ID(MoveSizeDisplayRel)
+#define MSG_PutDisplayAbove           MSG_ID(PutDisplayAbove)
+#define MSG_GetDisplayImage           MSG_ID(GetDisplayImage)
+#define MSG_SetCloseHandler           MSG_ID(SetCloseHandler)
+#define MSG_SetMouseHandler           MSG_ID(SetMouseHandler)
+#define MSG_SetRedrawHandler          MSG_ID(SetRedrawHandler)
+#define MSG_SetKeyboardHandler        MSG_ID(SetKeyboardHandler)
+#define MSG_SetLoseFocusHandler       MSG_ID(SetLoseFocusHandler)
+#define MSG_SetDefaultHandler         MSG_ID(SetDefaultHandler)
+// -- all other handlers - client side only
+#define MSG_HasFocus                  MSG_ID(HasFocus)
+#define MSG_SendActiveMessage         MSG_ID(SendActiveMessage)
+#define MSG_GetKeyText                MSG_ID(GetKeyText)
+#define MSG_IsKeyDown                 MSG_ID(IsKeyDown)
+#define MSG_KeyDown                   MSG_ID(KeyDown)
+#define MSG_DisplayIsValid            MSG_ID(DisplayIsValid)
+#define MSG_OwnMouseEx                 MSG_ID(OwnMouseEx)
+#define MSG_BeginCalibration           MSG_ID(BeginCalibration)
+#define MSG_SyncRender                 MSG_ID(SyncRender)
+#define MSG_OkaySyncRender                 MSG_ID(OkaySyncRender)
+#define MSG_HideDisplay               MSG_ID(HideDisplay)
+#define MSG_IsDisplayHidden               MSG_ID(IsDisplayHidden)
+#define MSG_RestoreDisplay             MSG_ID(RestoreDisplay)
+#define MSG_MakeTopmost               MSG_ID(MakeTopmost)
+#define MSG_BindEventToKey          MSG_ID(BindEventToKey)
+#define MSG_UnbindKey               MSG_ID(UnbindKey)
+#define MSG_IsTouchDisplay          MSG_ID(IsTouchDisplay )
+#define MSG_GetNativeHandle             MSG_ID(GetNativeHandle)
+#endif
+#endif
+// static void OnDisplayChangedSize( "" )( PRENDERER, int nDisplay, uint32_t x, uint32_t y, uint32_t width, uint32_t height )
+	// OnDisplayPause is called on systems that allow the application to suspend its display.
+	// Sleep mode may also trigger such an event, allows application to save state
+   // a media player, for instance, may recover unplayed buffers to prepare for resume
+#define OnDisplaySizeChange(name)	 DefineRegistryMethod("sack/render",OnDisplaySizeChange,"display",name,"on_display_size_change",void,( uintptr_t psv_redraw, int nDisplay, int32_t x, int32_t y, uint32_t width, uint32_t height ),__LINE__)
+// static void OnDisplayPause( "" )( void )
+	// OnDisplayPause is called on systems that allow the application to suspend its display.
+	// Sleep mode may also trigger such an event, allows application to save state
+   // a media player, for instance, may recover unplayed buffers to prepare for resume
+#define OnDisplayPause(name)	 DefineRegistryMethod("sack/render/android",OnDisplayPause,"display",name,"on_display_pause",void,(void),__LINE__)
+// static void OnDisplayResume( "" )( void )
+	// OnDisplayResume is called on systems that allow the application to suspend its display.
+	// Wake from sleep mode may also trigger such an event, allows application to restore saved state
+   // a media player, for instance, may continue playing ( it might be good to wait just a little longer than 'now')
+#define OnDisplayResume(name)	 DefineRegistryMethod("sack/render/android",OnDisplayResume,"display",name,"on_display_resume",void,(void),__LINE__)
+	struct display_app;
+	struct display_app_local;
+	// static void OnDisplayConnect( "" )( struct display_app*app, struct display_app_local ***pppLocal )
+	//  app is a unique handle to the display instance.  Can be used as a key to locate resources for the display
+	//  pppLocal is ... ugly.
+	//  ThreadLocal struct instance_local *_thread_local;
+	//  static void OnDisplayConnect( "" )( struct display_app*app, struct display_app_local ***pppLocal )
+	//  {
+	//	    _thread_local = New( struct instance_local );
+	//      MemSet( option_thread, 0, sizeof( option_thread ) );
+	//      (*local) = (struct display_app_local**)&option_thread;
+	//       //... init local here
+	//  }
+	//
+#define OnDisplayConnect(name)	 DefineRegistryMethod("/sack/render/remote display",OnDisplayConnect,"connect",name,"new_display_connect",void,(struct display_app*app, struct display_app_local ***),__LINE__)
+	// unimplemented.
+#define OnDisplayConnected(name)	 DefineRegistryMethod("/sack/render/remote display",OnDisplayConnect,"connect",name,"new_display_connected",void,(struct display_app*app),__LINE__)
+RENDER_NAMESPACE_END
+#ifdef __cplusplus
+#ifdef _D3D_DRIVER
+	using namespace sack::image::render::d3d;
+#elif defined( _D3D10_DRIVER )
+	using namespace sack::image::render::d3d10;
+#elif defined( _D3D11_DRIVER )
+	using namespace sack::image::render::d3d11;
+#else
+	using namespace sack::image::render;
+#endif
+#endif
+#endif
+// : $
+// $Log: render.h,v $
+// Revision 1.48  2005/05/25 16:50:09  d3x0r
+// Synch with working repository.
+//
+// Revision 1.10  2003/03/25 08:38:11  panther
+// Add logging
+//
+#ifndef _SHARED_MEMORY_LIBRARY
+#if !defined( MEMORY_STRUCT_DEFINED ) || defined( DEFINE_MEMORY_STRUCT )
+//#define ENABLE_NATIVE_MALLOC_PROTECTOR
+#ifdef _DEBUG
+#  define USE_DEBUG_LOGGING 1
+#else
+#  define USE_DEBUG_LOGGING 0
+#endif
+#define MEMORY_STRUCT_DEFINED
+#ifdef _DEBUG
+//  Define this symbol in SHAREMEM.H!
+// if you define it here it will not work as expected...
+//// defined in sharemem.h #define DEBUG_CRITICAL_SECTIONS
+//// defined in sharemem.h #define LOG_DEBUG_CRITICAL_SECTIONS
+#endif
+#define _SHARED_MEMORY_LIBRARY
+#ifdef __cplusplus
+namespace sack {
+	namespace timers {
+#endif
+// bit set on dwLocks when someone hit it and it was locked
+#ifdef LOG_DEBUG_CRITICAL_SECTIONS
+#define SECTION_LOGGED_WAIT 0x80000000
+#define AND_NOT_SECTION_LOGGED_WAIT(n) ((n)&(~SECTION_LOGGED_WAIT))
+#define AND_SECTION_LOGGED_WAIT(n) ((n)&(SECTION_LOGGED_WAIT))
+#else
+#define SECTION_LOGGED_WAIT 0
+#define AND_NOT_SECTION_LOGGED_WAIT(n) (n)
+#define AND_SECTION_LOGGED_WAIT(n) (0)
+#endif
+// If you change this structure please change the public
+// reference of this structure, and please, do hand-count
+// the bytes to set there... so not include this file
+// to get the size.  The size there should be the worst
+// case - debug or release mode.
+#ifdef NO_PRIVATE_DEF
+struct critical_section_tag {
+ // this is set when entering or leaving (updating)...
+	volatile uint32_t dwUpdating;
+	volatile uint32_t dwLocks;
+ // windows upper 16 is process ID, lower is thread ID
+	THREAD_ID dwThreadID;
+ // ID of thread waiting for this..
+	THREAD_ID dwThreadWaiting;
+	//PDATAQUEUE pPriorWaiters;
+#ifdef DEBUG_CRITICAL_SECTIONS
+	uint32_t bCollisions ;
+	CTEXTSTR pFile;
+	uint32_t  nLine;
+#endif
+};
+typedef struct critical_section_tag CRITICALSECTION;
+#endif
+#ifdef __cplusplus
+	}
+}
+#endif
+#ifdef __cplusplus
+namespace sack {
+	namespace memory {
+		using namespace sack::timers;
+#endif
+// pFile, nLine has been removed from this
+// the references for this info are now
+// stored at the end of the block
+		// after the 0x12345678 tag.
+#  ifdef _MSC_VER
+#    pragma pack (push, 1)
+#  endif
+// custom allocer, use heap_chunk_tag
+PREFIX_PACKED struct malloc_chunk_tag
+{
+   // if 0 - block is free
+	uint16_t dwOwners;
+      // extra bytes 4/12 typical, sometimes pad untill next. (alignment extra bytes)
+	uint16_t dwPad;
+#ifdef __64__
+	uint32_t pad;
+#endif
+  // limited to allocating 4 billion bytes...
+	uintptr_t dwSize;
+#ifdef ENABLE_NATIVE_MALLOC_PROTECTOR
+	uint32_t LeadProtect[2];
+#endif
+ // this is additional to subtract to get back to start (aligned allocate)
+	uint16_t alignment;
+ // this is additional to subtract to get back to start (aligned allocate)
+	uint16_t to_chunk_start;
+ // uint8_t is the smallest valid datatype could be _0
+	uint8_t byData[1];
+} PACKED;
+PREFIX_PACKED struct heap_chunk_tag
+{
+	DeclareLink( struct heap_chunk_tag );
+            // if 0 - block is free
+	uint16_t dwOwners;
+   // extra bytes 4/12 typical, sometimes pad untill next.
+	uint16_t dwPad;
+	// which is < ( CHUNK_SIZE + nMinAllocate )
+	// real size is then dwSize - dwPad.
+	// this is actually where the end of block tag(s) should begin!
+  // limited to allocating 4 billion bytes...
+	uintptr_t dwSize;
+         // save some math backwards...
+	struct heap_chunk_tag *pPrior;
+  // pointer to master allocation struct (pMEM)
+	struct memory_block_tag * pRoot;
+ // this is additional to subtract to get back to start (aligned allocate)
+	uint16_t alignment;
+ // this is additional to subtract to get back to start (aligned allocate)
+	uint16_t to_chunk_start;
+ // uint8_t is the smallest valid datatype could be _0
+	uint8_t byData[1];
+} PACKED;
+// a chunk of memory in a heap space, heaps are also tracked, so extents
+// of that space are known, therefore one can identify a heap chunk
+// from a non-heap (malloc?) chunk.
+typedef PREFIX_PACKED struct heap_chunk_tag HEAP_CHUNK, *PHEAP_CHUNK;
+// CHUNK and HEAP_CHUNK are the same.  They were not the same when using an
+// ifdef to separate custom allocation from malloc allocation.  HeapAllocate
+// could still be passed a heap before, and would be able to allocate from it.
+typedef PREFIX_PACKED struct heap_chunk_tag CHUNK, *PCHUNK;
+typedef PREFIX_PACKED struct malloc_chunk_tag MALLOC_CHUNK, *PMALLOC_CHUNK;
+#ifdef _MSC_VER
+#pragma pack (pop)
+#endif
+// chunks allocated have no debug information.
+#define HEAP_FLAG_NO_DEBUG 0x0001
+struct memory_block_tag
+{
+	uintptr_t dwSize;
+ // unique value 0xbab1f1ea (baby flea);
+	uint32_t dwHeapID;
+	// lock between multiple processes/threads
+	CRITICALSECTION cs;
+	uint32_t dwFlags;
+	PHEAP_CHUNK pFirstFree;
+	HEAP_CHUNK pRoot[1];
+};
+typedef struct memory_block_tag MEM;
+#ifdef __cplusplus
+	}
+}
+#endif
+#endif
+#endif
+#ifdef __cplusplus
+namespace sack {
+	namespace timers {
+		using namespace sack::containers;
+		using namespace sack::memory;
+		using namespace sack::logging;
+#endif
+//#define LOG_CREATE_EVENT_OBJECT
+//#define LOG_THREAD
+//#define LOG_SLEEPS
+// - define this to log when timers were delayed in scheduling...
+//198#define LOG_LATENCY_LIGHT
+//#define LOG_LATENCY
+//#define LOG_INSERTS
+//#define LOG_DISPATCH
+//#define DEBUG_PIPE_USAGE
+typedef struct thread_event THREAD_EVENT;
+typedef struct thread_event *PTHREAD_EVENT;
+struct timer_tag
+{
+// putting next as first thing in structure
+   // allows me to reference also prior
+	struct timer_tag *next;
+	union {
+		struct timer_tag **me;
+		struct timer_tag *prior;
+	};
+	struct {
+		BIT_FIELD bRescheduled : 1;
+	} flags;
+	uint32_t frequency;
+	int32_t delta;
+	uint32_t ID;
+	void (CPROC*callback)(uintptr_t user);
+	uintptr_t userdata;
+#if defined( _DEBUG ) || defined( _DEBUG_INFO )
+	CTEXTSTR pFile;
+	int nLine;
+#endif
+};
+typedef struct timer_tag TIMER, *PTIMER;
+#define MAXTIMERSPERSET 32
+DeclareSet( TIMER );
+struct threads_tag
+{
+	// these first two items MUST
+	// be declared publically, and MUST be visible
+	// to the thread created.
+	uintptr_t param;
+	uintptr_t (CPROC*proc)( struct threads_tag * );
+	uintptr_t (CPROC*simple_proc)( POINTER );
+ // might be not a real thread.
+	TEXTSTR thread_event_name;
+	volatile THREAD_ID thread_ident;
+	PTHREAD_EVENT thread_event;
+#ifdef _WIN32
+	//HANDLE hEvent;
+	volatile HANDLE hThread;
+#else
+#ifdef USE_PIPE_SEMS
+ // file handles that are the pipe's ends. 0=read 1=write
+	int pipe_ends[2];
+#endif
+ // use this as a status of pipes if USE_PIPE_SEMS is used...; otherwise it's a ipcsem
+	int semaphore;
+	pthread_mutex_t mutex;
+	pthread_t hThread;
+#endif
+	struct {
+		//BIT_FIELD bLock : 1;
+		//BIT_FIELD bSleeping : 1;
+		//BIT_FIELD bWakeWhileRunning : 1;
+		BIT_FIELD bRemovedWhileRunning : 1;
+		BIT_FIELD bLocal : 1;
+		BIT_FIELD bReady : 1;
+		BIT_FIELD bStarted : 1;
+	} flags;
+	//struct threads_tag *next, **me;
+	CTEXTSTR pFile;
+	uint32_t nLine;
+};
+typedef struct threads_tag THREAD;
+#define MAXTHREADSPERSET 16
+DeclareSet( THREAD );
+struct thread_event
+{
+	TEXTSTR name;
+#ifdef _WIN32
+	HANDLE hEvent;
+#endif
+};
+struct timer_local_data {
+	uint32_t timerID;
+	PTIMERSET timer_pool;
+	PTIMER timers;
+ // this timer is scheduled to be added...
+	PTIMER add_timer;
+	PTIMER current_timer;
+	struct {
+		BIT_FIELD away_in_timer : 1;
+		BIT_FIELD insert_while_away : 1;
+		BIT_FIELD bExited : 1;
+#ifdef ENABLE_CRITICALSEC_LOGGING
+		BIT_FIELD bLogCriticalSections : 1;
+#endif
+		BIT_FIELD bLogSleeps : 1;
+		BIT_FIELD bLogTimerDispatch : 1;
+		BIT_FIELD bLogThreadCreate : 1;
+		BIT_FIELD bHaltTimers : 1;
+	} flags;
+ // this timer is scheduled to be removed...
+	uint32_t del_timer;
+ // should somehow end up equating to sleep overhead...
+	uint32_t tick_bias;
+ // last known time that a timer could have fired...
+	uint32_t last_tick;
+ // the current moment up to which we fire all timers.
+	uint32_t this_tick;
+	PTHREAD pTimerThread;
+	PTHREADSET threadset;
+	PTHREAD threads;
+	volatile uint32_t lock_timers;
+	CRITICALSECTION cs_timer_change;
+	//uint32_t pending_timer_change;
+	uint32_t remove_timer;
+	uint32_t CurrentTimerID;
+	int32_t last_sleep;
+	PLIST onThreadCreate;
+#define globalTimerData (*global_timer_structure)
+	volatile uint64_t lock_thread_create;
+	// should be a short list... 10 maybe 15...
+	PLIST thread_events;
+	CRITICALSECTION csGrab;
+#if !HAS_TLS
+#  if defined( WIN32 )
+	DWORD my_thread_info_tls;
+#  elif defined( __LINUX__ )
+	pthread_key_t my_thread_info_tls;
+#  endif
+#endif
+}
+#ifdef __STATIC_GLOBALS__
+  global_timer_structure__
+#endif
+;
+struct timer_local_data *global_timer_structure
+#ifdef __STATIC_GLOBALS__
+    = &global_timer_structure__;
+#endif
+// = { 1000 };
+;
+#if HAS_TLS
+struct my_thread_info {
+	PTHREAD pThread;
+	THREAD_ID nThread;
+};
+DeclareThreadLocal  struct my_thread_info _MyThreadInfo;
+#  define MyThreadInfo (_MyThreadInfo)
+#else
+#  define MyThreadInfo (*_MyThreadInfo)
+#endif
+#ifdef _WIN32
+#else
+//#include <sys/ipc.h>
+	 // hmm wonder why this has to be defined....
+	 // semtimedop is a wonderful wonderful thing...
+	 // but yet /usr/include/sys/sem.h only defines it if
+// __USE_GNU is defined....
+#ifndef __USE_GNU
+#define __USE_GNU
+#endif
+#ifdef __ANDROID__
+#include <linux/sem.h>
+#else
+#include <sys/sem.h>
+#endif
+#endif
+void  RemoveTimerEx( uint32_t ID DBG_PASS );
+#if !HAS_TLS
+static struct my_thread_info* GetThreadTLS( void )
+{
+	struct my_thread_info* _MyThreadInfo;
+#  ifndef __STATIC_GLOBALS__
+	if( !global_timer_structure )
+		SimpleRegisterAndCreateGlobal( global_timer_structure );
+#  endif
+#  if defined( WIN32 )
+	if( !( _MyThreadInfo = (struct my_thread_info*)TlsGetValue( global_timer_structure->my_thread_info_tls ) ) )
+	{
+		int old = SetAllocateLogging( FALSE );
+		TlsSetValue( global_timer_structure->my_thread_info_tls, _MyThreadInfo = New( struct my_thread_info ) );
+		SetAllocateLogging( old );
+		_MyThreadInfo->nThread = 0;
+		_MyThreadInfo->pThread = 0;
+	}
+#  elif defined( __LINUX__ )
+	if( !( _MyThreadInfo = (struct my_thread_info*)pthread_getspecific( global_timer_structure->my_thread_info_tls ) ) )
+	{
+		pthread_setspecific( global_timer_structure->my_thread_info_tls, _MyThreadInfo = New( struct my_thread_info ) );
+		_MyThreadInfo->nThread = 0;
+		_MyThreadInfo->pThread = 0;
+	}
+#  endif
+	return &MyThreadInfo;
+}
+#endif
+// this priorirty is also relative to a secondary init for procreg/names.c
+// if you change this, need to change when that is scheduled also
+PRIORITY_PRELOAD( LowLevelInit, TIMER_MODULE_PRELOAD_PRIORITY )
+{
+	// there is a small chance the local is already initialized.
+#  ifndef __STATIC_GLOBALS__
+	if( !global_timer_structure ) {
+		SimpleRegisterAndCreateGlobal( global_timer_structure );
+		OnThreadCreate( (void(*)(void))MakeThread );
+ // init thread local variable with thread id and self thread.
+		MakeThread();
+	}
+#  endif
+	if( !globalTimerData.timerID )
+	{
+ // init thread local variable with thread id and self thread.
+		MakeThread();
+#if !HAS_TLS
+#if defined( WIN32 )
+		globalTimerData.my_thread_info_tls = TlsAlloc();
+#elif defined( __LINUX__ )
+		pthread_key_create( &globalTimerData.my_thread_info_tls, NULL );
+#endif
+#endif
+		InitializeCriticalSec( &globalTimerData.csGrab );
+		// this may have initialized early?
+		globalTimerData.timerID = 1000;
+		//lprintf( "thread global will be %p %p", global_timer_structure, &global_timer_structure );
+	}
+}
+PRELOAD( ConfigureTimers )
+{
+#ifndef __NO_OPTIONS__
+#  ifdef ENABLE_CRITICALSEC_LOGGING
+	globalTimerData.flags.bLogCriticalSections = SACK_GetProfileInt( GetProgramName(), "SACK/Memory Library/Log critical sections", 0 );
+#  endif
+	globalTimerData.flags.bLogThreadCreate = SACK_GetProfileInt( GetProgramName(), "SACK/Timers/Log Thread Create", 0 );
+	globalTimerData.flags.bLogSleeps = SACK_GetProfileInt( GetProgramName(), "SACK/Timers/Log Sleeps", 0 );
+	globalTimerData.flags.bLogTimerDispatch = SACK_GetProfileInt( GetProgramName(), "SACK/Timers/Log Timer Dispatch", 0 );
+#endif
+}
+//--------------------------------------------------------------------------
+#ifdef __LINUX__
+#ifdef __LINUX__
+uint32_t  GetTickCount( void )
+{
+	struct timeval time;
+	gettimeofday( &time, 0 );
+	return (time.tv_sec * 1000) + (time.tv_usec / 1000);
+}
+#ifndef timeGetTime
+uint32_t  timeGetTime( void )
+{
+	struct timeval time;
+	gettimeofday( &time, 0 );
+	return (time.tv_sec * 1000) + (time.tv_usec / 1000);
+}
+#endif
+void  Sleep( uint32_t ms )
+{
+	(usleep((ms)*1000));
+}
+#endif
+uintptr_t closesem( POINTER p, uintptr_t psv )
+{
+	PTHREAD thread = (PTHREAD)p;
+#ifdef USE_PIPE_SEMS
+	//lprintf( "CLOSE PIPES %s %" _64fx " %d %d", thread->thread_event_name, thread->thread_ident, thread->pipe_ends[0], thread->pipe_ends[1] );
+	close( thread->pipe_ends[0] );
+	close( thread->pipe_ends[1] );
+	thread->pipe_ends[0] = -1;
+	thread->pipe_ends[1] = -1;
+	thread->semaphore = -1;
+#else
+	pthread_mutex_destroy( &thread->mutex );
+#endif
+	return 0;
+}
+static uintptr_t threadrunning( POINTER p, uintptr_t psv )
+{
+	PTHREAD thread = (PTHREAD)p;
+	if( thread->hThread && thread->flags.bStarted )
+		return 1;
+	return 0;
+}
+// sharemem exit priority +1 (exit after everything else, except emmory; globals at memory+1)
+PRIORITY_ATEXIT( CloseAllWakeups, ATEXIT_PRIORITY_THREAD_SEMS )
+{
+	uint32_t start = GetTickCount() + 50;
+	//pid_t mypid = getppid();
+	// not sure if mypid is needed...
+	while( ( start > GetTickCount() ) && ForAllInSet( THREAD, globalTimerData.threadset, threadrunning, 0 ) )
+		Relinquish();
+	//lprintf( "Destroy thread semaphores..." );
+	ForAllInSet( THREAD, globalTimerData.threadset, closesem, (uintptr_t)0 );
+	DeleteSet( (GENERICSET**)&globalTimerData.threadset );
+	globalTimerData.pTimerThread = NULL;
+	//globalTimerData.threads = NULL;
+	globalTimerData.timers = NULL;
+}
+#endif
+// sharemem exit priority +1 (exit after everything else, except emmory)
+PRIORITY_ATEXIT( StopTimers, ATEXIT_PRIORITY_TIMERS )
+{
+	int tries = 0;
+	//pid_t mypid = getppid();
+	// not sure if mypid is needed...
+	if( global_timer_structure ) {
+		globalTimerData.flags.bExited = 1;
+		if( globalTimerData.pTimerThread )
+			WakeThread( globalTimerData.pTimerThread );
+		while( globalTimerData.pTimerThread )
+		{
+			tries++;
+			if( tries > 10 )
+				return;
+			WakeThread( globalTimerData.pTimerThread );
+			Relinquish();
+		}
+	}
+}
+//--------------------------------------------------------------------------
+static void InitWakeup( PTHREAD thread, CTEXTSTR event_name )
+{
+#ifdef _DEBUG
+	int prior;
+	prior = SetAllocateLogging( FALSE );
+#endif
+	if( !event_name )
+		event_name = "ThreadSignal";
+	thread->thread_event_name = StrDup( event_name );
+#ifdef _WIN32
+	if( !thread->thread_event )
+	{
+		PTHREAD_EVENT thread_event;
+		TEXTCHAR name[64];
+		tnprintf( name, 64, "%s:%08lX:%08lX", event_name, (uint32_t)(thread->thread_ident >> 32)
+		        , (uint32_t)(thread->thread_ident & 0xFFFFFFFF) );
+		name[sizeof(name)/sizeof(name[0])-1] = 0;
+#ifdef LOG_CREATE_EVENT_OBJECT
+		lprintf( "Thread Event created is: %s everyone should use this...", name );
+#endif
+		thread_event = New( THREAD_EVENT );
+		thread_event->name = StrDup( name );
+		thread_event->hEvent = CreateEvent( NULL, TRUE, FALSE, name );
+		AddLink( &globalTimerData.thread_events, thread_event );
+		thread->thread_event = thread_event;
+	}
+#else
+#ifdef USE_PIPE_SEMS
+	// store status of pipe() in semaphore... it's not really a semaphore..
+#  ifdef DEBUG_PIPE_USAGE
+	lprintf( "Init wakeup %p %s", thread, event_name );
+#  endif
+	lprintf( "OPENING A PIPE END SEMAPHRE:%d", thread->semaphore );
+	if( pipe( thread->pipe_ends ) == -1 )
+	{
+		lprintf( "Failed to get pipe! %d:%s", errno, strerror( errno ) );
+	}
+	else
+	{
+		char buf;
+		int success = 0;
+		do
+		{
+			int stat;
+			int n;
+			fd_set set;
+			struct timeval timeout;
+			FD_ZERO(&set);
+			FD_SET( thread->pipe_ends[0], &set);
+			timeout.tv_sec = 0;
+			timeout.tv_usec = 100;
+#  ifdef DEBUG_PIPE_USAGE
+			lprintf(" Begin select-flush on thread %p", thread );
+#  endif
+			stat = select(thread->pipe_ends[0] + 1, &set, NULL, NULL, &timeout);
+			if(stat == -1)
+			{
+				lprintf( "select error %d %d", errno, thread->pipe_ends[0]);
+			}
+			else if(stat == 0)
+			{
+				success = 1;
+#  ifdef DEBUG_PIPE_USAGE
+				lprintf("timeout");
+#  endif
+			}
+			else
+			{
+#  ifdef DEBUG_PIPE_USAGE
+				lprintf(" immediate return?" );
+#  endif
+				stat = read( thread->pipe_ends[0], &buf, 1 );
+#  ifdef DEBUG_PIPE_USAGE
+				lprintf( "Stat is now %d", stat );
+#  endif
+			}
+		}
+		while( !success );
+	}
+#else
+	pthread_mutex_init( &thread->mutex, NULL );
+	pthread_mutex_lock( &thread->mutex );
+	thread->semaphore = -1;
+#endif
+#endif
+#ifdef _DEBUG
+	SetAllocateLogging( prior );
+#endif
+}
+//--------------------------------------------------------------------------
+uintptr_t CPROC check_thread_name( POINTER p, uintptr_t psv )
+{
+	PTHREAD thread = (PTHREAD)p;
+	if( StrCaseCmp( thread->thread_event_name, (CTEXTSTR)psv ) == 0 )
+		return (uintptr_t)p;
+	return 0;
+}
+static PTHREAD FindWakeup( CTEXTSTR name )
+{
+	PTHREAD check;
+	if( global_timer_structure )
+	{
+		uint64_t oldval;
+		// don't need locks if init didn't finish, there's now way to have threads in loader lock.
+		while( oldval = LockedExchange64( &globalTimerData.lock_thread_create, 1 ) ) {
+			//globalTimerData.lock_thread_create = oldval;
+			Relinquish();
+		}
+	}
+	else
+	{
+#ifndef __STATIC_GLOBALS__
+		if( IsRootDeadstartStarted() )
+			SimpleRegisterAndCreateGlobal( global_timer_structure );
+#endif
+	}
+	check = (PTHREAD)ForAllInSet( THREAD, globalTimerData.threadset, check_thread_name, (uintptr_t)name );
+	if( !check )
+	{
+#ifdef _DEBUG
+		//lprintf( DBG_FILELINEFMT "Failed to find the thread - so let's add it" );
+#endif
+		check = GetFromSet( THREAD, &globalTimerData.threadset );
+		MemSet( check, 0, sizeof( THREAD ) );
+		check->thread_ident = GetThisThreadID();
+		InitWakeup( check, name );
+		check->flags.bReady = 1;
+	}
+	globalTimerData.lock_thread_create = 0;
+	return check;
+}
+//--------------------------------------------------------------------------
+struct name_and_id_params
+{
+	CTEXTSTR name;
+	THREAD_ID thread;
+};
+uintptr_t CPROC check_thread_name_and_id( POINTER p, uintptr_t psv )
+{
+	struct name_and_id_params *params = (struct name_and_id_params*)psv;
+	PTHREAD thread = (PTHREAD)p;
+	if( thread->thread_ident == params->thread
+		&& StrCaseCmp( thread->thread_event_name, params->name ) == 0 )
+		return (uintptr_t)p;
+	return 0;
+}
+static PTHREAD FindThreadWakeup( CTEXTSTR name, THREAD_ID thread )
+{
+	PTHREAD check;
+	struct name_and_id_params params;
+	params.name = name;
+	params.thread = thread;
+	if( global_timer_structure )
+	{
+		uint64_t oldval;
+		// don't need locks if init didn't finish, there's now way to have threads in loader lock.
+		while( oldval = LockedExchange64( &globalTimerData.lock_thread_create, 1 ) ) {
+			//globalTimerData.lock_thread_create = oldval;
+			Relinquish();
+		}
+	}
+	else
+	{
+#ifndef __STATIC_GLOBALS__
+		if( IsRootDeadstartStarted() )
+			SimpleRegisterAndCreateGlobal( global_timer_structure );
+#endif
+	}
+	check = (PTHREAD)ForAllInSet( THREAD, globalTimerData.threadset, check_thread_name_and_id, (uintptr_t)&params );
+	if( !check )
+	{
+#ifdef _DEBUG
+		//lprintf( DBG_FILELINEFMT "Failed to find the thread - so let's add it" );
+#endif
+		check = GetFromSet( THREAD, &globalTimerData.threadset );
+		MemSet( check, 0, sizeof( THREAD ) );
+		check->thread_ident = thread;
+		InitWakeup( check, name );
+		check->flags.bReady = 1;
+	}
+	globalTimerData.lock_thread_create = 0;
+	return check;
+}
+//--------------------------------------------------------------------------
+uintptr_t CPROC check_thread( POINTER p, uintptr_t psv )
+{
+	PTHREAD thread = (PTHREAD)p;
+	THREAD_ID ID = *((THREAD_ID*)psv);
+	//lprintf( "Check thread %016llx %016llx %s", thread->thread_ident, ID, thread->thread_event_name );
+	if( ( thread->thread_ident == ID )
+		&& ( StrCmp( thread->thread_event_name, "ThreadSignal" ) == 0 ) )
+		return (uintptr_t)p;
+	return 0;
+}
+static PTHREAD FindThread( THREAD_ID thread )
+{
+	PTHREAD check;
+	if( global_timer_structure )
+	{
+		uint64_t oldval;
+		// don't need locks if init didn't finish, there's now way to have threads in loader lock.
+		while( oldval = LockedExchange64( &globalTimerData.lock_thread_create, 1 ) ) {
+			//globalTimerData.lock_thread_create = oldval;
+			Relinquish();
+		}
+	}
+	else
+	{
+#ifndef __STATIC_GLOBALS__
+		if( IsRootDeadstartStarted() )
+			SimpleRegisterAndCreateGlobal( global_timer_structure );
+#endif
+	}
+	check = (PTHREAD)ForAllInSet( THREAD, globalTimerData.threadset, check_thread, (uintptr_t)&thread );
+	if( !check )
+	{
+#ifdef _DEBUG
+		//lprintf( DBG_FILELINEFMT "Failed to find the thread - so let's add it" );
+#endif
+		check = GetFromSet( THREAD, &globalTimerData.threadset );
+		MemSet( check, 0, sizeof( THREAD ) );
+		check->thread_ident = thread;
+		InitWakeup( check, NULL );
+		check->flags.bReady = 1;
+	}
+	globalTimerData.lock_thread_create = 0;
+	return check;
+}
+//--------------------------------------------------------------------------
+void  WakeThreadEx( PTHREAD thread DBG_PASS )
+{
+ // can't wake nothing
+	if( !thread )
+	{
+		//_lprintf(DBG_RELAY)( "Failed to find thread to wake..." );
+		return;
+	}
+#ifdef _WIN32
+	//	lprintf( "setting event." );
+	{
+		PTHREAD_EVENT thread_event;
+		INDEX idx;
+		TEXTCHAR name[64];
+		if( !(thread_event = thread->thread_event ) )
+		{
+			tnprintf( name, sizeof(name), "%s:%08lX:%08lX"
+			        , thread->thread_event_name, (uint32_t)(thread->thread_ident >> 32)
+			        , (uint32_t)(thread->thread_ident & 0xFFFFFFFF));
+			name[sizeof(name)/sizeof(name[0])-1] = 0;
+			LIST_FORALL( globalTimerData.thread_events, idx, PTHREAD_EVENT, thread_event )
+			{
+				if( StrCmp( thread_event->name, name ) == 0 )
+					break;
+			}
+#ifdef LOG_CREATE_EVENT_OBJECT
+			lprintf( "Event opened is: %s", name );
+#endif
+		}
+#ifdef LOG_CREATE_EVENT_OBJECT
+		else
+		{
+			lprintf( "Event opened is thread." );
+		}
+#endif
+		if( !thread_event )
+		{
+			thread_event = New( THREAD_EVENT );
+			thread_event->name = StrDup( name );
+ /*EVENT_MODIFY_STATE */
+			thread_event->hEvent = OpenEvent( EVENT_ALL_ACCESS, FALSE, name );
+			AddLink( &globalTimerData.thread_events, thread_event );
+			thread->thread_event = thread_event;
+		}
+		if( thread_event->hEvent )
+		{
+			//lprintf( "event opened successfully... %d", WaitForSingleObject( hEvent, 0 ) );
+#ifndef NO_LOGGING
+			if( globalTimerData.flags.bLogSleeps )
+				_xlprintf(1 DBG_RELAY )( "About to wake on %d Thread event created...%016llx"
+				                       , thread->thread_event->hEvent
+				                       , thread->thread_ident );
+#endif
+			if( !SetEvent( thread_event->hEvent ) )
+				lprintf( "Set event FAILED..%d", GetLastError() );
+ // may or may not execute other thread before this...
+			Relinquish();
+		}
+		else
+		{
+			lprintf( "Failed to open that event! %d", GetLastError() );
+			// thread to wake is not ready to be
+			// woken, does not exist, or some other
+			// BAD problem.
+		}
+	}
+#else
+#  ifdef USE_PIPE_SEMS
+	if( thread->semaphore != -1 )
+	{
+#    ifdef DEBUG_PIPE_USAGE
+		_lprintf(DBG_RELAY)( "(wakethread)wil write pipe... %p", thread );
+#    endif
+		if( write( thread->pipe_ends[1], "G", 1 ) != 1 ) {
+			int e = errno;
+			lprintf( "Pipe Error? %d", e );
+		}
+		//lprintf( "did write pipe..." );
+		Relinquish();
+	}
+#  else
+	  pthread_mutex_unlock( &thread->mutex );
+#  endif
+#endif
+}
+void  WakeNamedThreadSleeperEx( CTEXTSTR name, THREAD_ID thread DBG_PASS )
+{
+	PTHREAD sleeper = FindThreadWakeup( name, thread );
+	if( sleeper )
+		WakeThreadEx( sleeper DBG_RELAY );
+}
+void  WakeNamedSleeperEx( CTEXTSTR name DBG_PASS )
+{
+	PTHREAD sleeper = FindWakeup( name );
+	if( sleeper )
+		WakeThreadEx( sleeper DBG_RELAY );
+}
+//--------------------------------------------------------------------------
+void  WakeThreadIDEx( THREAD_ID thread DBG_PASS )
+{
+	PTHREAD pThread = FindThread( thread );
+	WakeThreadEx( pThread DBG_RELAY );
+}
+//--------------------------------------------------------------------------
+#undef WakeThreadID
+void  WakeThreadID( THREAD_ID thread )
+{
+	WakeThreadIDEx( thread DBG_SRC );
+}
+//--------------------------------------------------------------------------
+#ifdef _NO_SEMTIMEDOP_
+#ifndef _WIN32
+static void CPROC TimerWake( uintptr_t psv )
+{
+	WakeThreadEx( (PTHREAD)psv DBG_SRC );
+}
+#endif
+#endif
+//--------------------------------------------------------------------------
+static void  InternalWakeableNamedSleepEx( CTEXTSTR name, uint32_t n, LOGICAL threaded DBG_PASS )
+{
+	PTHREAD pThread;
+	if( name && threaded )
+		pThread = FindThreadWakeup( name, GetThisThreadID() );
+	else if( name )
+		pThread = FindWakeup( name );
+	else
+	{
+#if !HAS_TLS
+		struct my_thread_info* _MyThreadInfo = GetThreadTLS();
+#endif
+		pThread = MyThreadInfo.pThread;
+		if( !pThread )
+		{
+			MakeThread();
+			pThread = MyThreadInfo.pThread;
+		}
+	}
+	if( pThread )
+	{
+#ifdef _WIN32
+#ifndef NO_LOGGING
+		if( globalTimerData.flags.bLogSleeps )
+			_xlprintf(1 DBG_RELAY )( "About to sleep on %d Thread event created...%s:%016llx"
+			                         , pThread->thread_event->hEvent
+			                         , pThread->thread_event_name
+			                         , pThread->thread_ident );
+#endif
+		if( WaitForSingleObject( pThread->thread_event->hEvent
+		                       , n==SLEEP_FOREVER?INFINITE:(n) ) != WAIT_TIMEOUT )
+		{
+#ifdef LOG_LATENCY
+			_lprintf(DBG_RELAY)( "Woke up- reset event" );
+#endif
+			ResetEvent( pThread->thread_event->hEvent );
+			//if( n == SLEEP_FOREVER )
+			//   DebugBreak();
+		}
+#ifdef LOG_LATENCY
+		else
+			_lprintf(DBG_RELAY)( "Timed out from %d", n );
+#endif
+#else
+		{
+#ifndef USE_PIPE_SEMS
+#ifdef _NO_SEMTIMEDOP_
+			int nTimer = 0;
+			if( n != SLEEP_FOREVER )
+			{
+				//lprintf( "Wakeable sleep in %ld (oneshot, no frequency)", n );
+				nTimer = AddTimerExx( n, 0, TimerWake, (uintptr_t)pThread DBG_RELAY );
+			}
+#endif
+#endif
+			if( pThread->semaphore == -1 )
+			{
+				//lprintf( "Invalid semaphore...fixing?" );
+				InitWakeup( pThread, name );
+			}
+			//if( pThread->semaphore != -1 )
+			{
+				while(1)
+				{
+					int stat;
+					//lprintf( "Lock on semop on semdo... %08x %016" _64fx "x", pThread->semaphore, pThread->thread_ident );
+					//lprintf( "Before semval = %d %08lx", semctl( pThread->semaphore, 0, GETVAL ), pThread->semaphore );
+					if( n != SLEEP_FOREVER )
+					{
+#ifdef USE_PIPE_SEMS
+						char buf;
+						{
+							fd_set set;
+							struct timeval timeout;
+							FD_ZERO(&set);
+							FD_SET( pThread->pipe_ends[0], &set);
+							timeout.tv_sec = n / 1000;
+							timeout.tv_usec = ( n % 1000 ) * 1000;
+#  ifdef DEBUG_PIPE_USAGE
+							lprintf(" Begin select-read on thread %p %d ", pThread, n );
+							//_lprintf(DBG_RELAY)( "Select  %p %d  %d  %d", pThread, pThread->pipe_ends[0], pThread->pipe_ends[1],n );
+#  endif
+							stat = select(pThread->pipe_ends[0] + 1, &set, NULL, NULL, &timeout);
+							if(stat == -1)
+							{
+								lprintf("select error %d %d", errno, pThread->pipe_ends[0]);
+							}
+							else if(stat == 0)
+							{
+#  ifdef DEBUG_PIPE_USAGE
+								lprintf("timeout");
+#  endif
+							}
+							else
+							{
+#  ifdef DEBUG_PIPE_USAGE
+								lprintf(" immediate return?" );
+#  endif
+								stat = read( pThread->pipe_ends[0], &buf, 1 );
+								// 1 = success
+								// -1 will be an error (errno handled later)
+								// 0 would be end of file...
+#  ifdef DEBUG_PIPE_USAGE
+								lprintf( "Stat is now %d", stat );
+#endif
+							}
+						}
+#  ifdef DEBUG_PIPE_USAGE
+						lprintf( "end read" );
+#  endif
+#else
+						struct timespec timeout;
+						clock_gettime(CLOCK_REALTIME, &timeout);
+						timeout.tv_nsec += ( n % 1000 ) * 1000000L;
+						timeout.tv_sec += n / 1000;
+						timeout.tv_sec += timeout.tv_nsec / 1000000000L;
+						timeout.tv_nsec %= 1000000000L;
+						//lprintf( "Timed wait:%d %d", timeout.tv_nsec, timeout.tv_sec );
+						stat = pthread_mutex_timedlock( &pThread->mutex, &timeout );
+						//lprintf( "Stat for timed lock:%d", stat );
+						//stat = semtimedop( pThread->semaphore, semdo, 1, &timeout );
+#endif
+					}
+					else
+					{
+#ifdef USE_PIPE_SEMS
+						char buf;
+#  ifdef DEBUG_PIPE_USAGE
+						_lprintf(DBG_RELAY)(" Begin read on thread %p", pThread );
+#  endif
+						stat = read( pThread->pipe_ends[0], &buf, 1 );
+#  ifdef DEBUG_PIPE_USAGE
+						lprintf( "end read" );
+#  endif
+#else
+						stat = pthread_mutex_lock( &pThread->mutex );
+						//stat = semop( pThread->semaphore, semdo, 1 );
+#endif
+					}
+					//lprintf( "After semval = %d %08lx", semctl( pThread->semaphore, 0, GETVAL ), pThread->semaphore );
+					//lprintf( "Lock passed." );
+					if( stat < 0 )
+					{
+						if( errno == EINTR )
+						{
+							//lprintf( "EINTR" );
+							break;
+							//continue;
+						}
+						if( errno == EAGAIN )
+						{
+							//lprintf( "EAGAIN?" );
+							// timeout elapsed on semtimedop - or IPC_NOWAIT was specified
+							// but since it's not, it must be the timeout condition.
+							break;
+						}
+						if( errno == EIDRM )
+						{
+							lprintf( "Semaphore has been removed on us!?" );
+							pThread->semaphore = -1;
+							break;
+						}
+						if( errno == EINVAL )
+						{
+							lprintf( "Semaphore is no longer valid on this thread object... %d"
+							       , pThread->semaphore );
+							// this probably means that it has gone away..
+							pThread->semaphore = -1;
+							break;
+						}
+						lprintf( "stat from sempop on thread semaphore %p = %d (%d)"
+						       , pThread
+						       , stat
+						       , stat<0?errno:0 );
+						break;
+					}
+					else
+					{
+						// reset semaphore to nothing.... might
+						// have been woken up MANY times.
+							//lprintf( "Resetting our lock count from %d to 0...."
+						//		 , semctl( pThread->semaphore, 0, GETVAL ));
+#ifdef USE_PIPE_SEMS
+						// flush? empty the pipe?
+#else
+						//semctl( pThread->semaphore, 0, SETVAL, 0 );
+#endif
+						break;
+					}
+				}
+			}
+			//else
+			//{
+			//	lprintf( "Still an invalid semaphore? Dang." );
+			//	fprintf( stderr, "Out of semaphores." );
+			//	BAG_Exit(0);
+			//}
+		}
+#endif
+		//pThread->flags.bSleeping = 0;
+	}
+	else
+	{
+		lprintf( "You, as a thread, do not exist, sorry." );
+	}
+}
+#ifdef USE_PIPE_SEMS
+int GetThreadSleeper( PTHREAD thread )
+{
+	return thread->pipe_ends[0];
+}
+#endif
+void  WakeableNamedThreadSleepEx( CTEXTSTR name, uint32_t n DBG_PASS )
+{
+	InternalWakeableNamedSleepEx( name, n, TRUE DBG_RELAY );
+}
+void  WakeableNamedSleepEx( CTEXTSTR name, uint32_t n DBG_PASS )
+{
+	InternalWakeableNamedSleepEx( name, n, FALSE DBG_RELAY );
+}
+void  WakeableSleepEx( uint32_t n DBG_PASS )
+{
+	InternalWakeableNamedSleepEx( NULL, n, FALSE DBG_RELAY );
+}
+#undef WakeableSleep
+void  WakeableSleep( uint32_t n )
+#define WakeableSleep(n) WakeableSleepEx(n DBG_SRC)
+{
+	WakeableSleepEx(n DBG_SRC);
+}
+//--------------------------------------------------------------------------
+#ifdef __LINUX__
+static void TimerWakeableSleep( uint32_t n )
+{
+	if( globalTimerData.pTimerThread )
+	{
+#ifdef USE_PIPE_SEMS
+		InternalWakeableNamedSleepEx( NULL, n, FALSE DBG_SRC );
+#else
+		PTHREAD me = MakeThread();
+		if( n != SLEEP_FOREVER )
+		{
+			struct timespec timeout;
+			int stat;
+			clock_gettime(CLOCK_REALTIME, &timeout);
+			timeout.tv_nsec += ( n % 1000 ) * 1000000L;
+			timeout.tv_sec += n / 1000;
+			  timeout.tv_sec += timeout.tv_nsec / 1000000000L;
+			  timeout.tv_nsec %= 1000000000L;
+			pthread_mutex_timedlock( &globalTimerData.pTimerThread->mutex, &timeout );
+		}
+ // wait forever for the lock.
+      else
+ // otherwise was a normal timeout, not a wakeup, timeout does not unlock.
+			pthread_mutex_lock( &globalTimerData.pTimerThread->mutex );
+#endif
+	}
+}
+#endif
+//--------------------------------------------------------------------------
+uintptr_t CPROC ThreadProc( PTHREAD pThread );
+// results if the timer
+int  IsThisThreadEx( PTHREAD pThreadTest DBG_PASS )
+{
+	PTHREAD pThread;
+#if !HAS_TLS
+	struct my_thread_info* _MyThreadInfo = GetThreadTLS();
+#endif
+	pThread
+#ifdef HAS_TLS
+		= MyThreadInfo.pThread;
+#else
+		= FindThread( GetMyThreadID() );
+#endif
+//   lprintf( "Found thread; %p is it %p?", pThread, pThreadTest );
+	if( pThread == pThreadTest )
+		return TRUE;
+	//lprintf( "Found thread; %p is not  %p?", pThread, pThreadTest );
+	return FALSE;
+}
+static int NotTimerThread( void )
+{
+	PTHREAD pThread;
+#if !HAS_TLS
+	struct my_thread_info* _MyThreadInfo = GetThreadTLS();
+#endif
+	pThread = MyThreadInfo.pThread;
+	if( pThread && ( pThread->proc == ThreadProc ) )
+		return FALSE;
+	return TRUE;
+}
+//--------------------------------------------------------------------------
+static void  UnmakeThread( void )
+{
+	PTHREAD pThread;
+#if !HAS_TLS
+	struct my_thread_info* _MyThreadInfo = GetThreadTLS();
+#endif
+	uint64_t oldval;
+ //-V595
+	while( oldval = LockedExchange64( &globalTimerData.lock_thread_create, MyThreadInfo.nThread ) ) {
+		//globalTimerData.lock_thread_create = oldval;
+		Relinquish();
+	}
+	if( globalTimerData.flags.bExited ) {
+		globalTimerData.lock_thread_create = 0;
+		return;
+	}
+	pThread
+#ifdef HAS_TLS
+		= MyThreadInfo.pThread;
+#else
+		= FindThread( GetMyThreadID() );
+#endif
+	if( pThread )
+	{
+		// unlink from globalTimerData.threads list.
+		//if( ( (*pThread->me)=pThread->next ) )
+		//	pThread->next->me = pThread->me;
+		{
+			int tmp = SetAllocateLogging( FALSE );
+#ifdef _WIN32
+			//lprintf( "Unmaking thread event! on thread %016" _64fx"x", pThread->thread_ident );
+			CloseHandle( pThread->thread_event->hEvent );
+			{
+#  if !HAS_TLS
+				struct my_thread_info* _MyThreadInfo = GetThreadTLS();
+ //-V595
+				TlsSetValue( global_timer_structure->my_thread_info_tls, NULL );
+				Deallocate( struct my_thread_info*, _MyThreadInfo );
+#  else
+				//Deallocate( struct my_thread_info*, _MyThreadInfo );
+#  endif
+			}
+#else
+			closesem( (POINTER)pThread, 0 );
+#endif
+			Deallocate( TEXTSTR, pThread->thread_event_name );
+#ifdef _WIN32
+			Deallocate( TEXTSTR, pThread->thread_event->name );
+			if( global_timer_structure )
+				DeleteLink( &globalTimerData.thread_events, pThread->thread_event );
+			Deallocate( PTHREAD_EVENT, pThread->thread_event );
+#endif
+			if( global_timer_structure )
+ /*Release( pThread )*/
+				DeleteFromSet( THREAD, globalTimerData.threadset, pThread );
+			SetAllocateLogging( tmp );
+		}
+	}
+	globalTimerData.lock_thread_create = 0;
+}
+//--------------------------------------------------------------------------
+#ifdef __WATCOMC__
+static void *ThreadWrapper( PTHREAD pThread )
+#else
+static uintptr_t CPROC ThreadWrapper( PTHREAD pThread )
+#endif
+{
+	uintptr_t result = 0;
+#if !HAS_TLS
+	struct my_thread_info* _MyThreadInfo = GetThreadTLS();
+#endif
+#ifdef _WIN32
+	while( !pThread->hThread )
+		Relinquish();
+#endif
+	pThread->flags.bStarted = 1;
+	//DeAttachThreadToLibraries( TRUE );
+	while( !pThread->flags.bReady )
+		Relinquish();
+#ifdef HAS_TLS
+#  ifdef LOG_THREAD
+	lprintf( "thread will be %p %p", MyThreadInfo.pThread, &MyThreadInfo );
+	lprintf( "thread will be %p %p", pThread, &MyThreadInfo.pThread );
+#  endif
+	MyThreadInfo.pThread = pThread;
+	MyThreadInfo.nThread =
+#endif
+		pThread->thread_ident = _GetMyThreadID();
+	//DebugBreak();
+	InitWakeup( pThread, NULL );
+	{
+		INDEX idx;
+		void ( *f )( void );
+		LIST_FORALL( globalTimerData.onThreadCreate, idx,  void( * )( void ), f ){
+			f();
+		}
+	}
+#ifdef LOG_THREAD
+	Log1( "Set thread ident: %016" _64fx, pThread->thread_ident );
+#endif
+	if( pThread->proc )
+		result = pThread->proc( pThread );
+	if( globalTimerData.flags.bExited )
+		return result;
+	//lprintf( "%s(%d):Thread is exiting... ", pThread->pFile, pThread->nLine );
+	//DeAttachThreadToLibraries( FALSE );
+	UnmakeThread();
+#ifdef __LINUX__
+	pThread->hThread = 0;
+#else
+	pThread->hThread = NULL;
+#endif
+	//lprintf( "%s(%d):Thread is exiting... ", pThread->pFile, pThread->nLine );
+#ifdef __WATCOMC__
+	return (void*)result;
+#else
+	return result;
+#endif
+}
+//--------------------------------------------------------------------------
+#ifdef __WATCOMC__
+static void *SimpleThreadWrapper( PTHREAD pThread )
+#else
+static uintptr_t CPROC SimpleThreadWrapper( PTHREAD pThread )
+#endif
+{
+#if !HAS_TLS
+	struct my_thread_info* _MyThreadInfo = GetThreadTLS();
+#endif
+	uintptr_t result = 0;
+#ifdef _WIN32
+	while( !pThread->hThread )
+	{
+		Log( "wait for main thread to process..." );
+		Relinquish();
+	}
+#endif
+	pThread->flags.bStarted = 1;
+	while( !pThread->flags.bReady )
+		Relinquish();
+	MyThreadInfo.pThread = pThread;
+	MyThreadInfo.nThread = pThread->thread_ident = GetMyThreadID();
+	InitWakeup( pThread, NULL );
+#ifdef LOG_THREAD
+	Log1( "Set thread ident: %016" _64fx, pThread->thread_ident );
+#endif
+	if( pThread->proc )
+		result = pThread->simple_proc( (POINTER)GetThreadParam( pThread ) );
+	//lprintf( "%s(%d):Thread is exiting... ", pThread->pFile, pThread->nLine );
+	UnmakeThread();
+	//lprintf( "%s(%d):Thread is exiting... ", pThread->pFile, pThread->nLine );
+#ifdef __WATCOMC__
+	return (void*)result;
+#else
+	return result;
+#endif
+}
+//--------------------------------------------------------------------------
+PTHREAD  MakeThread( void )
+{
+#if !HAS_TLS
+	struct my_thread_info* _MyThreadInfo = GetThreadTLS();
+#endif
+	if( MyThreadInfo.pThread )
+		return MyThreadInfo.pThread;
+	MyThreadInfo.nThread = _GetMyThreadID();
+	{
+		PTHREAD pThread;
+		THREAD_ID thread_ident = _GetMyThreadID();
+		// this must be a search(?)
+		if( !(pThread = FindThread( thread_ident ) ) )
+		{
+			THREAD_ID oldval;
+			LOGICAL dontUnlock = FALSE;
+ /*&& ( oldval != thread_ident )*/
+			while( ( oldval = LockedExchange64( &globalTimerData.lock_thread_create, 1 ) ) )
+			{
+				//globalTimerData.lock_thread_create = oldval;
+				Relinquish();
+			}
+			dontUnlock = TRUE;
+ /*Allocate( sizeof( THREAD ) )*/
+			pThread = GetFromSet( THREAD, &globalTimerData.threadset );;
+			//lprintf( "Get Thread %p", pThread );
+			MemSet( pThread, 0, sizeof( THREAD ) );
+			pThread->flags.bLocal = TRUE;
+			pThread->proc = NULL;
+			pThread->param = 0;
+			pThread->thread_ident = thread_ident;
+			pThread->flags.bReady = 1;
+			//if( ( pThread->next = globalTimerData.threads ) )
+			//	globalTimerData.threads->me = &pThread->next;
+			//pThread->me = &globalTimerData.threads;
+			//globalTimerData.threads = pThread;
+			InitWakeup( pThread, NULL );
+			// something else is in the process of trying to lock this...
+			//while( thread_ident != globalTimerData.lock_thread_create )
+			//	Relinquish();
+			globalTimerData.lock_thread_create = 0;
+#ifdef LOG_THREAD
+			Log3( "Created thread address: %p %" PRIxFAST64 " at %p"
+			    , pThread->proc, pThread->thread_ident, pThread );
+#endif
+		}
+		MyThreadInfo.pThread = pThread;
+		return pThread;
+	}
+}
+THREAD_ID GetThreadID( PTHREAD thread )
+{
+	if( thread )
+		return thread->thread_ident;
+	return 0;
+}
+THREAD_ID GetThisThreadID( void )
+{
+#if !HAS_TLS
+	struct my_thread_info* _MyThreadInfo = GetThreadTLS();
+#else
+	if( !MyThreadInfo.nThread )
+		MakeThread();
+	return MyThreadInfo.nThread;
+#endif
+}
+uintptr_t GetThreadParam( PTHREAD thread )
+{
+	if( thread )
+		return thread->param;
+	return 0;
+}
+//--------------------------------------------------------------------------
+PTHREAD  ThreadToEx( uintptr_t (CPROC*proc)(PTHREAD), uintptr_t param DBG_PASS )
+{
+	int success;
+	PTHREAD pThread;
+	uint64_t oldval;
+	while( ( oldval = LockedExchange64( &globalTimerData.lock_thread_create, 1 ) ) ) {
+		//globalTimerData.lock_thread_create = oldval;
+		Relinquish();
+	}
+	do
+	{
+		pThread = GetFromSet( THREAD, &globalTimerData.threadset );
+		if( !pThread )
+			xlprintf(LOG_ALWAYS)( "Thread to pThread allocation failed!" );
+	} while( !pThread );
+	/*AllocateEx( sizeof( THREAD ) DBG_RELAY );*/
+	if( globalTimerData.flags.bLogThreadCreate )
+		_lprintf(DBG_RELAY)( "Create New thread %p", pThread );
+	MemSet( pThread, 0, sizeof( THREAD ) );
+	pThread->flags.bLocal = TRUE;
+	pThread->proc = proc;
+	pThread->param = param;
+	pThread->thread_ident = 0;
+#if DBG_AVAILABLE
+	pThread->pFile = pFile;
+	pThread->nLine = nLine;
+#endif
+	globalTimerData.lock_thread_create = 0;
+#ifdef LOG_THREAD
+	Log( "Begin Create Thread" );
+#endif
+#ifdef _WIN32
+#  if defined( __WATCOMC__ ) || defined( __WATCOM_CPLUSPLUS__ )
+	pThread->hThread = (HANDLE)_beginthread( (void(*)(void*))ThreadWrapper, 8192, pThread );
+#  else
+	{
+		DWORD dwJunk;
+		pThread->hThread = CreateThread( NULL, 1024
+		                               , (LPTHREAD_START_ROUTINE)(ThreadWrapper)
+		                               , pThread
+		                               , 0
+		                               , &dwJunk );
+	}
+#  endif
+	success = (int)(pThread->hThread!=NULL);
+#else
+	//lprintf( "Create thread..." );
+	success = !pthread_create( &pThread->hThread, NULL, (void*(*)(void*))ThreadWrapper, pThread );
+#endif
+	if( success )
+	{
+#ifndef _WIN32
+		pthread_detach( pThread->hThread );
+		// I don't get the return code from threads...
+		// thread wrapper self destructs its handles...
+		// should add an event callback on thread end.
+#endif
+		// link into list... it's a valid thread
+		// the system claims that it can start one.
+		//if( ( ( pThread->next = globalTimerData.threads ) ) )
+		//   globalTimerData.threads->me = &pThread->next;
+		//pThread->me = &globalTimerData.threads;
+		//globalTimerData.threads = pThread;
+		pThread->flags.bReady = 1;
+#ifdef _WIN32
+		{
+			uint32_t now = GetTickCount();
+			while( !pThread->thread_event && ( now + 250 ) > GetTickCount()  ) {
+				Relinquish();
+			}
+		}
+#endif
+#ifdef LOG_THREAD
+		Log3( "Created thread address: %p %016" _64fx" at %p"
+		    , pThread->proc, pThread->thread_ident, pThread );
+#endif
+	}
+	else
+	{
+		uint64_t oldval;
+		// unlink from globalTimerData.threads list.
+		while( oldval = LockedExchange64( &globalTimerData.lock_thread_create, 1 ) ) {
+			//globalTimerData.lock_thread_create = oldval;
+			Relinquish();
+		}
+ /*Release( pThread )*/
+		DeleteFromSet( THREAD, globalTimerData.threadset, pThread );
+		globalTimerData.lock_thread_create = 0;
+		pThread = NULL;
+	}
+	return pThread;
+}
+//--------------------------------------------------------------------------
+PTHREAD  ThreadToSimpleEx( uintptr_t (CPROC*proc)(POINTER), POINTER param DBG_PASS )
+{
+	int success;
+	PTHREAD pThread;
+	uint64_t oldval;
+	while( ( oldval = LockedExchange64( &globalTimerData.lock_thread_create, 1 ) ) ) {
+		//globalTimerData.lock_thread_create = oldval;
+		Relinquish();
+	}
+	pThread = GetFromSet( THREAD, &globalTimerData.threadset );
+	/*AllocateEx( sizeof( THREAD ) DBG_RELAY );*/
+#ifdef LOG_THREAD
+	Log( "Creating a new thread... " );
+	lprintf( "New thread %p", pThread );
+#endif
+	MemSet( pThread, 0, sizeof( THREAD ) );
+	pThread->flags.bLocal = TRUE;
+	pThread->simple_proc = proc;
+	pThread->param = (uintptr_t)param;
+	pThread->thread_ident = 0;
+#if DBG_AVAILABLE
+	pThread->pFile = pFile;
+	pThread->nLine = nLine;
+#endif
+	globalTimerData.lock_thread_create = 0;
+#ifdef LOG_THREAD
+	Log( "Begin Create Thread" );
+#endif
+#ifdef _WIN32
+#if defined( __WATCOMC__ ) || defined( __WATCOM_CPLUSPLUS__ )
+	pThread->hThread = (HANDLE)_beginthread( (void(*)(void*))SimpleThreadWrapper, 8192, pThread );
+#else
+	{
+		DWORD dwJunk;
+		pThread->hThread = CreateThread( NULL, 1024
+		                               , (LPTHREAD_START_ROUTINE)(SimpleThreadWrapper)
+		                               , pThread
+		                               , 0
+		                               , &dwJunk );
+	}
+#endif
+	success = (int)(pThread->hThread!=NULL);
+#else
+	//lprintf( "Create thread" );
+	success = !pthread_create( &pThread->hThread, NULL, (void*(*)(void*))SimpleThreadWrapper, pThread );
+#endif
+	if( success )
+	{
+		// link into list... it's a valid thread
+		// the system claims that it can start one.
+		//if( ( ( pThread->next = globalTimerData.threads ) ) )
+		//   globalTimerData.threads->me = &pThread->next;
+		//pThread->me = &globalTimerData.threads;
+		//globalTimerData.threads = pThread;
+		pThread->flags.bReady = 1;
+		while( !pThread->thread_ident )
+			Relinquish();
+#ifdef LOG_THREAD
+		lprintf( "Created thread address: %p %016" _64fx" at %p"
+		       , pThread->proc, pThread->thread_ident, pThread );
+#endif
+	}
+	else
+	{
+		uint64_t oldval;
+		// unlink from globalTimerData.threads list.
+		while( oldval = LockedExchange64( &globalTimerData.lock_thread_create, 1 ) ) {
+			//globalTimerData.lock_thread_create = oldval;
+			Relinquish();
+		}
+ /*Release( pThread )*/
+		DeleteFromSet( THREAD, globalTimerData.threadset, pThread );
+		globalTimerData.lock_thread_create = 0;
+		pThread = NULL;
+	}
+	return pThread;
+}
+//--------------------------------------------------------------------------
+void  EndThread( PTHREAD thread )
+{
+	if( thread )
+	{
+#ifdef __LINUX__
+#  ifndef __ANDROID__
+		pthread_cancel( thread->hThread );
+#  endif
+#else
+		TerminateThread( thread->hThread, 0xD1E );
+#ifdef LOG_THREAD
+		lprintf( "Killing thread..." );
+#endif
+		CloseHandle( thread->thread_event->hEvent );
+#endif
+	}
+}
+#if _WIN32
+HANDLE GetThreadHandle( PTHREAD thread )
+{
+	if( thread )
+		return thread->hThread;
+	return INVALID_HANDLE_VALUE;
+}
+#endif
+#ifdef __LINUX__
+pthread_t GetThreadHandle( PTHREAD thread )
+{
+	if( thread )
+		return thread->hThread;
+	return (pthread_t)NULL;
+}
+#endif
+//--------------------------------------------------------------------------
+static void DoInsertTimer( PTIMER timer )
+{
+	PTIMER check;
+#ifdef ENABLE_CRITICALSEC_LOGGING
+	BIT_FIELD bLock = globalTimerData.flags.bLogCriticalSections;
+	SetCriticalLogging( 0 );
+	globalTimerData.flags.bLogCriticalSections = 0;
+#endif
+	EnterCriticalSec( &globalTimerData.csGrab );
+#ifdef ENABLE_CRITICALSEC_LOGGING
+	globalTimerData.flags.bLogCriticalSections = bLock;
+	SetCriticalLogging( bLock );
+#endif
+	if( !(check = globalTimerData.timers) )
+	{
+#ifdef LOG_INSERTS
+		Log( "First(only known) timer!" );
+#endif
+		// subtract already existing time... (ONLY if first timer)
+		//timer->delta -= ( globalTimerData.this_tick - globalTimerData.last_tick );
+		(*(timer->me = &globalTimerData.timers))=timer;
+#ifdef LOG_INSERTS
+		Log( "Done with addition" );
+#endif
+#ifdef ENABLE_CRITICALSEC_LOGGING
+		SetCriticalLogging( 0 );
+		globalTimerData.flags.bLogCriticalSections = 0;
+#endif
+		LeaveCriticalSec( &globalTimerData.csGrab );
+#ifdef ENABLE_CRITICALSEC_LOGGING
+		globalTimerData.flags.bLogCriticalSections = bLock;
+		SetCriticalLogging( bLock );
+#endif
+		return;
+	}
+	while( check )
+	{
+		// was previously <= which would schedule equal timers at the
+		// head of the queue constantly.
+#ifdef LOG_INSERTS
+		lprintf( "Timer to store %d freq: %d delta: %d check delta: %d", timer->ID, timer->frequency, timer->delta, check->delta );
+#endif
+		if( timer->delta < check->delta )
+		{
+			check->delta -= timer->delta;
+#ifdef LOG_INSERTS
+			Log3( "Storing before timer: %d delta %d next %d", check->ID, timer->delta, check->delta );
+#endif
+			timer->next = check;
+			(*(timer->me = check->me))=timer;
+			check->me = &timer->next;
+			break;
+		}
+		else
+		{
+			timer->delta -= check->delta;
+		}
+		if( !check->next )
+		{
+#ifdef LOG_INSERTS
+			Log1( "Storing after last timer. Delta %d", timer->delta );
+#endif
+			(*(timer->me = &check->next))=timer;
+			break;
+		}
+		check = check->next;
+	}
+#ifdef LOG_INSERTS
+	Log( "Done with addition" );
+#endif
+	if( !check )
+		Log( "Fatal! Didn't add the timer!" );
+#ifdef ENABLE_CRITICALSEC_LOGGING
+	SetCriticalLogging( 0 );
+	globalTimerData.flags.bLogCriticalSections = 0;
+#endif
+	LeaveCriticalSec( &globalTimerData.csGrab );
+#ifdef ENABLE_CRITICALSEC_LOGGING
+	globalTimerData.flags.bLogCriticalSections = bLock;
+	SetCriticalLogging( bLock );
+#endif
+}
+//--------------------------------------------------------------------------
+static uintptr_t CPROC find_timer( POINTER p, uintptr_t psvID )
+{
+	uint32_t timerID = (uint32_t)psvID;
+	PTIMER timer = (PTIMER)p;
+	//lprintf( "Find to remove test %d==%d", timer->ID, timerID );
+	if( timer->ID == timerID )
+		return (uintptr_t)p;
+	return 0;
+}
+static void  DoRemoveTimer( uint32_t timerID DBG_PASS )
+{
+	EnterCriticalSec( &globalTimerData.csGrab );
+	{
+		PTIMER timer = globalTimerData.timers;
+		uintptr_t psvTimerResult = ForAllInSet( TIMER, &globalTimerData.timer_pool, find_timer, (uintptr_t)timerID );
+		if( psvTimerResult )
+			timer = (PTIMER)psvTimerResult;
+		else
+		{
+			while( timer )
+			{
+				if( timer->ID == timerID )
+					break;
+				timer = timer->next;
+			}
+		}
+		if( timer )
+		{
+			PTIMER tmp;
+			if( ( tmp = ( (*timer->me) = timer->next ) ) )
+			{
+				// if I had a next - his refernece of thing that points at him is mine.
+				tmp->delta += timer->delta;
+				tmp->me = timer->me;
+			}
+			DeleteFromSet( TIMER, globalTimerData.timer_pool, timer );
+		}
+		else
+			_lprintf(DBG_RELAY)( "Failed to find timer to grab" );
+	}
+	LeaveCriticalSec( &globalTimerData.csGrab );
+}
+//--------------------------------------------------------------------------
+static void InsertTimer( PTIMER timer DBG_PASS )
+{
+	if( NotTimerThread() )
+	{
+		if( globalTimerData.flags.away_in_timer )
+ // if it's away - should be safe to add a new timer
+		{
+			globalTimerData.flags.insert_while_away = 1;
+			// set that we're adding a timer while away
+			if( globalTimerData.flags.away_in_timer )
+			{
+				// if the thread is still away - we can add the timer...
+#ifdef LOG_SLEEPS
+				lprintf( "Timer is away, just add this new timer back in.." );
+#endif
+				DoInsertTimer( timer );
+				globalTimerData.flags.insert_while_away = 0;
+				return;
+			}
+			// otherwise he came back before we set our addin
+			// therefore it should be safe to schedule.
+			globalTimerData.flags.insert_while_away = 0;
+		}
+#ifdef LOG_INSERTS
+		Log( "Inserting timer...to wait for change allow" );
+#endif
+		// lockout multiple additions...
+		EnterCriticalSec( &globalTimerData.cs_timer_change );
+#ifdef LOG_INSERTS
+		Log( "Inserting timer...to wait for free add" );
+#endif
+		// don't add a timer while there's one being added...
+		while( globalTimerData.add_timer )
+		{
+			WakeThread(globalTimerData.pTimerThread);
+			//Relinquish();
+		}
+#ifdef LOG_INSERTS
+		Log( "Inserting timer...setup dataa" );
+#endif
+		globalTimerData.add_timer = timer;
+		LeaveCriticalSec( &globalTimerData.cs_timer_change );
+		// it might be sleeping....
+#ifdef LOG_INSERTS
+		Log( "Inserting timer...wake and done" );
+#endif
+#ifdef LOG_SLEEPS
+		lprintf( "Wake timer thread." );
+#endif
+		// wake this thread because it's current scheduled delta (ex 1000ms)
+		// may put it's sleep beyond the frequency of this timer (ex 10ms)
+		WakeThreadEx(globalTimerData.pTimerThread DBG_RELAY);
+	}
+	else
+	{
+		EnterCriticalSec( &globalTimerData.csGrab );
+		// have to assume that we're away in callback
+		// in order to get here... there's no other way
+		// for this routine to be called and BE the timer thread.
+		// therefore - safe to add it.
+		DoInsertTimer( timer );
+#ifdef LOG_SLEEPS
+		lprintf( "Insert timer not dispatched." );
+#endif
+		if( globalTimerData.timers == timer )
+		{
+#ifdef LOG_SLEEPS
+			lprintf( "Wake timer thread." );
+#endif
+			WakeThread(globalTimerData.pTimerThread);
+		}
+		LeaveCriticalSec( &globalTimerData.csGrab );
+	}
+}
+//--------------------------------------------------------------------------
+static PTIMER GrabTimer( PTIMER timer )
+{
+	// if a timer has been grabbed, it won't be grabbed...
+	// but if a timer is being grabbed, it might get grabbed twice.
+	if( timer && timer->me )
+	{
+		// the thing that points at me points at my next....
+#ifdef LOG_INSERTS
+		Log1( "Grab Timer: %d", timer->ID );
+#endif
+		if( ( (*timer->me) = timer->next ) )
+		{
+			// if I had a next - his refernece of thing that points at him is mine.
+			timer->next->me = timer->me;
+		}
+		timer->next = NULL;
+		timer->me = NULL;
+		return timer;
+	}
+	return NULL;
+}
+//--------------------------------------------------------------------------
+static int CPROC ProcessTimers( uintptr_t psvForce )
+{
+	if( global_timer_structure )
+	{
+	PTIMER timer;
+#ifdef ENABLE_CRITICALSEC_LOGGING
+	BIT_FIELD bLock = globalTimerData.flags.bLogCriticalSections;
+#endif
+	uint32_t newtick;
+	if( globalTimerData.flags.bExited )
+		return -1;
+	if( !psvForce && !IsThisThread( globalTimerData.pTimerThread ) )
+	{
+		//Log( "Unknown thread attempting to process timers..." );
+		return -1;
+	}
+#ifndef _WIN32
+	//nice( -3 ); // allow ourselves a bit more priority...
+#endif
+	{
+		// there are timers - and there's one which wants to be added...
+		// if there's no timers - just sleep here...
+		while( ( !globalTimerData.add_timer && !globalTimerData.timers ) || globalTimerData.flags.bHaltTimers )
+		{
+			if( !psvForce )
+				return 1;
+#ifdef LOG_SLEEPS
+			lprintf( "Timer thread sleeping forever..." );
+#endif
+#ifdef __LINUX__
+			if( globalTimerData.pTimerThread )
+				TimerWakeableSleep( SLEEP_FOREVER );
+#else
+			WakeableSleep( SLEEP_FOREVER );
+#endif
+			// had no timers - but NOW either we woke up by default...
+			// OR - we go kicked awake - so mark the beginning of known time.
+#ifdef LOG_LATENCY
+			Log( "Re-synch first tick..." );
+#endif
+//GetTickCount();
+			globalTimerData.last_tick = timeGetTime();
+		}
+		// add and delete new/old timers here...
+		// should be the next event after sleeping (low var-sleep top const-sleep)
+		if( globalTimerData.add_timer )
+		{
+#ifdef LOG_INSERTS
+			Log( "Adding timer really..." );
+#endif
+			DoInsertTimer( globalTimerData.add_timer );
+			globalTimerData.add_timer = NULL;
+		}
+		if( globalTimerData.del_timer )
+		{
+#ifdef LOG_INSERTS
+			Log( "Scheduled remove timer..." );
+#endif
+			DoRemoveTimer( globalTimerData.del_timer DBG_SRC );
+			globalTimerData.del_timer = 0;
+		}
+		// get the time now....
+//GetTickCount();
+		newtick = globalTimerData.this_tick = timeGetTime();
+#ifdef LOG_LATENCY
+		Log3( "total - Tick: %u Last: %u  delta: %u", globalTimerData.this_tick, globalTimerData.last_tick, globalTimerData.this_tick-globalTimerData.last_tick );
+#endif
+		//if( globalTimerData.timers )
+		//	 delay_skew = globalTimerData.this_tick-globalTimerData.last_tick - globalTimerData.timers->delta;
+		// delay_skew = 0; // already chaotic...
+		//if( timers )
+		//	Log1( "timer delta: %ud", timers->delta );
+#ifdef ENABLE_CRITICALSEC_LOGGING
+		SetCriticalLogging( 0 );
+		globalTimerData.flags.bLogCriticalSections = 0;
+#endif
+		while( ( EnterCriticalSec( &globalTimerData.csGrab ), timer = globalTimerData.timers ) &&
+				( (int32_t)( newtick - globalTimerData.last_tick ) >= timer->delta ) )
+		{
+#ifdef ENABLE_CRITICALSEC_LOGGING
+			globalTimerData.flags.bLogCriticalSections = bLock;
+			SetCriticalLogging( bLock );
+#endif
+#ifdef LOG_LATENCY
+#ifdef _DEBUG
+			_xlprintf( 1, timer->pFile, timer->nLine )( "Tick: %u Last: %u  delta: %u Timerdelta: %u"
+																	, globalTimerData.this_tick, globalTimerData.last_tick, globalTimerData.this_tick-globalTimerData.last_tick, timer->delta );
+#else
+			lprintf( "Tick: %u Last: %u  delta: %u Timerdelta: %u"
+			       , globalTimerData.this_tick, globalTimerData.last_tick, globalTimerData.this_tick-globalTimerData.last_tick, timer->delta );
+#endif
+#endif
+			// also enters csGrab... should be ok.
+			GrabTimer( timer );
+#ifdef ENABLE_CRITICALSEC_LOGGING
+			SetCriticalLogging( 0 );
+			globalTimerData.flags.bLogCriticalSections = 0;
+#endif
+			LeaveCriticalSec( &globalTimerData.csGrab );
+#ifdef ENABLE_CRITICALSEC_LOGGING
+			globalTimerData.flags.bLogCriticalSections = bLock;
+			SetCriticalLogging( bLock );
+#endif
+			globalTimerData.last_tick += timer->delta;
+			if( timer->callback )
+			{
+#ifdef _WIN32
+#if PARANOID
+				if( IsBadCodePtr( (FARPROC)timer->callback ) )
+				{
+					Log1( "Timer %d proc has been unloaded! kiling timer", timer->ID );
+					timer->frequency = 0;
+				}
+				else
+#endif
+#endif
+				{
+					//#ifdef LOG_DISPATCH
+					static int level;
+					if( globalTimerData.flags.bLogTimerDispatch )
+					{
+						level++;
+#ifdef _DEBUG
+						lprintf( "%d Dispatching timer %" _32fs " freq %" _32fs " %s(%d)", level, timer->ID, timer->frequency
+						       , timer->pFile, timer->nLine );
+#else
+						lprintf( "%d Dispatching timer %" _32fs " freq %" _32fs, level, timer->ID, timer->frequency );
+#endif
+					}
+					//#endif
+					globalTimerData.current_timer = timer;
+					timer->flags.bRescheduled = 0;
+					globalTimerData.flags.away_in_timer = 1;
+					globalTimerData.CurrentTimerID = timer->ID;
+					timer->callback( timer->userdata );
+					if( globalTimerData.flags.bLogTimerDispatch )
+					{
+						level--;
+						lprintf( "timer done. (%d)", level );
+					}
+					globalTimerData.flags.away_in_timer = 0;
+					while( globalTimerData.flags.insert_while_away )
+					{
+						// request for insert while away... allow it to
+						// get scheduled...
+						Relinquish();
+					}
+					globalTimerData.current_timer = NULL;
+				}
+				// allow timers to be added while away in this
+				// timer's callback... so wait for it to finish.
+				// but do - clear away status so that ANOTHER
+				// timer will be held waiting...
+			}
+			// reset timer to frequency here
+			// if a VERY long time has elapsed, next timer occurs its
+			//  frequency after now.  Otherwise we may NEVER get out
+			//  of processing this timer.
+			// this point should be optioned whether the timer is
+			// a guaranteed tick, or whether it's sloppy.
+			if( timer->frequency || timer->flags.bRescheduled )
+			{
+				if( timer->flags.bRescheduled )
+				{
+					timer->flags.bRescheduled = 0;
+					// delta will have been set for next run...
+					// therefore do not schedule it ourselves.
+				}
+				else
+				{
+					if( ( newtick - globalTimerData.last_tick ) > timer->frequency )
+					{
+#ifdef LOG_LATENCY_LIGHT
+						lprintf( "Timer used more time than its frequency.  Scheduling at 1 ms." );
+#endif
+						timer->delta = ( newtick - globalTimerData.last_tick ) + 1;
+					}
+					else
+					{
+#ifdef LOG_LATENCY_LIGHT
+						// timer alwyas goes +1 frequency from its base tick.
+						lprintf( "Scheduling timer at 1 frequency." );
+#endif
+						timer->delta = timer->frequency;
+					}
+				}
+				DoInsertTimer( timer );
+			}
+			else
+			{
+#ifdef LOG_INSERTS
+				lprintf( "Removing one shot timer. %d", timer->ID );
+#endif
+				// was a one shot timer.
+				DeleteFromSet( TIMER, globalTimerData.timer_pool, timer );
+				timer = NULL;
+			}
+		}
+#ifdef ENABLE_CRITICALSEC_LOGGING
+		SetCriticalLogging( 0 );
+		globalTimerData.flags.bLogCriticalSections = 0;
+#endif
+		LeaveCriticalSec( &globalTimerData.csGrab );
+#ifdef ENABLE_CRITICALSEC_LOGGING
+		globalTimerData.flags.bLogCriticalSections = bLock;
+		SetCriticalLogging( bLock );
+#endif
+		if( timer )
+		{
+#ifdef LOG_LATENCY
+			lprintf( "Pending timer in: %d Sleeping %d (%d) [%d]"
+			       , timer->delta
+			       , timer->delta - (newtick-globalTimerData.last_tick)
+			       , timer->delta - (globalTimerData.this_tick-globalTimerData.last_tick)
+			       , newtick - globalTimerData.this_tick
+			       );
+#endif
+			globalTimerData.last_sleep = ( timer->delta - ( globalTimerData.this_tick - globalTimerData.last_tick ) );
+			if( globalTimerData.last_sleep < 0 )
+			{
+				lprintf( "next pending sleep is %d", globalTimerData.last_sleep );
+				globalTimerData.last_sleep = 1;
+			}
+#ifdef LOG_LATENCY
+			Log1( "Sleeping %d", globalTimerData.last_sleep );
+#endif
+			if( !psvForce )
+				return 1;
+			if( globalTimerData.last_sleep )
+			{
+#ifdef __LINUX__
+				TimerWakeableSleep( globalTimerData.last_sleep );
+#else
+#if defined( _DEBUG ) || defined( _DEBUG_INFO )
+				WakeableSleepEx( globalTimerData.last_sleep, timer->pFile, timer->nLine );
+#else
+				WakeableSleepEx( globalTimerData.last_sleep );
+#endif
+#endif
+			}
+			if( !global_timer_structure || globalTimerData.flags.bExited )
+				return -1;
+		}
+		// else no timers - go back up to the top - where we sleep.
+	}
+	//Log( "Timer thread is exiting..." );
+	return 1;
+	}
+	return -1;
+}
+//--------------------------------------------------------------------------
+uintptr_t CPROC ThreadProc( PTHREAD pThread )
+{
+	InitializeCriticalSec( &globalTimerData.cs_timer_change );
+	globalTimerData.pTimerThread = pThread;
+#ifndef __NO_IDLE__
+	AddIdleProc( ProcessTimers, (uintptr_t)0 );
+#endif
+#ifndef _WIN32
+ // allow ourselves a bit more priority...
+	nice( -3 );
+#endif
+	//Log( "Permanently lock timers - indicates that thread is running..." );
+	globalTimerData.lock_timers = 1;
+	//Log( "Get first tick" );
+//GetTickCount();
+	globalTimerData.last_tick = timeGetTime();
+	while( ProcessTimers( 1 ) > 0 );
+	//Log( "Timer thread is exiting..." );
+	globalTimerData.pTimerThread = NULL;
+	return 0;
+}
+//--------------------------------------------------------------------------
+#if 0
+// this would really be a good thing to impelment someday.
+static void *WatchdogProc( void *unused )
+{
+	// this checks the running status of the main thread(s)
+// if there is a paused thread, then a new thread is created.
+// yeah see dekware( syscore/nexus.c WakeAThread() )
+	return 0;
+}
+#endif
+//--------------------------------------------------------------------------
+uint32_t  AddTimerExx( uint32_t start, uint32_t frequency, TimerCallbackProc callback, uintptr_t user DBG_PASS )
+{
+	PTIMER timer = GetFromSet( TIMER, &globalTimerData.timer_pool );
+	//timer = AllocateEx( sizeof( TIMER ) DBG_RELAY );
+	MemSet( timer, 0, sizeof( TIMER ) );
+	if( start && !frequency )
+	{
+		//"Creating one shot timer %d long", start );
+	}
+ // first time for timer to fire... may be 0
+	timer->delta     = (int32_t)start;
+	timer->frequency = frequency;
+	timer->callback  = callback;
+	timer->ID        = globalTimerData.timerID++;
+	timer->userdata  = user;
+#ifdef _DEBUG
+	timer->pFile = pFile;
+	timer->nLine = nLine;
+#endif
+	if( !globalTimerData.pTimerThread )
+	{
+		//Log( "Starting \"a\" timer thread!!!!" );
+		if( !( ThreadTo( ThreadProc, 0 ) ) )
+		{
+			//Log1( "Failed to start timer ThreadProc... %d", GetLastError() );
+			return 0;
+		}
+		while( !globalTimerData.lock_timers )
+			Relinquish();
+		//Log1( "Thread started successfully? %d", GetLastError() );
+		// make sure that the thread is running, and had setup its
+		// locks, and tick reference
+	}
+	//_xlprintf(1 DBG_RELAY)( "Inserting newly created timer." );
+	InsertTimer( timer DBG_RELAY );
+	// don't need to sighup here, cause we MUST have permission
+	// from the idle thread to add the timer, which means we issue it
+	// a sighup to make it wake up and allow us to post.
+#ifdef LOG_INSERTS
+	_lprintf( DBG_RELAY )( "Resulting timer ID: %d", timer->ID );
+#endif
+	return timer->ID;
+}
+#undef AddTimerEx
+uint32_t  AddTimerEx( uint32_t start, uint32_t frequency, void (CPROC*callback)(uintptr_t user), uintptr_t user )
+{
+	return AddTimerExx( start, frequency, callback, user DBG_SRC );
+}
+//--------------------------------------------------------------------------
+void  RemoveTimerEx( uint32_t ID DBG_PASS )
+{
+	// Lockout multiple changes at a time...
+ // IS timer thread..
+	if( !NotTimerThread() &&
+ // and not in THIS timer...
+		( ID != globalTimerData.CurrentTimerID ) )
+	{
+		// is timer thread itself... safe to remove the timer....
+		DoRemoveTimer( ID DBG_SRC );
+		return;
+	}
+	EnterCriticalSec( &globalTimerData.cs_timer_change );
+	// only allow one delete at a time...
+	while( globalTimerData.del_timer )
+	{
+#ifdef LOG_INSERTS
+		lprintf( "pending timer delete, wait." );
+#endif
+ // IS timer thread...
+		if( !NotTimerThread() )
+		{
+#ifdef LOG_INSERTS
+			lprintf( "is not the timer." );
+#endif
+			if( globalTimerData.del_timer != globalTimerData.CurrentTimerID )
+			{
+#ifdef LOG_INSERTS
+				lprintf( "schedule timer is not the current timer..." );
+#endif
+				DoRemoveTimer( globalTimerData.del_timer DBG_SRC );
+				globalTimerData.del_timer = 0;
+			}
+			if( ID != globalTimerData.CurrentTimerID )
+			{
+#ifdef LOG_INSERTS
+				lprintf( "removing timer is not the current timer" );
+#endif
+				DoRemoveTimer( ID DBG_SRC );
+				return;
+			}
+		}
+		else
+			Relinquish();
+	}
+	// now how to set del_timer to a valid timer?!
+#ifdef LOG_INSERTS
+	_lprintf(DBG_RELAY)( "Set del_timer to schedule delete." );
+#endif
+	globalTimerData.del_timer = ID;
+	LeaveCriticalSec( &globalTimerData.cs_timer_change );
+	if( NotTimerThread() )
+	{
+#ifdef LOG_INSERTS
+		lprintf( "wake thread, scheduled delete" );
+#endif
+		//Log( "waking timer thread to indicate deletion..." );
+		WakeThread( globalTimerData.pTimerThread );
+	}
+}
+#undef RemoveTimer
+void  RemoveTimer( uint32_t ID )
+{
+	RemoveTimerEx( ID DBG_SRC );
+}
+//--------------------------------------------------------------------------
+static void InternalRescheduleTimerEx( PTIMER timer, uint32_t delay )
+{
+	if( timer )
+	{
+		PTIMER bGrabbed = GrabTimer( timer );
+		timer->flags.bRescheduled = 1;
+  // should never pass a negative value here, but delta can be negative.
+		timer->delta = (int32_t)delay;
+#ifdef LOG_SLEEPS
+		lprintf( "Reschedule at %d  %p", timer->delta, bGrabbed );
+#endif
+		if( bGrabbed )
+		{
+			//lprintf( "Rescheduling timer..." );
+			DoInsertTimer( timer );
+			if( timer == globalTimerData.timers )
+			{
+#ifdef LOG_SLEEPS
+				lprintf( "We cheated to insert - so create a wake." );
+#endif
+				WakeThread( globalTimerData.pTimerThread );
+			}
+		}
+	}
+}
+//--------------------------------------------------------------------------
+// should lock this...
+void  RescheduleTimerEx( uint32_t ID, uint32_t delay )
+{
+	PTIMER timer;
+	EnterCriticalSec( &globalTimerData.csGrab );
+	if( !ID )
+	{
+		timer =globalTimerData.current_timer;
+	}
+	else
+	{
+		timer = globalTimerData.timers;
+		while( timer && timer->ID != ID )
+			timer = timer->next;
+		if( !timer )
+		{
+			// this timer is not part of the list if it's
+			// dispatched and we get here (timer itself rescheduling itself)
+			if( globalTimerData.current_timer && globalTimerData.current_timer->ID == ID )
+				timer = globalTimerData.current_timer;
+		}
+	}
+	InternalRescheduleTimerEx( timer, delay );
+	LeaveCriticalSec( &globalTimerData.csGrab );
+}
+//--------------------------------------------------------------------------
+void  RescheduleTimer( uint32_t ID )
+{
+	PTIMER timer = globalTimerData.timers;
+	EnterCriticalSec( &globalTimerData.csGrab );
+	while( timer && timer->ID != ID )
+		timer = timer->next;
+	if( !timer )
+	{
+		if( globalTimerData.current_timer && globalTimerData.current_timer->ID == ID )
+			timer = globalTimerData.current_timer;
+	}
+	if( timer )
+	{
+		InternalRescheduleTimerEx( timer, timer->frequency );
+	}
+	LeaveCriticalSec( &globalTimerData.csGrab );
+}
+//--------------------------------------------------------------------------
+#ifndef __NO_INTERFACE_SUPPORT__
+#  ifndef TARGETNAME
+#    define TARGETNAME ""
+#  endif
+static void OnDisplayPause( "@Internal Timers" TARGETNAME )( void )
+{
+	globalTimerData.flags.bHaltTimers = 1;
+}
+//--------------------------------------------------------------------------
+static void OnDisplayResume( "@Internal Timers" TARGETNAME)( void )
+{
+	globalTimerData.flags.bHaltTimers = 0;
+	if( globalTimerData.pTimerThread )
+		WakeThread( globalTimerData.pTimerThread );
+}
+#endif
+//--------------------------------------------------------------------------
+void  ChangeTimerEx( uint32_t ID, uint32_t initial, uint32_t frequency )
+{
+	PTIMER timer = globalTimerData.timers;
+	EnterCriticalSec( &globalTimerData.csGrab );
+	while( timer && timer->ID != ID )
+		timer = timer->next;
+	if( timer )
+	{
+		timer->frequency = frequency;
+		InternalRescheduleTimerEx( timer, initial );
+	}
+	LeaveCriticalSec( &globalTimerData.csGrab );
+}
+//--------------------------------------------------------------------------
+#ifndef USE_NATIVE_CRITICAL_SECTION
+#ifdef _MSC_VER
+// reordering instructions in this is not allowed...
+// since MSVC ends up reversing unlocks before other code that should run first.
+#  pragma optimize( "st", off )
+#endif
+LOGICAL  EnterCriticalSecEx( PCRITICALSECTION pcs DBG_PASS )
+{
+	int d;
+	THREAD_ID prior = 0;
+#ifdef LOG_DEBUG_CRITICAL_SECTIONS
+#ifdef _DEBUG
+	if( global_timer_structure && globalTimerData.flags.bLogCriticalSections )
+		_lprintf( DBG_RELAY )( "Enter critical section %p (owner) %" _64fx, pcs, pcs->dwThreadID );
+#endif
+#endif
+	do
+	{
+		d=EnterCriticalSecNoWaitEx( pcs, &prior DBG_RELAY );
+		if( d < 0 )
+			Relinquish();
+		else if( d == 0 )
+		{
+			if( pcs->dwThreadID )
+			{
+#ifdef ENABLE_CRITICALSEC_LOGGING
+#  ifdef _DEBUG
+				if( global_timer_structure && globalTimerData.flags.bLogCriticalSections )
+					lprintf( "Failed to enter section... sleeping (forever)..." );
+#  endif
+#endif
+ // shouldn't need more than 1 cycle; but infinite can fail on short locks.
+				WakeableNamedThreadSleepEx( "sack.critsec", 25 DBG_RELAY );
+#ifdef ENABLE_CRITICALSEC_LOGGING
+#  ifdef _DEBUG
+				if( global_timer_structure && globalTimerData.flags.bLogCriticalSections )
+					lprintf( "Allowed to retry section entry, woken up..." );
+#  endif
+#endif
+			}
+#ifdef ENABLE_CRITICALSEC_LOGGING
+#  ifdef _DEBUG
+			else
+			{
+				if( global_timer_structure && globalTimerData.flags.bLogCriticalSections )
+					lprintf( "Lock Released while we logged?" );
+			}
+#  endif
+#endif
+		}
+		else {
+			if( prior ) {
+#ifdef ENABLE_CRITICALSEC_LOGGING
+#  ifdef _DEBUG
+				if( global_timer_structure && globalTimerData.flags.bLogCriticalSections )
+					lprintf( "Entered section, restore prior waiting thread. %" _64fx  " %" _64fx, prior, pcs->dwThreadWaiting );
+#  endif
+#endif
+			}
+		}
+		// after waking up, this will re-aquire a lock, and
+		// set the prior waiting ID into the criticalsection
+		// this will then wake that process when this lock is left.
+	}
+	while( (d <= 0) );
+	return TRUE;
+}
+#endif
+//-------------------------------------------------------------------------
+#ifndef USE_NATIVE_CRITICAL_SECTION
+#ifdef _MSC_VER
+#  pragma optimize( "st", off )
+#endif
+LOGICAL  LeaveCriticalSecEx( PCRITICALSECTION pcs DBG_PASS )
+{
+	THREAD_ID dwCurProc;
+#ifdef _DEBUG
+	uint32_t curtick;
+#endif
+	while( 1 ) {
+#ifdef _DEBUG
+		curtick = timeGetTime();
+#endif
+#ifdef ENABLE_CRITICALSEC_LOGGING
+		if( global_timer_structure && globalTimerData.flags.bLogCriticalSections )
+			_xlprintf( LOG_NOISE DBG_RELAY )( "Begin leave critical section %p %" _64fx, pcs, pcs->dwThreadWaiting );
+#endif
+		while( LockedExchange( &pcs->dwUpdating, 1 )
+#ifdef _DEBUG
+			//GetTickCount() )
+			&& ( ( curtick + 2000 ) > timeGetTime() )
+#endif
+			) {
+#ifdef ENABLE_CRITICALSEC_LOGGING
+			if( global_timer_structure && globalTimerData.flags.bLogCriticalSections )
+				_lprintf( DBG_RELAY )( "On leave - section is updating, wait..." );
+#endif
+			Relinquish();
+}
+		dwCurProc = GetThisThreadID();
+#ifdef _DEBUG
+		//GetTickCount() )
+		if( ( curtick + 2000 ) <= timeGetTime() ) {
+#ifdef DEBUG_CRITICAL_SECTIONS
+			lprintf( "FROM: %s(%d)  %s(%d) %s(%d)"
+					  , pcs->pFile[(pcs->nPrior+(MAX_SECTION_LOG_QUEUE-1))%MAX_SECTION_LOG_QUEUE]
+					  , pcs->nLine[(pcs->nPrior+(MAX_SECTION_LOG_QUEUE-1))%MAX_SECTION_LOG_QUEUE]
+					  , pcs->pFile[(pcs->nPrior+(MAX_SECTION_LOG_QUEUE-2))%MAX_SECTION_LOG_QUEUE]
+					  , pcs->nLine[(pcs->nPrior+(MAX_SECTION_LOG_QUEUE-2))%MAX_SECTION_LOG_QUEUE]
+					  , pcs->pFile[(pcs->nPrior+(MAX_SECTION_LOG_QUEUE-3))%MAX_SECTION_LOG_QUEUE]
+					 , pcs->nLine[(pcs->nPrior+(MAX_SECTION_LOG_QUEUE-3))%MAX_SECTION_LOG_QUEUE]
+					 );
+#endif
+			_lprintf(DBG_RELAY)( "Timeout during critical section wait for lock.  No lock should take more than 1 task cycle" );
+			//DebugBreak();
+			//continue;
+		}
+#endif
+		break;
+	}
+	if( !( pcs->dwLocks & ~SECTION_LOGGED_WAIT ) )
+	{
+#ifdef ENABLE_CRITICALSEC_LOGGING
+		if( global_timer_structure && globalTimerData.flags.bLogCriticalSections )
+			_lprintf( DBG_RELAY )( "Leaving a blank critical section" );
+#endif
+		DebugBreak();
+		pcs->dwUpdating = 0;
+		return FALSE;
+	}
+	if( pcs->dwThreadID == dwCurProc )
+	{
+#ifdef DEBUG_CRITICAL_SECTIONS
+#  ifdef _DEBUG
+		pcs->pFile[pcs->nPrior] = pFile;
+		pcs->nLine[pcs->nPrior] = nLine;
+#  else
+		pcs->pFile[pcs->nPrior] = __FILE__;
+		pcs->nLine[pcs->nPrior] = __LINE__;
+#  endif
+		pcs->nLineCS[pcs->nPrior] = __LINE__;
+		pcs->isLock[pcs->nPrior] = 0;
+		pcs->dwThreadPrior[pcs->nPrior] = dwCurProc;
+		pcs->nPrior = (pcs->nPrior + 1) % MAX_SECTION_LOG_QUEUE;
+#endif
+		pcs->dwLocks--;
+#ifdef ENABLE_CRITICALSEC_LOGGING
+		if( global_timer_structure && globalTimerData.flags.bLogCriticalSections )
+			lprintf( "Remaining locks... %08" _32fx, pcs->dwLocks );
+#endif
+		if( !( pcs->dwLocks & ~(SECTION_LOGGED_WAIT) ) )
+		{
+			THREAD_ID dwWaiting = pcs->dwThreadWaiting;
+			pcs->dwThreadID = 0;
+			pcs->dwLocks = 0;
+			pcs->dwUpdating = pcs->dwLocks;
+			// wake the prior (if there is one sleeping)
+			if( dwWaiting )
+			{
+#ifdef ENABLE_CRITICALSEC_LOGGING
+				if( global_timer_structure && globalTimerData.flags.bLogCriticalSections )
+					_lprintf( DBG_RELAY )( "%8" _64fx " Waking a thread which is waiting...", dwWaiting );
+#endif
+				// don't clear waiting... so the proper thread can
+				// allow itself to claim section...
+				WakeNamedThreadSleeperEx( "sack.critsec", dwWaiting DBG_RELAY );
+				//WakeThreadIDEx( wake DBG_RELAY);
+			}
+			return TRUE;
+		}
+	}
+	else {
+#ifdef ENABLE_CRITICALSEC_LOGGING
+		if( global_timer_structure && globalTimerData.flags.bLogCriticalSections )
+		{
+			_lprintf( DBG_RELAY )("Sorry - you can't leave a section owned by %016" _64fx " locks:%08" _32fx
+#  ifdef DEBUG_CRITICAL_SECTIONS
+				"%s(%d)..."
+#  endif
+				, pcs->dwThreadID
+				, pcs->dwLocks
+#  ifdef DEBUG_CRITICAL_SECTIONS
+				, (pcs->pFile[(pcs->nPrior + 15) % MAX_SECTION_LOG_QUEUE]) ? (pcs->pFile[(pcs->nPrior + 15) % MAX_SECTION_LOG_QUEUE]) : "Unknown", pcs->nLine[(pcs->nPrior + 15) % MAX_SECTION_LOG_QUEUE]
+#  endif
+				);
+		}
+#endif
+		DebugBreak();
+	}
+	pcs->dwUpdating = 0;
+	return FALSE;
+}
+#endif
+//--------------------------------------------------------------------------
+void DeleteCriticalSec( PCRITICALSECTION pcs )
+{
+	// ya I don't have anything to do here...
+	return;
+}
+#ifdef _WIN32
+HANDLE  GetWakeEvent( void )
+{
+#if !HAS_TLS
+	struct my_thread_info* _MyThreadInfo = GetThreadTLS();
+#endif
+	if( !MyThreadInfo.pThread ) MakeThread();
+	return MyThreadInfo.pThread->thread_event->hEvent;
+}
+#endif
+void OnThreadCreate( void (*f)(void) ) {
+#ifndef __STATIC_GLOBALS__
+	if( !global_timer_structure )
+		SimpleRegisterAndCreateGlobal( global_timer_structure );
+#endif
+	AddLink( &globalTimerData.onThreadCreate, f );
+}
+#undef GetThreadTLS
+#undef MyThreadInfo
+#ifdef __cplusplus
+//	namespace timers {
+}
+//namespace sack {
+}
+#endif
+//--------------------------------------------------------------------------
+#undef globalTimerData
+// $Log: timers.c,v $
+// Revision 1.140  2005/06/22 23:13:51  jim
+// Differentiate the normal logging of 'entered, left section' but leave in notable exception case logging when enabling critical section debugging.
+//
+// Revision 1.108  2005/01/23 11:28:24  panther
+// Thread ID modification broke timer...
+//
+// 400 lines of logging removed... version 1.109?
 #ifdef _WIN64
 #ifndef __64__
 #define __64__
