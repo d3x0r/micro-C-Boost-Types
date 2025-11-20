@@ -5367,6 +5367,20 @@ SYSTEM_PROC(void, SACKSystemSetWorkingPath)( CTEXTSTR name );
 // Set the path of this library.
 SYSTEM_PROC(void, SACKSystemSetLibraryPath)( CTEXTSTR name );
 #endif
+/*
+* Creates a process-identified exit event which can be signaled to terminate the process.
+*/
+SYSTEM_PROC( void, EnableExitEvent )( void );
+/*
+  Add callback which is called when the exit event is executed.
+  The callback can return non-zero to prevent the task from exiting; but the event is no
+  longer valid, and cannot be triggered again.
+*/
+SYSTEM_PROC( void, AddKillSignalCallback )( int( *cb )( uintptr_t ), uintptr_t );
+/*
+  Remove a callback which was added to event callback list.
+*/
+SYSTEM_PROC( void, RemoveKillSignalCallback )( int( *cb )( uintptr_t ), uintptr_t );
 #if _WIN32
 /*
   moves the window of the task; if there is a main window for the task within the timeout perioud.
@@ -5396,20 +5410,6 @@ SYSTEM_PROC( void, MoveTaskWindowToDisplay )( PTASK_INFO task, int timeout, int 
   1+ is the first monitor and subsequent monitors
 */
 SYSTEM_PROC( void, MoveTaskWindowToMonitor )( PTASK_INFO task, int timeout, int display, void cb( uintptr_t, LOGICAL ), uintptr_t psv );
-/*
-* Creates a process-identified exit event which can be signaled to terminate the process.
-*/
-SYSTEM_PROC( void, EnableExitEvent )( void );
-/*
-  Add callback which is called when the exit event is executed.
-  The callback can return non-zero to prevent the task from exiting; but the event is no
-  longer valid, and cannot be triggered again.
-*/
-SYSTEM_PROC( void, AddKillSignalCallback )( int( *cb )( uintptr_t ), uintptr_t );
-/*
-  Remove a callback which was added to event callback list.
-*/
-SYSTEM_PROC( void, RemoveKillSignalCallback )( int( *cb )( uintptr_t ), uintptr_t );
 /*
   Refresh internal window handle for task; uses internal handle as cached value for performance.
 */
@@ -28981,6 +28981,7 @@ typedef struct space_pool_structure {
 #ifdef _WIN32
 //(0x10000 * 0x1000) //256 megs?
 #define FILE_GRAN g.si.dwAllocationGranularity
+//static SYSTEM_INFO const zero_si = {{{0}}}; /* C++ is complicating how to inizialize this, {} used to work, now {0} is wanted, which then wants {{{0}}}... */
 #else
 #define FILE_GRAN g.pagesize
 #endif
@@ -29032,7 +29033,7 @@ static struct global_memory_tag global_memory_data = { 0x10000 * 0x08
 																	  , 0
 																	  , NULL
 #ifdef _WIN32
-																	  , {}
+																	  , {{{0}}}
 #endif
 																	  , 0
 																	  , 0
@@ -29057,7 +29058,7 @@ struct global_memory_tag global_memory_data = { 0x10000 * 0x08, 0, 0
 																	  , 0
 																	  , NULL
 #ifdef _WIN32
-																	  , {}
+																	  , {{{0}}}
 #endif
 																	  , 0
 																	  , 0
@@ -29080,7 +29081,7 @@ struct global_memory_tag global_memory_data = { 0x10000 * 0x08, 1, 1
 																	  , 0
 																	  , NULL
 #ifdef _WIN32
-																	  , {}
+																	  , {{{0}}}
 #endif
 																	  , 0
 																	  , 0
